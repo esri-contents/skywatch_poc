@@ -106,6 +106,7 @@ def run_change_detection(
     vec_dir = out_dir / "vectors"
     vec_dir.mkdir(parents=True, exist_ok=True)
     change_polygons.to_file(vec_dir / "change_polygons.gpkg", driver="GPKG", layer="change_polygons")
+    change_polygons.to_crs("EPSG:4326").to_file(vec_dir / "change_polygons.geojson", driver="GeoJSON")
 
     buildings = gpd.read_file(building_path)
 
@@ -145,7 +146,10 @@ def run_change_detection(
     )
 
     scored.to_file(vec_dir / "building_change_results.gpkg", driver="GPKG", layer="building_change_results")
-    scored.to_file(vec_dir / "building_change_results.geojson", driver="GeoJSON")
+    # GeoJSON(RFC 7946)은 WGS84(EPSG:4326) 좌표를 요구한다. 분석 CRS(EPSG:5186,
+    # 미터 단위) 그대로 저장하면 "crs" 멤버를 무시하는 도구(ArcGIS Online의
+    # 일부 업로드 경로 포함)에서 좌표가 완전히 엉뚱한 위치로 표시된다.
+    scored.to_crs("EPSG:4326").to_file(vec_dir / "building_change_results.geojson", driver="GeoJSON")
 
     report_dir = out_dir / "reports"
     report_dir.mkdir(parents=True, exist_ok=True)

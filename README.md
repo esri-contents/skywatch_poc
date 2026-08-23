@@ -121,15 +121,27 @@ python -m src.pipeline \
   --aoi data/aoi/changneung_test_aoi.gpkg
 ```
 
-**현재까지 실제로 검증된 것** (STEP 1~7 일부):
-- AOI 확보 (`src/data/build_aoi.py`)
-- Sentinel-2 T1(2022-05-17)/T2(2024-05-31) 다운로드 (`src/data/download_satellite.py`)
-- 건물 footprint 확보 (`src/data/download.py`, `src/data/build_buildings.py`)
-- Data Inventory (`src/data/validate.py`)
-- T1 Raster 전처리: 재투영+AOI clip+밴드 스택 (`src/preprocessing/raster_preprocess.py`)
-  → `data/processed/imagery/2022_stack.tif` (EPSG:5186, 10m, B02/B03/B04/B08)
+**현재까지 실제 데이터로 end-to-end 실행 완료** (STEP 1~14):
+- AOI, Sentinel-2 T1/T2, 건물 footprint 확보 (위 데이터 표 참고)
+- T1/T2 Raster 전처리: 재투영+AOI clip+밴드 스택, 두 시기 grid 완전 일치 확인
+- Baseline Change Detection (pixel diff + SSIM + edge/texture 앙상블) →
+  후처리(형태학적 연산+최소면적) → Polygon화 → 건물 Overlay → 규칙기반 분류
+  → Priority Scoring → GPKG/GeoJSON/CSV export
 
-전체 `src/pipeline.py` CLI 통합과 STEP 8(정합 검증) 이후는 아직 미구현이다.
+**실행 결과 (2022-05-17 vs 2024-05-31, AOI 10.99km²)**:
+
+```text
+전체 건물 2,737개 -> Change Polygon 33개 -> 건물 연계 변화 57개
+-> 최종 변화 후보 76개 (NEW_BUILDING 32 / EXPANSION_OR_RECONSTRUCTION 25 /
+   OTHER_CHANGE 16 / DEMOLITION 3)
+-> HIGH 35 / MEDIUM 40 / LOW 1
+```
+
+자세한 내용과 한계는 [`outputs/reports/poc_summary.md`](outputs/reports/poc_summary.md),
+SkyWatch 확장 근거는 [`outputs/reports/skywatch_requirements.md`](outputs/reports/skywatch_requirements.md) 참고.
+
+STEP 8(정합 오차 정량화), 행정정보 Validation(건축물대장 미확보로 보류),
+Human Validation Sample, ArcGIS 발행 스크립트는 아직 미구현이다.
 
 ## Outputs
 
@@ -154,6 +166,15 @@ outputs/maps/*.png
   확인되었다. `download_vworld_wfs_layer`는 이를 bbox 4분할 재귀로
   우회하지만, 매우 밀집된 지역에서는 재귀 깊이가 늘어나 호출 수가
   증가할 수 있다.
+- **Sentinel-2 10m 해상도가 실제로 병목임을 실측 확인**: 실행 결과 change
+  polygon 평균 면적이 7,351m²로, 개별 단독주택 단위 변화는 잡히지 않는다
+  (`outputs/reports/skywatch_requirements.md` 참고). 후처리 최소면적
+  threshold 10/25/50m²는 1픽셀(100m²)보다 작아 현재 해상도에서는 사실상
+  무의미하다.
+- Microsoft Planetary Computer의 서명된 다운로드 URL(SAS 토큰)은 약
+  1시간 후 만료된다. `download_sentinel2_bands`는 밴드마다 재서명하고
+  이미 받은 파일은 건너뛰도록 수정해 긴 다운로드 도중 끊겨도 이어받기
+  가능하다.
 - 국토지리정보원 고해상 정사영상은 로그인 + 전용 GUI 프로그램 전용으로
   확인되어 스크립트 자동화가 불가능하다 (`src/data/download.py`의
   `download_imagery`는 명시적으로 `NotImplementedError`를 발생시킨다).

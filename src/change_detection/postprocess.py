@@ -8,7 +8,7 @@ import geopandas as gpd
 import numpy as np
 from rasterio.features import shapes
 from shapely.geometry import shape
-from skimage.morphology import binary_closing, binary_opening, remove_small_objects, square
+from skimage.morphology import closing, footprint_rectangle, opening, remove_small_objects
 
 logger = logging.getLogger("postprocess")
 
@@ -33,8 +33,8 @@ def clean_mask(
         정리된 (H, W) 0/1 이진 마스크.
     """
     m = mask.astype(bool)
-    m = binary_opening(m, square(opening_kernel))
-    m = binary_closing(m, square(closing_kernel))
+    m = opening(m, footprint_rectangle((opening_kernel, opening_kernel)))
+    m = closing(m, footprint_rectangle((closing_kernel, closing_kernel)))
 
     min_pixels = max(1, int(round(min_component_area_m2 / pixel_area_m2)))
     m = remove_small_objects(m, min_size=min_pixels)

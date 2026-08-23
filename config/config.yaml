@@ -32,8 +32,9 @@ crs:
     EPSG:5186 (Korea 2000 / Central Belt 2010, 중부원점, 중앙자오선 127E)을 선택.
     창릉 AOI 경도범위(126.87~126.91E)가 중부원점 적용범위(125.5~128.5E)에 들어가며,
     국내 서울/경기 지역 공공 GIS 데이터에서 가장 널리 쓰이는 표준 투영좌표계이기 때문.
-    Sentinel-2 등 위성영상(UTM, EPSG:326xx)이나 NGII 정사영상의 원본 CRS는 확보 후
-    별도로 확인해 이 좌표계로 재투영한다.
+    Sentinel-2 실측 확인: EPSG:32652 (WGS 84 / UTM zone 52N), 10m, uint16, nodata=0.
+    Raster Preprocessing 단계에서 EPSG:5186으로 재투영한다. NGII 정사영상은
+    확보 후 별도로 원본 CRS를 확인한다.
 
 alignment:
   method: "ECC"              # ORB | SIFT | ECC | phase_correlation 중 실험 후 결정

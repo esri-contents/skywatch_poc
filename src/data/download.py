@@ -7,8 +7,12 @@
   https://www.data.go.kr/data/15123970/openapi.do - 아직 실제 호출 검증 안 됨
   (NO_OPENAPI_SERVICE_ERROR, 활용신청 상태 확인 필요).
 - 공공데이터포털(data.go.kr) 국토교통부_건축HUB_건축물대장정보 서비스
-  https://www.data.go.kr/data/15134735/openapi.do - 아직 실제 호출 검증 안 됨
-  (상동).
+  https://www.data.go.kr/data/15134735/openapi.do - 정확한 엔드포인트 확인됨:
+  https://apis.data.go.kr/1613000/BldRgstHubService/getBrBasisOulnInfo
+  (raw HTML에서 확인, blog 등에서 흔히 보이는 1611000/BldRgstService는
+  구버전으로 추정). 단, 이 키는 아직 해당 서비스에 활용신청이 승인되지
+  않음 - 실제 호출 시 SERVICE_KEY_IS_NOT_REGISTERED_ERROR(reasonCode 30)
+  반환 확인. data.go.kr 마이페이지에서 15134735 활용신청 후 재시도 필요.
 
 정사영상(항공사진)은 국토지리정보원 국토정보플랫폼(map.ngii.go.kr)에서
 로그인 후 전용 대용량 파일전송 프로그램(GUI)으로만 다운로드 가능함을
@@ -145,6 +149,39 @@ def download_vworld_wfs_layer(
         json.dump(result, f, ensure_ascii=False)
     logger.info("[DATA] 저장 완료: %s (%d개 feature, 중복제거 후)", out_path, len(all_features))
     return out_path
+
+
+BLD_RGST_HUB_BASE_URL = "https://apis.data.go.kr/1613000/BldRgstHubService"
+# raw HTML에서 확인된 정확한 엔드포인트. 활용신청 승인 전까지는
+# SERVICE_KEY_IS_NOT_REGISTERED_ERROR(reasonCode 30)가 반환된다.
+
+
+def download_building_register(
+    sigungu_cd: str,
+    bjdong_cd: str,
+    out_path: str | Path,
+    operation: str = "getBrBasisOulnInfo",
+    num_of_rows: int = 100,
+) -> Path:
+    """건축HUB 건축물대장정보 서비스 호출 (법정동 단위 기본개요 조회).
+
+    data.go.kr에서 15134735 서비스 활용신청이 승인된 이후에만 정상 동작한다.
+
+    Args:
+        sigungu_cd: 시군구코드 5자리 (예: 고양시덕양구="41281").
+        bjdong_cd: 법정동코드 5자리 (예: 원흥동="10400").
+        out_path: 저장 경로.
+        operation: 오퍼레이션명 (기본: 기본개요 조회).
+        num_of_rows: 페이지당 결과 수.
+
+    Returns:
+        저장된 파일 경로.
+    """
+    return download_data_go_kr(
+        BLD_RGST_HUB_BASE_URL, operation,
+        {"sigunguCd": sigungu_cd, "bjdongCd": bjdong_cd, "numOfRows": num_of_rows, "pageNo": 1, "_type": "json"},
+        out_path,
+    )
 
 
 def download_data_go_kr(

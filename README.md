@@ -53,7 +53,13 @@ OTHER_CHANGE
 | 2022/2024년 고양 창릉 정사영상 (T1/T2, 고해상 병행 트랙) | 건물 단위 정밀 탐지용 (Sentinel-2 10m로는 개별주택 신축 탐지 어려움) | [국토지리정보원 국토정보플랫폼](http://map.ngii.go.kr/ms/map/NlipMap.do?tabGb=total) | **수동**: 회원가입/로그인 후 통합검색 → 정사영상 선택 → 전용 대용량 파일전송 프로그램으로 다운로드. GUI 전용이라 자동화 불가 확인됨 (TIFF, 도시지역 12cm/일반지역 25cm, 2010년 이후 촬영분만 제공) | **미확보 (선택적, 병행 진행)** |
 | 건물통합정보 (건물 footprint + 속성) | 건물 단위 Overlay/분류 | [국토교통부_GIS건물통합정보(WMS/WFS)](https://www.data.go.kr/data/15123970/openapi.do) (공공데이터포털) | **자동 가능**: data.go.kr 활용신청 후 인증키로 WFS 호출 (`src/data/download.py::download_vworld_wfs_layer` 를 이 서비스 엔드포인트로 교체 필요 - 정확한 typename은 활용가이드 확인 후 반영) | **미확보 (Key 필요)** |
 | 건축물대장 / 인허가 정보 (표제부, 사용승인일, 주용도, 연면적 등) | 행정정보 Validation | [국토교통부_건축HUB_건축물대장정보 서비스](https://www.data.go.kr/data/15134735/openapi.do) (공공데이터포털) | **자동 가능**: data.go.kr 활용신청 후 동일 인증키(`DATA_GO_KR_API_KEY`)로 REST 호출 (`src/data/download.py::download_data_go_kr`) | **미확보 (Key 필요)** |
-| 고양 창릉 사업지구/지구단위계획 경계 | AOI 정의 | 1순위: [국토교통부 고시 제2021-1285호 등 지형도면고시 첨부 "지위도면" PDF](http://www.eum.go.kr/web/gs/gv/gvGosiDet.jsp?seq=517617) (실측 좌표표 포함 가능) 2순위: [토지이음 지구단위계획구역 SHP(전국)](https://www.eum.go.kr/web/op/sv/svItemDet.jsp?dataCd=005&dataTypeCd=SHP) | 두 경로 모두 세션/JS 기반 다운로드라 자동화 불안정 → 사용자가 PDF/SHP를 직접 받아 전달하면 좌표를 추출/변환. **임의 추정(가늠) 좌표는 절대 사용하지 않음** | **미확보** |
+| 고양 창릉 AOI (행정동 경계 기반 근사치) | AOI 정의 | [vuski/admdongkor](https://github.com/vuski/admdongkor) (통계청 SGIS 행정동 경계 기반 오픈데이터, ver20240701) | **자동 완료**: `src/data/build_aoi.py` — 경기도 고양시덕양구 창릉동(행정동) 단독 사용. 면적 10.99km²로 공식 사업면적(8.12km²)과 같은 자릿수 → 창릉지구가 창릉동 안에 포함된다는 정황과 일치 | **확보 완료** (`data/aoi/changneung_test_aoi.gpkg`) |
+
+**AOI 관련 주의**: 이는 사용자 요청("창릉지구가 소속된 행정동 다 포함")에 따라 행정동 경계를
+근사 AOI로 사용한 것이며, 정식 지구계(지형도면고시)보다 넓은 근사치다. 정식 지구계는 여전히
+[국토교통부 고시 제2021-1285호 등](http://www.eum.go.kr/web/gs/gv/gvGosiDet.jsp?seq=517617)의
+"지위도면" PDF에서 확보 가능하며, 확보 시 이 AOI를 교체한다. **임의로 눈대중 좌표를 만든 적은 없다** —
+행정동 폴리곤은 통계청 SGIS 기반 실제 좌표다.
 
 자세한 데이터 확보 요청은 [`outputs/reports/data_inventory.csv`](outputs/reports/data_inventory.csv) 및
 대화 내 데이터 요청 항목을 참고한다. **실제 데이터가 로컬에 준비되기 전까지
@@ -133,9 +139,9 @@ outputs/maps/*.png
   토지조성 등 큰 변화 위주로 우선 검증하고, 건물 단위 정밀 탐지는
   NGII 고해상 영상(병행 확보 중) 또는 향후 SkyWatch 상용 영상으로
   보완한다. 이 한계는 SkyWatch Benchmark 근거 자료로 활용한다.
-- `config/config.yaml`의 `satellite.search_bbox_wgs84`는 고양시청 중심
-  좌표 기준 대략적인 "장면 검색용" 범위이며 실제 분석 AOI가 아니다.
-  Change Detection/Clip 단계에서는 반드시 정식 창릉 지구경계를 사용한다.
+- `config/config.yaml`의 `satellite.search_bbox_wgs84`는 이제 실제 AOI
+  (`data/aoi/changneung_test_aoi.gpkg`)를 버퍼한 "장면 검색용" 범위다.
+  최종 Clip/분석에는 이 bbox가 아니라 AOI 폴리곤 자체를 사용해야 한다.
 - 좌표계(EPSG) 및 정합 오차 허용치는 원본 데이터를 확인한 뒤 근거를
   기록하여 확정한다 (`config/config.yaml` 참고, 현재 TBD).
 

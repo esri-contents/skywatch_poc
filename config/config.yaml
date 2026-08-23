@@ -16,20 +16,24 @@ satellite:
   max_cloud_cover_pct: 20
   t1_date_range: "2022-01-01/2022-12-31"
   t2_date_range: "2024-01-01/2024-12-31"
-  # 장면 "검색"용 대략 범위 (고양시청 중심 좌표 기준 +-0.08도 버퍼). 실제 분석 AOI가
-  # 아니며, 정식 창릉 지구경계 확보 후 clip 단계에서는 그 경계를 사용한다.
-  search_bbox_wgs84: [126.7520201, 37.5783599, 126.9120201, 37.7383599]
+  # 장면 "검색"용 범위: 실제 AOI(창릉동 행정동, data/aoi/changneung_test_aoi.gpkg)
+  # 경계를 +-0.02도(~2km) 버퍼한 값. 최종 clip은 반드시 AOI 폴리곤 자체로 수행한다.
+  search_bbox_wgs84: [126.8525653, 37.5904702, 126.9324672, 37.6714563]
   known_limitation: >
     10m 해상도로 개별 단독주택 단위 신축/증축 탐지는 어려움. 대형 아파트단지/
     대규모 토지조성 등 큰 변화 위주로 검증 후 SkyWatch Benchmark에서
     고해상 상용영상과 비교한다.
 
 crs:
-  # 원본 영상/벡터 CRS 확인 전에는 임의로 결정하지 않는다.
-  # 확인 후 EPSG:5186 (서부원점) vs EPSG:5179 (UTM-K) 등 중 선택 근거를 기록.
-  source_crs: null          # TBD - 원본 데이터 확인 후 기입
-  analysis_crs: null        # TBD - 선택 근거는 README/보고서에 기록
-  decision_note: "TBD - 원본 좌표계 확인 전까지 미결정"
+  # AOI(행정동 경계)는 EPSG:4326(WGS84)으로 배포됨 -> 분석은 투영좌표계로 통일.
+  source_crs: "EPSG:4326"
+  analysis_crs: "EPSG:5186"
+  decision_note: >
+    EPSG:5186 (Korea 2000 / Central Belt 2010, 중부원점, 중앙자오선 127E)을 선택.
+    창릉 AOI 경도범위(126.87~126.91E)가 중부원점 적용범위(125.5~128.5E)에 들어가며,
+    국내 서울/경기 지역 공공 GIS 데이터에서 가장 널리 쓰이는 표준 투영좌표계이기 때문.
+    Sentinel-2 등 위성영상(UTM, EPSG:326xx)이나 NGII 정사영상의 원본 CRS는 확보 후
+    별도로 확인해 이 좌표계로 재투영한다.
 
 alignment:
   method: "ECC"              # ORB | SIFT | ECC | phase_correlation 중 실험 후 결정

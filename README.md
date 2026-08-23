@@ -49,10 +49,10 @@ OTHER_CHANGE
 
 | 데이터 | 필요 이유 | 공식 출처(확인됨) | 확보 방법 | 상태 |
 |---|---|---|---|---|
-| 2022/2024년 Sentinel-2 위성영상 (T1/T2, 1차 자동화 소스) | Change Detection 입력 (자동화 Baseline) | [Microsoft Planetary Computer STAC](https://planetarycomputer.microsoft.com/api/stac/v1) (Sentinel-2 L2A) | **자동 완료 확인**: `src/data/download_satellite.py`, API Key 불필요. 검색 테스트 결과 2022년 71건/2024년 47건 확인 (10m, B02/B03/B04/B08) | **자동 검증됨 (다운로드 실행 전)** |
+| 2022/2024년 Sentinel-2 위성영상 (T1/T2, 1차 자동화 소스) | Change Detection 입력 (자동화 Baseline) | [Microsoft Planetary Computer STAC](https://planetarycomputer.microsoft.com/api/stac/v1) (Sentinel-2 L2A) | **자동 완료**: `src/data/download_satellite.py`, API Key 불필요. T1=2022-05-17(구름 0.01%), T2=2024-05-31(구름 2.1%, 계절 일치) 선택해 B02/B03/B04 실제 다운로드 진행/완료 | **확보 진행/완료** (`data/raw/imagery/2022`, `2024`) |
 | 2022/2024년 고양 창릉 정사영상 (T1/T2, 고해상 병행 트랙) | 건물 단위 정밀 탐지용 (Sentinel-2 10m로는 개별주택 신축 탐지 어려움) | [국토지리정보원 국토정보플랫폼](http://map.ngii.go.kr/ms/map/NlipMap.do?tabGb=total) | **수동**: 회원가입/로그인 후 통합검색 → 정사영상 선택 → 전용 대용량 파일전송 프로그램으로 다운로드. GUI 전용이라 자동화 불가 확인됨 (TIFF, 도시지역 12cm/일반지역 25cm, 2010년 이후 촬영분만 제공) | **미확보 (선택적, 병행 진행)** |
-| 건물통합정보 (건물 footprint + 속성) | 건물 단위 Overlay/분류 | [국토교통부_GIS건물통합정보(WMS/WFS)](https://www.data.go.kr/data/15123970/openapi.do) (공공데이터포털) | **자동 가능**: data.go.kr 활용신청 후 인증키로 WFS 호출 (`src/data/download.py::download_vworld_wfs_layer` 를 이 서비스 엔드포인트로 교체 필요 - 정확한 typename은 활용가이드 확인 후 반영) | **미확보 (Key 필요)** |
-| 건축물대장 / 인허가 정보 (표제부, 사용승인일, 주용도, 연면적 등) | 행정정보 Validation | [국토교통부_건축HUB_건축물대장정보 서비스](https://www.data.go.kr/data/15134735/openapi.do) (공공데이터포털) | **자동 가능**: data.go.kr 활용신청 후 동일 인증키(`DATA_GO_KR_API_KEY`)로 REST 호출 (`src/data/download.py::download_data_go_kr`) | **미확보 (Key 필요)** |
+| 건물 footprint (도로명주소건물) | 건물 단위 Overlay/분류 | [VWorld WFS `lt_c_spbd`](https://www.vworld.kr/) (도로명주소건물, GetCapabilities로 확인) | **자동 완료**: `src/data/download.py::download_vworld_wfs_layer` (bbox 4분할 재귀 페이징으로 STARTINDEX 상한 1000 우회) + `src/data/build_buildings.py`로 AOI clip. AOI 내 2,737개 건물 확보. 속성: 층수(지상/지하), PNU, 도로명주소 등 — **연면적/사용승인일/주용도 등 상세 건축물대장 속성은 없음** | **확보 완료** (`data/processed/buildings/changneung_buildings_clipped.gpkg`) |
+| 건축물대장 / 인허가 정보 (사용승인일, 주용도, 연면적 등) | 행정정보 Validation, 신축/증축 판별 근거 | [국토교통부_건축HUB_건축물대장정보 서비스](https://www.data.go.kr/data/15134735/openapi.do) (공공데이터포털) | **미검증**: `apis.data.go.kr/1611000/BldRgstService*` 등 여러 후보 엔드포인트 실제 호출 결과 모두 `NO_OPENAPI_SERVICE_ERROR` (returnReasonCode 12). data.go.kr 마이페이지에서 15134735 활용신청 승인 상태 및 정확한 End Point 확인 필요 | **미확보 (엔드포인트/승인 확인 필요)** |
 | 고양 창릉 AOI (행정동 경계 기반 근사치) | AOI 정의 | [vuski/admdongkor](https://github.com/vuski/admdongkor) (통계청 SGIS 행정동 경계 기반 오픈데이터, ver20240701) | **자동 완료**: `src/data/build_aoi.py` — 경기도 고양시덕양구 창릉동(행정동) 단독 사용. 면적 10.99km²로 공식 사업면적(8.12km²)과 같은 자릿수 → 창릉지구가 창릉동 안에 포함된다는 정황과 일치 | **확보 완료** (`data/aoi/changneung_test_aoi.gpkg`) |
 
 **AOI 관련 주의**: 이는 사용자 요청("창릉지구가 소속된 행정동 다 포함")에 따라 행정동 경계를
@@ -129,8 +129,13 @@ outputs/maps/*.png
 
 ## Known Limitations
 
-- 현재 건물통합정보, 건축물대장, AOI 경계 데이터가 로컬에 없어 Phase 1
-  (데이터 검증) 이전 단계다. Sentinel-2 영상은 자동 검색까지 검증됨.
+- 건축물대장(연면적/사용승인일/주용도 등 상세 행정 속성)은 아직 미확보.
+  VWorld 건물 레이어(`lt_c_spbd`)에는 이 속성이 없어 별도 API로 PNU 기준
+  보강이 필요하다 (data.go.kr 15134735, 엔드포인트/승인 확인 대기 중).
+- VWorld WFS는 쿼리당 STARTINDEX 상한이 1000(최대 2000건/bbox)으로 실측
+  확인되었다. `download_vworld_wfs_layer`는 이를 bbox 4분할 재귀로
+  우회하지만, 매우 밀집된 지역에서는 재귀 깊이가 늘어나 호출 수가
+  증가할 수 있다.
 - 국토지리정보원 고해상 정사영상은 로그인 + 전용 GUI 프로그램 전용으로
   확인되어 스크립트 자동화가 불가능하다 (`src/data/download.py`의
   `download_imagery`는 명시적으로 `NotImplementedError`를 발생시킨다).

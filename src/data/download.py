@@ -184,6 +184,61 @@ def download_building_register(
     )
 
 
+def fetch_building_title_info(
+    sigungu_cd: str,
+    bjdong_cd: str,
+    page_size: int = 500,
+) -> list[dict[str, Any]]:
+    """getBrTitleInfo(표제부 - 연면적/사용승인일/주용도 등)를 법정동 전체 페이징 조회.
+
+    각 결과 item에 sigunguCd+bjdongCd+platGbCd+bun+ji로 PNU(19자리)를
+    재구성해 붙여, VWorld 건물 layer의 'pnu' 컬럼과 바로 join할 수 있게 한다.
+
+    Args:
+        sigungu_cd: 시군구코드 5자리.
+        bjdong_cd: 법정동코드 5자리.
+        page_size: 페이지당 결과 수.
+
+    Returns:
+        item(dict) 리스트. 각 item에 "pnu" 키가 추가되어 있다.
+    """
+    key = _require_key(DATA_GO_KR_API_KEY, "DATA_GO_KR_API_KEY")
+    url = f"{BLD_RGST_HUB_BASE_URL}/getBrTitleInfo"
+    all_items: list[dict[str, Any]] = []
+    page_no = 1
+    while True:
+        params = {
+            "sigunguCd": sigungu_cd, "bjdongCd": bjdong_cd,
+            "numOfRows": page_size, "pageNo": page_no,
+            "ServiceKey": key, "_type": "json",
+        }
+        resp = requests.get(url, params=params, timeout=30)
+        resp.raise_for_status()
+        body = resp.json()["response"]["body"]
+        total = int(body.get("totalCount", 0))
+        items = body.get("items") or {}
+        page_items = items.get("item", []) if isinstance(items, dict) else []
+        if isinstance(page_items, dict):
+            page_items = [page_items]
+
+        for it in page_items:
+            it["pnu"] = (
+                f"{it.get('sigunguCd','')}{it.get('bjdongCd','')}"
+                f"{it.get('platGbCd','0')}{it.get('bun','0').zfill(4)}{it.get('ji','0').zfill(4)}"
+            )
+        all_items.extend(page_items)
+
+        logger.info(
+            "[DATA] 건축물대장 표제부: bjdong=%s page=%d 누적=%d/%d",
+            bjdong_cd, page_no, len(all_items), total,
+        )
+        if len(all_items) >= total or not page_items:
+            break
+        page_no += 1
+
+    return all_items
+
+
 def download_data_go_kr(
     base_endpoint: str,
     operation: str,

@@ -11,7 +11,9 @@
 from __future__ import annotations
 
 import argparse
+import json
 import logging
+from datetime import date, datetime
 from pathlib import Path
 
 import geopandas as gpd
@@ -21,6 +23,7 @@ import yaml
 
 from .buildings.classify import classify_building_changes, classify_unmatched_changes
 from .buildings.overlay import overlay_buildings_with_changes
+from .buildings.validation import compute_administrative_uncertainty, join_building_register
 from .change_detection.baseline import run_baseline_change_detection
 from .change_detection.postprocess import clean_mask, polygonize_change
 from .scoring.priority import compute_priority_score
@@ -41,8 +44,9 @@ def run_change_detection(
     t1_date: str = "2022",
     t2_date: str = "2024",
     out_dir: str | Path = "outputs",
+    building_register_path: str | Path | None = None,
 ) -> gpd.GeoDataFrame:
-    """전체 Change Detection 파이프라인 실행 (STEP 9~14).
+    """전체 Change Detection 파이프라인 실행 (STEP 9~14, 건축물대장 있으면 STEP 13도).
 
     Args:
         t1_path: T1 스택 GeoTIFF (전처리 완료본).
@@ -50,9 +54,13 @@ def run_change_detection(
         aoi_path: AOI GeoPackage.
         building_path: AOI로 clip된 건물 footprint GeoPackage.
         config_path: 파라미터 설정 파일.
-        t1_date: T1 촬영일(ISO 문자열, 메타데이터 기록용).
+        t1_date: T1 촬영일(ISO 형식 "YYYY-MM-DD" 권장).
         t2_date: T2 촬영일.
         out_dir: 결과물 저장 루트 디렉터리.
+        building_register_path: download.fetch_building_title_info() 결과를
+            json.dump()한 파일 경로. 있으면 STEP 13(행정정보 Validation)을
+            실제로 수행해 administrative_uncertainty를 계산한다. 없으면
+            전 후보를 1.0(완전 불확실)로 둔다.
 
     Returns:
         building_change_results (change_type/priority_score 포함) GeoDataFrame.
@@ -99,8 +107,21 @@ def run_change_detection(
     vec_dir.mkdir(parents=True, exist_ok=True)
     change_polygons.to_file(vec_dir / "change_polygons.gpkg", driver="GPKG", layer="change_polygons")
 
-    logger.info("[BUILDING] Overlay + 분류")
     buildings = gpd.read_file(building_path)
+
+    if building_register_path and Path(building_register_path).exists():
+        logger.info("[VALIDATION] 건축물대장 조인 (STEP 13)")
+        with open(building_register_path, encoding="utf-8") as f:
+            register_items = json.load(f)
+        buildings = join_building_register(buildings, register_items)
+
+        t1_d = _parse_date(t1_date)
+        t2_d = _parse_date(t2_date)
+        buildings["administrative_uncertainty"] = buildings.apply(
+            lambda row: compute_administrative_uncertainty(row, t1_d, t2_d), axis=1
+        )
+
+    logger.info("[BUILDING] Overlay + 분류")
     buffer_m = cfg["classification"]["buffer_distances_m"][0]
     overlaid = overlay_buildings_with_changes(buildings, change_polygons, buffer_m=buffer_m)
 
@@ -135,6 +156,15 @@ def run_change_detection(
         len(scored), scored["inspection_priority"].value_counts().to_dict(),
     )
     return scored
+
+
+def _parse_date(s: str) -> date:
+    for fmt in ("%Y-%m-%d", "%Y%m%d", "%Y"):
+        try:
+            return datetime.strptime(s, fmt).date()
+        except ValueError:
+            continue
+    raise ValueError(f"[PIPELINE] 날짜 형식을 인식할 수 없습니다: {s}")
 
 
 def _parse_args() -> argparse.Namespace:

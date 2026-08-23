@@ -20,6 +20,7 @@ data/raw/**/*.prj
 data/raw/**/*.geojson
 data/raw/**/*.xml
 data/raw/**/*.zip
+data/raw/**/*.json
 data/interim/**/*
 data/processed/**/*
 !data/interim/.gitkeep

@@ -47,8 +47,12 @@ def compute_priority_score(
         out["change_ratio"] = 0.0
     out["change_ratio"] = out["change_ratio"].fillna(0.0).clip(0, 1)
 
-    # 건축물대장 미확보 상태 - 모든 후보를 "행정적으로 미설명"으로 취급 (README 참고)
-    out["administrative_uncertainty"] = 1.0
+    # buildings/validation.py에서 미리 계산된 값이 있으면 그대로 사용하고,
+    # 없으면(건축물대장 미확보/미매칭) "행정적으로 완전 미설명"으로 취급한다.
+    if "administrative_uncertainty" not in out.columns:
+        out["administrative_uncertainty"] = 1.0
+    else:
+        out["administrative_uncertainty"] = out["administrative_uncertainty"].fillna(1.0)
 
     out["building_relevance"] = out["change_type"].apply(
         lambda t: 1.0 if t in ("NEW_BUILDING", "EXPANSION_OR_RECONSTRUCTION", "DEMOLITION") else 0.3

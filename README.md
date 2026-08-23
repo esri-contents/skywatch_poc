@@ -132,11 +132,16 @@ python -m src.pipeline \
 
 ```text
 전체 건물 2,737개 -> Change Polygon 33개 -> 건물 연계 변화 57개
--> 건축물대장 매칭 64.7%(1,771건), 그중 1건은 사용승인일이 T1~T2 사이로 "설명됨"
--> 최종 변화 후보 76개 (NEW_BUILDING 32 / EXPANSION_OR_RECONSTRUCTION 25 /
+-> 건축물대장 매칭 67.7%(1,854건, PNU 1,771 + 도로명주소 보강 83)
+   그중 1건은 사용승인일이 T1~T2 사이로 "설명됨"(신축 확정)
+-> 최종 변화 후보 76개 (NEW_BUILDING 20 / EXPANSION_OR_RECONSTRUCTION 37 /
    OTHER_CHANGE 16 / DEMOLITION 3)
 -> HIGH 32 / MEDIUM 43 / LOW 1
 ```
+
+건축물대장이 매칭된 건물은 change_ratio 휴리스틱 대신 실제 사용승인일로
+신축/기존 여부를 확정한다 (`src/buildings/classify.py`). 자세한 내용은
+[`outputs/reports/poc_summary.md`](outputs/reports/poc_summary.md) 참고.
 
 자세한 내용과 한계는 [`outputs/reports/poc_summary.md`](outputs/reports/poc_summary.md),
 SkyWatch 확장 근거는 [`outputs/reports/skywatch_requirements.md`](outputs/reports/skywatch_requirements.md) 참고.

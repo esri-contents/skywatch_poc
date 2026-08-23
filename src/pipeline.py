@@ -127,6 +127,7 @@ def run_change_detection(
 
     classified = classify_building_changes(
         overlaid, new_building_ratio_min=cfg["classification"]["change_ratio_new_building_min"],
+        t1_date=_parse_date(t1_date), t2_date=_parse_date(t2_date),
     )
     building_results = classified[classified["change_type"].notna()].copy()
 

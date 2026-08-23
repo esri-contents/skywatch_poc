@@ -1,16 +1,17 @@
 """건축물 변화유형 규칙기반 분류.
 
-중요한 데이터 한계: 현재 건물 footprint(VWorld)는 "현재 시점" 단일 스냅샷이며
-T1(2022) 시점의 건물 상태를 별도로 갖고 있지 않다. 따라서 NEW_BUILDING과
-EXPANSION_OR_RECONSTRUCTION은 change_ratio 크기로 근사 구분하는 휴리스틱이며,
-확정적 판정이 아니다. 건축물대장의 사용승인일을 확보하면 (아직 미확보,
-README 참고) 사용승인일이 T1~T2 사이인지로 훨씬 정확하게 구분할 수 있다.
-이 분류기는 "현장확인이 필요한 후보"를 줄이기 위한 것이지 최종 판정이 아니다.
+건축물대장 사용승인일(useAprDay)이 있는 건물은 그것을 1차 근거로 사용한다
+(사용승인일이 T1~T2 사이면 확정적으로 NEW_BUILDING, 그 밖이면 기존 건물이므로
+EXPANSION_OR_RECONSTRUCTION). 사용승인일을 못 구한 건물(현재 PNU 매칭
+64.7%, validation.py 참고)만 change_ratio 크기 기반 휴리스틱으로
+근사 판정한다. 즉 이 분류기의 신뢰도는 건물마다 다르며, classification_note에
+어떤 근거로 판정했는지 항상 기록한다.
 """
 
 from __future__ import annotations
 
 import logging
+from datetime import date, datetime
 
 import geopandas as gpd
 
@@ -22,10 +23,21 @@ EXPANSION_OR_RECONSTRUCTION = "EXPANSION_OR_RECONSTRUCTION"
 OTHER_CHANGE = "OTHER_CHANGE"
 
 
+def _parse_yyyymmdd(s) -> date | None:
+    if not s or not isinstance(s, str) or len(s) != 8:
+        return None
+    try:
+        return datetime.strptime(s, "%Y%m%d").date()
+    except ValueError:
+        return None
+
+
 def classify_building_changes(
     overlaid: gpd.GeoDataFrame,
     new_building_ratio_min: float = 0.5,
     demolition_score_min: float = 0.6,
+    t1_date: date | None = None,
+    t2_date: date | None = None,
 ) -> gpd.GeoDataFrame:
     """change_ratio/near_change/max_change_score 기반 규칙 분류.
 
@@ -55,12 +67,15 @@ def classify_building_changes(
         change_type, classification_note 컬럼이 추가된 GeoDataFrame.
     """
     out = overlaid.copy()
+    has_register = "has_register_match" in out.columns
     change_types = []
     notes = []
 
     for _, row in out.iterrows():
         ratio = row["change_ratio"]
         near = row["near_change"]
+        use_apr = _parse_yyyymmdd(row.get("useAprDay")) if has_register else None
+        matched = bool(row.get("has_register_match")) if has_register else False
 
         if ratio == 0 and near:
             change_types.append(OTHER_CHANGE)
@@ -68,15 +83,26 @@ def classify_building_changes(
         elif ratio == 0:
             change_types.append(None)
             notes.append("건물과 무관 (change_ratio=0)")
+        elif matched and use_apr is not None and t1_date and t2_date and t1_date <= use_apr <= t2_date:
+            change_types.append(NEW_BUILDING)
+            notes.append(f"사용승인일={use_apr.isoformat()}이 T1~T2 사이 - 신축 확정(건축물대장 근거)")
+        elif matched and use_apr is not None:
+            change_types.append(EXPANSION_OR_RECONSTRUCTION)
+            notes.append(
+                f"사용승인일={use_apr.isoformat()}로 T1 이전부터 존재 - 증축/개축 확정(건축물대장 근거)"
+            )
         elif ratio >= new_building_ratio_min:
             change_types.append(NEW_BUILDING)
             notes.append(
                 f"change_ratio={ratio:.2f} >= {new_building_ratio_min} - 신축 추정 "
-                "(건축물대장 사용승인일 확보 전까지는 근사 판정)"
+                "(건축물대장 미매칭, change_ratio 휴리스틱)"
             )
         else:
             change_types.append(EXPANSION_OR_RECONSTRUCTION)
-            notes.append(f"change_ratio={ratio:.2f} - 부분 변화, 증축/개축 추정")
+            notes.append(
+                f"change_ratio={ratio:.2f} - 부분 변화, 증축/개축 추정 "
+                "(건축물대장 미매칭, change_ratio 휴리스틱)"
+            )
 
     out["change_type"] = change_types
     out["classification_note"] = notes

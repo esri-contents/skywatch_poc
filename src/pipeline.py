@@ -1,9 +1,11 @@
 """Goyang Changneung Building Change Intelligence PoC - 전체 파이프라인 진입점.
 
-현재는 실제 데이터(정사영상, 건물통합정보, AOI)가 확보되지 않아 각 단계가
-구현되지 않았다. 데이터 확보 후 STEP 7 (Raster Preprocessing)부터 순차적으로
-구현한다. 이 스텁은 CLI 인터페이스 형태만 고정해 향후 SkyWatch 등 다른
-영상 소스를 그대로 투입할 수 있게 한다.
+입력은 전처리 완료된 T1/T2 스택 GeoTIFF(raster_preprocess.build_stacked_scene
+결과, 동일 grid/CRS/shape)와 AOI로 clip된 건물 footprint(build_buildings.py
+결과)를 받는다. 원본 위성/항공영상 -> 스택 변환은 영상 소스마다 다르므로
+(Sentinel-2 vs NGII 등) 이 파이프라인 앞단에서 별도로 수행한다. 이렇게
+분리해두면 향후 SkyWatch 등 다른 영상 소스를 투입할 때도 스택 생성
+단계만 교체하면 된다.
 """
 
 from __future__ import annotations
@@ -11,6 +13,17 @@ from __future__ import annotations
 import argparse
 import logging
 from pathlib import Path
+
+import geopandas as gpd
+import pandas as pd
+import rasterio
+import yaml
+
+from .buildings.classify import classify_building_changes, classify_unmatched_changes
+from .buildings.overlay import overlay_buildings_with_changes
+from .change_detection.baseline import run_baseline_change_detection
+from .change_detection.postprocess import clean_mask, polygonize_change
+from .scoring.priority import compute_priority_score
 
 logging.basicConfig(
     level=logging.INFO,
@@ -25,15 +38,25 @@ def run_change_detection(
     aoi_path: str | Path,
     building_path: str | Path,
     config_path: str | Path = "config/config.yaml",
-) -> None:
-    """전체 Change Detection 파이프라인 실행.
+    t1_date: str = "2022",
+    t2_date: str = "2024",
+    out_dir: str | Path = "outputs",
+) -> gpd.GeoDataFrame:
+    """전체 Change Detection 파이프라인 실행 (STEP 9~14).
 
     Args:
-        t1_path: T1(과거) 영상 경로 또는 디렉터리.
-        t2_path: T2(현재) 영상 경로 또는 디렉터리.
-        aoi_path: 분석 대상 지역(AOI) 벡터 파일 경로.
-        building_path: 건물통합정보 벡터 파일 경로.
-        config_path: 파라미터 설정 파일 경로.
+        t1_path: T1 스택 GeoTIFF (전처리 완료본).
+        t2_path: T2 스택 GeoTIFF (T1과 동일 grid).
+        aoi_path: AOI GeoPackage.
+        building_path: AOI로 clip된 건물 footprint GeoPackage.
+        config_path: 파라미터 설정 파일.
+        t1_date: T1 촬영일(ISO 문자열, 메타데이터 기록용).
+        t2_date: T2 촬영일.
+        out_dir: 결과물 저장 루트 디렉터리.
+
+    Returns:
+        building_change_results (change_type/priority_score 포함) GeoDataFrame.
+        건물과 무관한 change(OTHER_CHANGE/DEMOLITION 후보 등)도 포함한다.
     """
     for label, p in [("t1", t1_path), ("t2", t2_path), ("aoi", aoi_path), ("buildings", building_path)]:
         if not Path(p).exists():
@@ -42,17 +65,83 @@ def run_change_detection(
                 "실제 데이터를 확보한 뒤 다시 실행하세요. 가짜 데이터로 진행하지 않습니다."
             )
 
-    raise NotImplementedError(
-        "[PIPELINE] Change Detection 파이프라인은 아직 구현되지 않았습니다. "
-        "Phase 1(Data Inventory) 완료 후 STEP 7부터 순차 구현 예정입니다."
+    with open(config_path, encoding="utf-8") as f:
+        cfg = yaml.safe_load(f)
+
+    out_dir = Path(out_dir)
+    prob_path = out_dir / "rasters" / "change_probability.tif"
+    mask_path = out_dir / "rasters" / "change_mask.tif"
+
+    logger.info("[CHANGE] Baseline Change Detection 시작")
+    run_baseline_change_detection(t1_path, t2_path, prob_path, mask_path)
+
+    with rasterio.open(mask_path) as src:
+        raw_mask = src.read(1)
+        transform = src.transform
+        crs = src.crs
+        pixel_area_m2 = abs(transform.a * transform.e)
+    with rasterio.open(prob_path) as src:
+        prob = src.read(1)
+
+    pp_cfg = cfg["postprocess"]
+    logger.info("[CHANGE] Mask 후처리 (opening/closing/min-area)")
+    cleaned = clean_mask(
+        raw_mask, pixel_area_m2,
+        opening_kernel=pp_cfg["morphology"]["opening_kernel"],
+        closing_kernel=pp_cfg["morphology"]["closing_kernel"],
+        min_component_area_m2=pp_cfg["min_component_area_m2"],
     )
+
+    logger.info("[CHANGE] Polygon화")
+    change_polygons = polygonize_change(cleaned, prob, transform, crs, t1_date, t2_date)
+
+    vec_dir = out_dir / "vectors"
+    vec_dir.mkdir(parents=True, exist_ok=True)
+    change_polygons.to_file(vec_dir / "change_polygons.gpkg", driver="GPKG", layer="change_polygons")
+
+    logger.info("[BUILDING] Overlay + 분류")
+    buildings = gpd.read_file(building_path)
+    buffer_m = cfg["classification"]["buffer_distances_m"][0]
+    overlaid = overlay_buildings_with_changes(buildings, change_polygons, buffer_m=buffer_m)
+
+    classified = classify_building_changes(
+        overlaid, new_building_ratio_min=cfg["classification"]["change_ratio_new_building_min"],
+    )
+    building_results = classified[classified["change_type"].notna()].copy()
+
+    unmatched = classify_unmatched_changes(change_polygons, buildings)
+
+    non_empty = [g for g in (building_results, unmatched) if len(g)]
+    combined = gpd.GeoDataFrame(pd.concat(non_empty, ignore_index=True), crs=buildings.crs) if non_empty else building_results
+
+    logger.info("[SCORING] Priority Score 계산")
+    scored = compute_priority_score(
+        combined,
+        weights=cfg["priority_scoring"]["weights"],
+        high_threshold=cfg["priority_scoring"]["thresholds"]["high"],
+        medium_threshold=cfg["priority_scoring"]["thresholds"]["medium"],
+    )
+
+    scored.to_file(vec_dir / "building_change_results.gpkg", driver="GPKG", layer="building_change_results")
+    scored.to_file(vec_dir / "building_change_results.geojson", driver="GeoJSON")
+
+    report_dir = out_dir / "reports"
+    report_dir.mkdir(parents=True, exist_ok=True)
+    summary_cols = [c for c in scored.columns if c != "geometry"]
+    scored[summary_cols].to_csv(report_dir / "building_change_summary.csv", index=False)
+
+    logger.info(
+        "[PIPELINE] 완료: 총 %d개 변화 후보 (%s)",
+        len(scored), scored["inspection_priority"].value_counts().to_dict(),
+    )
+    return scored
 
 
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Goyang Changneung Building Change Intelligence PoC")
-    parser.add_argument("--t1", required=True, help="T1(과거) 영상 경로")
-    parser.add_argument("--t2", required=True, help="T2(현재) 영상 경로")
-    parser.add_argument("--buildings", required=True, help="건물통합정보 벡터 경로")
+    parser.add_argument("--t1", required=True, help="T1 스택 GeoTIFF 경로")
+    parser.add_argument("--t2", required=True, help="T2 스택 GeoTIFF 경로")
+    parser.add_argument("--buildings", required=True, help="건물 footprint GeoPackage 경로")
     parser.add_argument("--aoi", required=True, help="AOI 벡터 경로")
     parser.add_argument("--config", default="config/config.yaml", help="설정 파일 경로")
     return parser.parse_args()

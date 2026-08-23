@@ -1,0 +1,122 @@
+"""Method C(Edge/Texture) + Method D(Ensemble) + 전체 Baseline Change Detection 실행.
+
+T1/T2 스택 GeoTIFF(raster_preprocess.build_stacked_scene 결과물)를 입력받아
+Change Probability Raster와 Change Mask를 생성한다.
+"""
+
+from __future__ import annotations
+
+import logging
+from pathlib import Path
+
+import cv2
+import numpy as np
+import rasterio
+
+from .spectral import pixel_diff
+from .structural import ssim_change
+
+logger = logging.getLogger("baseline_change")
+
+
+def edge_texture_change(gray1: np.ndarray, gray2: np.ndarray) -> np.ndarray:
+    """Canny 엣지맵의 절대차 기반 구조/텍스처 변화 스코어.
+
+    건축물 외곽선처럼 엣지가 새로 생기거나 사라지는 변화를 잡기 위한 방법.
+    """
+    g1 = cv2.normalize(gray1, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+    g2 = cv2.normalize(gray2, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+    edges1 = cv2.Canny(g1, 50, 150)
+    edges2 = cv2.Canny(g2, 50, 150)
+
+    # 엣지 유무 차이를 국소적으로 누적(엣지가 1px만 어긋나도 변화로 잡히는 걸 완화)
+    kernel = np.ones((5, 5), np.uint8)
+    dil1 = cv2.dilate(edges1, kernel)
+    dil2 = cv2.dilate(edges2, kernel)
+    diff = cv2.bitwise_xor(dil1, dil2).astype(np.float32) / 255.0
+    return diff
+
+
+def to_grayscale(stack: np.ndarray, band_order: list[str]) -> np.ndarray:
+    """RGB 밴드 평균으로 그레이스케일을 만든다 (band_order: [B02,B03,B04,B08])."""
+    idx = {b: i for i, b in enumerate(band_order)}
+    rgb = stack[[idx["B04"], idx["B03"], idx["B02"]]].astype(np.float32)
+    return rgb.mean(axis=0)
+
+
+def run_baseline_change_detection(
+    t1_path: str | Path,
+    t2_path: str | Path,
+    out_prob_path: str | Path,
+    out_mask_path: str | Path,
+    band_order: list[str] = ("B02", "B03", "B04", "B08"),
+    ensemble_weights: dict[str, float] = None,
+    mask_threshold: float = 0.5,
+) -> tuple[Path, Path]:
+    """Baseline Change Detection 전체 실행: 3개 방법 -> 앙상블 -> 확률/마스크 raster 저장.
+
+    Args:
+        t1_path: T1 스택 GeoTIFF.
+        t2_path: T2 스택 GeoTIFF (T1과 동일 grid/CRS/shape 가정).
+        out_prob_path: 저장할 change_probability.tif 경로.
+        out_mask_path: 저장할 change_mask.tif 경로.
+        band_order: 스택의 밴드 순서.
+        ensemble_weights: {"spectral":.., "structural":.., "edge_texture":..} 가중치.
+        mask_threshold: change_probability에서 change_mask를 만들 임계값.
+
+    Returns:
+        (change_probability 경로, change_mask 경로)
+    """
+    band_order = list(band_order)
+    weights = ensemble_weights or {"spectral": 1 / 3, "structural": 1 / 3, "edge_texture": 1 / 3}
+
+    with rasterio.open(t1_path) as s1, rasterio.open(t2_path) as s2:
+        if s1.shape != s2.shape or s1.transform != s2.transform:
+            raise ValueError(
+                f"[CHANGE] T1/T2 grid가 다릅니다 (shape {s1.shape} vs {s2.shape}). "
+                "먼저 동일 grid로 재정렬해야 합니다."
+            )
+        t1 = s1.read()
+        t2 = s2.read()
+        profile = s1.profile.copy()
+
+    logger.info("[CHANGE] Method A: pixel_diff")
+    spectral_score = pixel_diff(t1, t2)
+
+    gray1 = to_grayscale(t1, band_order)
+    gray2 = to_grayscale(t2, band_order)
+
+    logger.info("[CHANGE] Method B: SSIM")
+    structural_score = ssim_change(gray1, gray2)
+
+    logger.info("[CHANGE] Method C: edge/texture")
+    edge_score = edge_texture_change(gray1, gray2)
+
+    logger.info("[CHANGE] Method D: ensemble")
+    change_prob = (
+        weights["spectral"] * spectral_score
+        + weights["structural"] * structural_score
+        + weights["edge_texture"] * edge_score
+    ).astype(np.float32)
+
+    change_mask = (change_prob >= mask_threshold).astype(np.uint8)
+
+    prob_profile = profile.copy()
+    prob_profile.update(count=1, dtype="float32", nodata=None)
+    out_prob_path = Path(out_prob_path)
+    out_prob_path.parent.mkdir(parents=True, exist_ok=True)
+    with rasterio.open(out_prob_path, "w", **prob_profile) as dst:
+        dst.write(change_prob, 1)
+
+    mask_profile = profile.copy()
+    mask_profile.update(count=1, dtype="uint8", nodata=0)
+    out_mask_path = Path(out_mask_path)
+    out_mask_path.parent.mkdir(parents=True, exist_ok=True)
+    with rasterio.open(out_mask_path, "w", **mask_profile) as dst:
+        dst.write(change_mask, 1)
+
+    logger.info(
+        "[CHANGE] 저장 완료: prob=%s mask=%s (변화 픽셀 비율=%.2f%%)",
+        out_prob_path, out_mask_path, 100 * change_mask.mean(),
+    )
+    return out_prob_path, out_mask_path

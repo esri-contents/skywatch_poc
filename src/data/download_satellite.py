@@ -82,16 +82,21 @@ def download_sentinel2_bands(
     """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    signed_item = planetary_computer.sign(item)
+    item_id = item["id"]
 
     saved: list[Path] = []
-    item_id = signed_item["id"]
     for band in bands:
-        asset = signed_item["assets"].get(band)
-        if asset is None:
-            raise KeyError(f"[DATA] '{band}' 밴드가 이 item에 없습니다: {item_id}")
-        href = asset["href"]
         out_path = out_dir / f"{item_id}_{band}.tif"
+        if out_path.exists():
+            logger.info("[DATA] 이미 존재, 건너뜀: %s", out_path)
+            saved.append(out_path)
+            continue
+
+        # 밴드마다 새로 서명한다 (SAS 토큰이 다운로드 도중 만료되는 것을 방지).
+        signed_asset = planetary_computer.sign(item)["assets"].get(band)
+        if signed_asset is None:
+            raise KeyError(f"[DATA] '{band}' 밴드가 이 item에 없습니다: {item_id}")
+        href = signed_asset["href"]
         logger.info("[DATA] 다운로드: %s -> %s", band, out_path)
         resp = requests.get(href, stream=True, timeout=120)
         resp.raise_for_status()

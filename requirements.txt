@@ -17,3 +17,5 @@ tqdm
 python-dotenv
 pyyaml
 requests
+pystac-client
+planetary-computer

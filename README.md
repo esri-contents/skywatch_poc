@@ -143,6 +143,14 @@ python -m src.pipeline \
 신축/기존 여부를 확정한다 (`src/buildings/classify.py`). 자세한 내용은
 [`outputs/reports/poc_summary.md`](outputs/reports/poc_summary.md) 참고.
 
+**중요 - HIGH 32건을 육안 검수한 결과**: 실제로 겹치는 change_polygon
+(현장) 기준으로는 **11곳뿐**이다(2개 대형 현장이 21건/66%를 차지).
+"건물 수"와 "현장 수"는 다르다 - `building_change_results.gpkg`의
+`site_id` 컬럼(`src/buildings/overlay.py`에서 추가)으로 실제 현장 수를
+group-by해서 셀 수 있다. 전체 76건도 서로 다른 현장은 33곳이다.
+**현장조사 안내 시 건물 개수가 아니라 site_id 기준 현장 수로 말해야
+같은 공사장을 여러 번 방문시키는 일을 막을 수 있다.**
+
 자세한 내용과 한계는 [`outputs/reports/poc_summary.md`](outputs/reports/poc_summary.md),
 SkyWatch 확장 근거는 [`outputs/reports/skywatch_requirements.md`](outputs/reports/skywatch_requirements.md) 참고.
 

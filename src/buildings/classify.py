@@ -150,4 +150,5 @@ def classify_unmatched_changes(
 
     unmatched["change_type"] = change_types
     unmatched["classification_note"] = notes
+    unmatched["site_id"] = unmatched["change_id"]
     return unmatched

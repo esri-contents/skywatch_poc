@@ -25,7 +25,11 @@ def overlay_buildings_with_changes(
         buildings에 다음 컬럼을 추가한 GeoDataFrame:
         building_area_m2, change_area_m2(교차분 합), change_ratio,
         max_change_score(교차 change polygon 중 최댓값),
-        near_change(버퍼 내 변화 존재 여부, 건물 본체는 미교차).
+        near_change(버퍼 내 변화 존재 여부, 건물 본체는 미교차),
+        site_id(교차하는 change polygon의 change_id - 큰 change polygon
+        하나에 건물 여러 개가 걸치는 경우가 실측으로 흔히 확인되어, 이 값으로
+        "서로 다른 건물 수"와 "서로 다른 실제 현장 수"를 구분할 수 있게 한다.
+        여러 change polygon과 겹치면 그중 면적이 가장 큰 것을 대표로 사용).
     """
     if buildings.crs != change_polygons.crs:
         change_polygons = change_polygons.to_crs(buildings.crs)
@@ -38,6 +42,7 @@ def overlay_buildings_with_changes(
         out["change_ratio"] = 0.0
         out["max_change_score"] = None
         out["near_change"] = False
+        out["site_id"] = None
         return out
 
     change_union = change_polygons.geometry.union_all()
@@ -46,12 +51,18 @@ def overlay_buildings_with_changes(
     change_areas = []
     max_scores = []
     near_flags = []
+    site_ids = []
     for geom, buf_geom in zip(out.geometry, buffered):
         intersection = geom.intersection(change_union)
         change_areas.append(intersection.area)
 
         overlapping = change_polygons[change_polygons.geometry.intersects(geom)]
         max_scores.append(overlapping["max_change_score"].max() if len(overlapping) else None)
+        if len(overlapping):
+            biggest = overlapping.loc[overlapping.geometry.area.idxmax()]
+            site_ids.append(biggest["change_id"])
+        else:
+            site_ids.append(None)
 
         near = buf_geom.intersects(change_union) and intersection.area == 0
         near_flags.append(bool(near))
@@ -63,9 +74,11 @@ def overlay_buildings_with_changes(
     ]
     out["max_change_score"] = max_scores
     out["near_change"] = near_flags
+    out["site_id"] = site_ids
 
+    n_sites = out.loc[out["change_ratio"] > 0, "site_id"].nunique()
     logger.info(
-        "[BUILDING] Overlay 완료: 건물 %d개 중 change_ratio>0 인 건물 %d개",
-        len(out), int((out["change_ratio"] > 0).sum()),
+        "[BUILDING] Overlay 완료: 건물 %d개 중 change_ratio>0 인 건물 %d개 (서로 다른 현장 %d곳)",
+        len(out), int((out["change_ratio"] > 0).sum()), n_sites,
     )
     return out

@@ -1,0 +1,44 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.env
+
+# Data / outputs: never commit raw/derived geospatial data or large rasters.
+# Directory structure is kept via .gitkeep; only actual data file types are ignored
+# (blanket directory-level ignores break .gitkeep negation in nested folders).
+data/raw/**/*.tif
+data/raw/**/*.tiff
+data/raw/**/*.jp2
+data/raw/**/*.img
+data/raw/**/*.gpkg
+data/raw/**/*.shp
+data/raw/**/*.shx
+data/raw/**/*.dbf
+data/raw/**/*.prj
+data/raw/**/*.geojson
+data/raw/**/*.xml
+data/raw/**/*.zip
+data/interim/**/*
+data/processed/**/*
+!data/interim/.gitkeep
+!data/processed/.gitkeep
+
+outputs/rasters/**/*.tif
+outputs/rasters/**/*.tiff
+outputs/vectors/**/*.gpkg
+outputs/vectors/**/*.geojson
+outputs/vectors/**/*.shp
+outputs/maps/**/*.png
+outputs/maps/**/*.pdf
+outputs/figures/**/*.png
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

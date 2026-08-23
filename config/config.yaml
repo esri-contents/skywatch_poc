@@ -1,0 +1,48 @@
+# Goyang Changneung Building Change Intelligence PoC - 분석 파라미터
+# 실제 데이터 확보 전까지는 값을 확정하지 않는다. TBD 표시된 항목은
+# 원본 데이터 검토(Phase 1/2) 이후 근거를 기록하고 채운다.
+
+project:
+  name: "Goyang Changneung Building Change Intelligence PoC"
+  t1_year: 2022
+  t2_year: 2024
+
+crs:
+  # 원본 영상/벡터 CRS 확인 전에는 임의로 결정하지 않는다.
+  # 확인 후 EPSG:5186 (서부원점) vs EPSG:5179 (UTM-K) 등 중 선택 근거를 기록.
+  source_crs: null          # TBD - 원본 데이터 확인 후 기입
+  analysis_crs: null        # TBD - 선택 근거는 README/보고서에 기록
+  decision_note: "TBD - 원본 좌표계 확인 전까지 미결정"
+
+alignment:
+  method: "ECC"              # ORB | SIFT | ECC | phase_correlation 중 실험 후 결정
+  max_allowed_rmse_m: null   # TBD - AOI 해상도 확인 후 결정
+
+change_detection:
+  methods: ["pixel_diff", "ssim", "edge_texture", "ensemble"]
+  min_area_thresholds_m2: [10, 25, 50, 100]
+
+postprocess:
+  morphology:
+    opening_kernel: 3
+    closing_kernel: 3
+  min_component_area_m2: 25   # config 값 - 실험으로 조정
+
+classification:
+  buffer_distances_m: [3, 5]
+  change_ratio_new_building_min: 0.5   # TBD - 실데이터로 캘리브레이션 필요
+
+priority_scoring:
+  weights:
+    change_confidence: 0.40
+    change_ratio: 0.30
+    administrative_uncertainty: 0.20
+    building_relevance: 0.10
+  thresholds:
+    high: 0.7
+    medium: 0.4
+
+validation_sample:
+  high_n: 50
+  medium_n: 30
+  low_n: 20

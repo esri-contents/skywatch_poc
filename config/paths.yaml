@@ -1,0 +1,18 @@
+# 경로 설정 - 모든 경로는 프로젝트 루트 기준 상대경로
+data:
+  raw:
+    imagery_t1: data/raw/imagery/2022
+    imagery_t2: data/raw/imagery/2024
+    buildings: data/raw/buildings
+    building_register: data/raw/building_register
+    boundaries: data/raw/boundaries
+  interim: data/interim
+  processed: data/processed
+  aoi: data/aoi/changneung_test_aoi.gpkg
+
+outputs:
+  rasters: outputs/rasters
+  vectors: outputs/vectors
+  maps: outputs/maps
+  figures: outputs/figures
+  reports: outputs/reports

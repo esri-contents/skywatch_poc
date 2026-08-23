@@ -5,6 +5,20 @@
 **T2**: Sentinel-2 L2A, 2024-05-31 (구름 2.1%, 계절 일치)
 **분석 좌표계**: EPSG:5186, 10m 해상도
 
+## 정합 검증 (STEP 8)
+
+ECC(Enhanced Correlation Coefficient) 기반 T1->T2 평행이동 추정 결과:
+
+```text
+dx=0.076px  dy=0.101px  displacement=0.126px (1.26m)  ecc_score=0.979
+```
+
+기준(1픽셀=10m) 대비 충분히 작아 별도 정합 없이 Change Detection을 진행해도
+무방하다고 판단. 참고: T1/T2가 같은 Sentinel-2 UTM 타일(T52SCG)에서 독립적으로
+재투영되었음에도 이 정도로 잘 맞는 것은 위성 데이터의 고정 타일 그리드 덕분이며,
+항공사진(NGII 등)처럼 촬영마다 좌표가 달라지는 소스에서는 이 단계가 훨씬
+중요해진다.
+
 ## Funnel
 
 ```text

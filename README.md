@@ -140,8 +140,12 @@ python -m src.pipeline \
 자세한 내용과 한계는 [`outputs/reports/poc_summary.md`](outputs/reports/poc_summary.md),
 SkyWatch 확장 근거는 [`outputs/reports/skywatch_requirements.md`](outputs/reports/skywatch_requirements.md) 참고.
 
-STEP 8(정합 오차 정량화), 행정정보 Validation(건축물대장 미확보로 보류),
-Human Validation Sample, ArcGIS 발행 스크립트는 아직 미구현이다.
+STEP 8(정합 오차 정량화, `src/preprocessing/alignment.py`) 실행 결과
+displacement=1.26m(0.126px), ecc_score=0.979로 정합 양호 확인.
+STEP 23 Human Validation Sample도 실행됨 (`outputs/reports/human_validation_sample.csv`, 66건).
+
+행정정보 Validation(건축물대장 미확보로 보류), ArcGIS Online 발행 스크립트는
+아직 미구현이다.
 
 ## Outputs
 

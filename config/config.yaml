@@ -37,8 +37,8 @@ crs:
     확보 후 별도로 원본 CRS를 확인한다.
 
 alignment:
-  method: "ECC"              # ORB | SIFT | ECC | phase_correlation 중 실험 후 결정
-  max_allowed_rmse_m: null   # TBD - AOI 해상도 확인 후 결정
+  method: "ECC"              # 실측 확인: T1/T2 displacement=1.26m, ecc_score=0.979 (2022-05-17 vs 2024-05-31)
+  max_allowed_rmse_m: 10.0   # 1 픽셀(10m) 기준. 실측값(1.26m)은 이 기준을 충분히 만족.
 
 change_detection:
   methods: ["pixel_diff", "ssim", "edge_texture", "ensemble"]

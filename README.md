@@ -100,6 +100,17 @@ copy .env.example .env        # 이후 API Key 입력
 GDAL/Rasterio는 OS에 따라 별도 바이너리 설치가 필요할 수 있다
 (Windows: OSGeo4W 또는 conda-forge 권장).
 
+**Windows PROJ 충돌 주의**: 이 개발 환경에서는 시스템 전역 `PROJ_LIB`
+환경변수가 PostgreSQL/PostGIS의 구버전 `proj.db`를 가리키고 있어
+rasterio의 재투영(`calculate_default_transform` 등)이 `CRSError`로
+실패하는 문제가 실측 확인되었다. 재투영이 필요한 스크립트를 실행할 때는
+venv에 번들된 proj 데이터를 명시적으로 가리켜야 한다:
+
+```bash
+PROJ_LIB=".venv/Lib/site-packages/rasterio/proj_data" GDAL_DATA="" \
+  python -m src.preprocessing.raster_preprocess
+```
+
 ## Execution
 
 ```bash
@@ -110,8 +121,15 @@ python -m src.pipeline \
   --aoi data/aoi/changneung_test_aoi.gpkg
 ```
 
-파이프라인은 아직 실제 데이터가 없어 실행할 수 없다 (Phase 1 데이터
-확보 후 STEP 7부터 순차 구현).
+**현재까지 실제로 검증된 것** (STEP 1~7 일부):
+- AOI 확보 (`src/data/build_aoi.py`)
+- Sentinel-2 T1(2022-05-17)/T2(2024-05-31) 다운로드 (`src/data/download_satellite.py`)
+- 건물 footprint 확보 (`src/data/download.py`, `src/data/build_buildings.py`)
+- Data Inventory (`src/data/validate.py`)
+- T1 Raster 전처리: 재투영+AOI clip+밴드 스택 (`src/preprocessing/raster_preprocess.py`)
+  → `data/processed/imagery/2022_stack.tif` (EPSG:5186, 10m, B02/B03/B04/B08)
+
+전체 `src/pipeline.py` CLI 통합과 STEP 8(정합 검증) 이후는 아직 미구현이다.
 
 ## Outputs
 

@@ -1,13 +1,17 @@
 """공공데이터 자동 수집 클라이언트.
 
-이 모듈은 API로 자동 수집이 가능한 데이터만 다룬다.
-- VWorld 오픈API (건물통합정보 등 공간정보)
-- 공공데이터포털(data.go.kr) API (건축물대장정보 등 행정정보)
+이 모듈은 API로 자동 수집이 가능한 데이터만 다룬다. 확인된 공식 서비스:
+- 공공데이터포털(data.go.kr) 국토교통부_GIS건물통합정보(WMS/WFS)
+  https://www.data.go.kr/data/15123970/openapi.do
+- 공공데이터포털(data.go.kr) 국토교통부_건축HUB_건축물대장정보 서비스
+  https://www.data.go.kr/data/15134735/openapi.do
+- VWorld 오픈API (WFS) - 보조 경로. 정확한 레이어명은 VWorld 개발자센터에서
+  발급받은 Key의 승인 서비스 목록을 확인해야 한다.
 
-정사영상(항공사진)은 국토지리정보원 국토정보플랫폼에서 로그인 후
-수동으로 신청/다운로드해야 하는 경우가 대부분이며, 자동화 가능한
-공개 API가 확인되기 전까지는 이 모듈에서 다루지 않는다.
-확인되는 즉시 imagery 다운로드 함수를 추가한다.
+정사영상(항공사진)은 국토지리정보원 국토정보플랫폼(map.ngii.go.kr)에서
+로그인 후 전용 대용량 파일전송 프로그램(GUI)으로만 다운로드 가능함을
+확인했다. 스크립트로 자동화할 수 있는 공개 API가 없어 이 모듈에서
+다루지 않는다 (수동 다운로드 필요, 아래 download_imagery 참고).
 
 모든 요청은 .env 에 저장된 API Key를 사용한다. Key를 코드에
 하드코딩하지 않는다.
@@ -136,7 +140,9 @@ def download_imagery(*_args: Any, **_kwargs: Any) -> None:
     data/raw/imagery/2022, data/raw/imagery/2024 에 배치해야 한다.
     """
     raise NotImplementedError(
-        "[DATA] 정사영상 자동 다운로드 API가 아직 확인되지 않았습니다. "
-        "국토지리정보원 국토정보플랫폼에서 수동으로 다운로드한 파일을 "
-        "data/raw/imagery/2022 및 data/raw/imagery/2024 에 넣어주세요."
+        "[DATA] 정사영상은 국토정보플랫폼(map.ngii.go.kr)에서 회원 로그인 후 "
+        "전용 대용량 파일전송 프로그램으로만 다운로드 가능함을 확인했습니다 "
+        "(스크립트 자동화 불가). 통합검색에서 '고양 창릉'을 검색해 정사영상을 "
+        "선택하고 수동으로 받은 TIFF 파일을 data/raw/imagery/2022, "
+        "data/raw/imagery/2024 에 넣어주세요."
     )

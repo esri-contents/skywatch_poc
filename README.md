@@ -47,13 +47,12 @@ OTHER_CHANGE
 
 ## Required Data / Data Sources
 
-| 데이터 | 필요 이유 | 공식 출처(우선순위) | 확보 방법 | 상태 |
+| 데이터 | 필요 이유 | 공식 출처(확인됨) | 확보 방법 | 상태 |
 |---|---|---|---|---|
-| 2022년 고양 창릉 정사영상 (T1) | Change Detection 입력 | 국토지리정보원 국토정보플랫폼 > 공공데이터포털 > VWorld | 수동 다운로드 (자동 API 미확인) | **미확보** |
-| 2024년 고양 창릉 정사영상 (T2) | Change Detection 입력 | 상동 | 수동 다운로드 | **미확보** |
-| 건물통합정보 (건물 footprint) | 건물 단위 Overlay/분류 | VWorld 오픈API / 공공데이터포털 | API 자동 수집 가능 (Key 필요) | **미확보** |
-| 건축물대장 / 인허가 정보 | 행정정보 Validation | 공공데이터포털 (data.go.kr) | API 자동 수집 가능 (Key 필요) | **미확보** |
-| 고양 창릉 사업지구 경계 | AOI 정의 | LH / 국토부 지구단위계획 공고 등 공식 출처 | 자동화 확인 안 됨 | **미확보** |
+| 2022/2024년 고양 창릉 정사영상 (T1/T2) | Change Detection 입력 | [국토지리정보원 국토정보플랫폼](http://map.ngii.go.kr/ms/map/NlipMap.do?tabGb=total) | **수동**: 회원가입/로그인 후 통합검색 → 정사영상 선택 → 전용 대용량 파일전송 프로그램으로 다운로드. GUI 전용이라 자동화 불가 확인됨 (TIFF, 도시지역 12cm/일반지역 25cm, 2010년 이후 촬영분만 제공) | **미확보** |
+| 건물통합정보 (건물 footprint + 속성) | 건물 단위 Overlay/분류 | [국토교통부_GIS건물통합정보(WMS/WFS)](https://www.data.go.kr/data/15123970/openapi.do) (공공데이터포털) | **자동 가능**: data.go.kr 활용신청 후 인증키로 WFS 호출 (`src/data/download.py::download_vworld_wfs_layer` 를 이 서비스 엔드포인트로 교체 필요 - 정확한 typename은 활용가이드 확인 후 반영) | **미확보 (Key 필요)** |
+| 건축물대장 / 인허가 정보 (표제부, 사용승인일, 주용도, 연면적 등) | 행정정보 Validation | [국토교통부_건축HUB_건축물대장정보 서비스](https://www.data.go.kr/data/15134735/openapi.do) (공공데이터포털) | **자동 가능**: data.go.kr 활용신청 후 동일 인증키(`DATA_GO_KR_API_KEY`)로 REST 호출 (`src/data/download.py::download_data_go_kr`) | **미확보 (Key 필요)** |
+| 고양 창릉 사업지구/지구단위계획 경계 | AOI 정의 | 1순위: LH 공식 지구계 자료 2순위: [토지이음 지구단위계획구역 SHP(전국)](https://www.eum.go.kr/web/op/sv/svItemDet.jsp?dataCd=005&dataTypeCd=SHP) | 토지이음은 로그인/Key 불필요하나 전국 단위(약 130~280MB) 파일만 제공하고 다운로드 링크가 JS 처리라 자동 스크립트로는 불안정함 → **수동 다운로드 후 고양 창릉으로 clip 권장**, 또는 LH가 배포하는 공식 지구계 파일이 있으면 그것을 우선 사용 | **미확보** |
 
 자세한 데이터 확보 요청은 [`outputs/reports/data_inventory.csv`](outputs/reports/data_inventory.csv) 및
 대화 내 데이터 요청 항목을 참고한다. **실제 데이터가 로컬에 준비되기 전까지

@@ -38,6 +38,17 @@ CHANGE_TYPE_COLORS = {
     "OTHER_CHANGE": "#787878",
     "DEMOLITION": "#4646c8",
 }
+# spatial_statistics.compute_gi_star()의 gi_class 값 - NOT_SIG를 가운데 두고
+# HOT(빨강 계열)/COLD(파랑 계열)로 신뢰수준이 올라갈수록 진해지도록 배치.
+GI_CLASS_COLORS = {
+    "COLD_99": "#313695",
+    "COLD_95": "#4575b4",
+    "COLD_90": "#74add1",
+    "NOT_SIG": "#bdbdbd",
+    "HOT_90": "#f46d43",
+    "HOT_95": "#d73027",
+    "HOT_99": "#a50026",
+}
 
 
 def _read_true_color(
@@ -328,6 +339,63 @@ def plot_priority_map(
     ax.set_xticks([])
     ax.set_yticks([])
     ax.set_title("현장조사 우선순위 (HIGH/MEDIUM/LOW)")
+
+    fig.tight_layout()
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+    logger.info("[VIZ] 저장 완료: %s", out_path)
+    return out_path
+
+
+def plot_gi_star_hotspots(
+    basemap_path: str | Path,
+    building_results_path: str | Path,
+    aoi_path: str | Path,
+    out_path: str | Path,
+) -> Path:
+    """Getis-Ord Gi* hotspot 분류(spatial_statistics.compute_gi_star)를 지도로 표시.
+
+    solafune-sentinel2-change의 "robust CVA 변화 강도와 Gi* hotspot이 같은
+    구역으로 수렴하는지" 검증 그림을 이 PoC의 building_change_results에
+    그대로 적용한 것 - priority_score가 실제로 공간적으로 군집된 구역(HOT)에
+    속하는지, 아니면 고립된 노이즈(NOT_SIG/COLD)인지 한눈에 보여준다.
+
+    Args:
+        basemap_path: 배경으로 쓸 true-color 스택 GeoTIFF.
+        building_results_path: gi_class 컬럼이 있는 building_change_results.gpkg.
+        aoi_path: AOI 벡터.
+        out_path: 저장할 PNG 경로.
+
+    Returns:
+        저장된 파일 경로.
+    """
+    rgb, extent, _ = _read_true_color(basemap_path)
+
+    with rasterio.open(basemap_path) as src:
+        dst_crs = src.crs
+
+    results = gpd.read_file(building_results_path).to_crs(dst_crs)
+    aoi = gpd.read_file(aoi_path).to_crs(dst_crs)
+
+    fig, ax = plt.subplots(figsize=(9, 11))
+    ax.imshow(rgb, extent=extent)
+    aoi.boundary.plot(ax=ax, color="#008060", linewidth=1.5)
+
+    # NOT_SIG를 먼저 그려 배경으로 깔고, HOT/COLD가 그 위에 겹쳐 보이게 한다.
+    for gi_class in GI_CLASS_COLORS:
+        subset = results[results["gi_class"] == gi_class]
+        if len(subset):
+            subset.plot(ax=ax, color=GI_CLASS_COLORS[gi_class], edgecolor="none", alpha=0.9)
+
+    ax.legend(
+        handles=[Patch(facecolor=c, label=t) for t, c in GI_CLASS_COLORS.items()],
+        loc="lower left", fontsize=8, framealpha=0.85, ncol=2,
+    )
+    ax.set_xticks([])
+    ax.set_yticks([])
+    ax.set_title("Getis-Ord Gi* 공간 hotspot 분류")
 
     fig.tight_layout()
     out_path = Path(out_path)

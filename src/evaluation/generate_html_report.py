@@ -12,6 +12,7 @@ USB 등) 깨지지 않고 열리게 하기 위함 (기존 리포트와 동일한
 from __future__ import annotations
 
 import base64
+import json
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
@@ -34,12 +35,23 @@ def _stats_table(results_path: str | Path) -> tuple[dict, dict, int]:
     return priority, change_type, n_sites
 
 
+def _moran_summary(stats_path: str | Path) -> dict | None:
+    """spatial_statistics.compute_global_moran() 결과(outputs/statistics/global_moran.json)를 읽는다."""
+    stats_path = Path(stats_path)
+    if not stats_path.exists():
+        return None
+    with open(stats_path, encoding="utf-8") as f:
+        return json.load(f)
+
+
 def _period_section(
     title: str,
     subtitle: str,
     results_path: str | Path,
     before_after_png: str | Path,
     priority_png: str | Path,
+    gi_star_png: str | Path | None = None,
+    moran_stats_path: str | Path | None = None,
     extra_note: str = "",
 ) -> str:
     priority, change_type, n_sites = _stats_table(results_path)
@@ -52,6 +64,27 @@ def _period_section(
     change_type_rows = "".join(
         f"<tr><td>{ct}</td><td>{n}</td></tr>" for ct, n in sorted(change_type.items(), key=lambda x: -x[1])
     )
+
+    spatial_html = ""
+    if gi_star_png and Path(gi_star_png).exists():
+        moran = _moran_summary(moran_stats_path) if moran_stats_path else None
+        moran_html = ""
+        if moran and moran.get("I") is not None:
+            sig = "공간적으로 유의하게 군집됨" if moran["p_sim"] < 0.05 else "유의한 군집 아님"
+            moran_html = f"""
+            <p class="note">Global Moran's I = {moran["I"]:.3f} (p={moran["p_sim"]:.3f}, n={moran["n"]},
+            k={moran["k"]}) - priority_score가 {sig}(p&lt;0.05 기준). 산발적 노이즈가 아니라
+            구조화된 변화 패턴이라는 근거로 쓸 수 있다.</p>
+            """
+        spatial_html = f"""
+        <h3>공간통계 - Getis-Ord Gi* Hotspot (solafune-sentinel2-change 방법론 차용)</h3>
+        {moran_html}
+        <figure>
+          <img src="data:image/png;base64,{_b64_image(gi_star_png)}" alt="{title} Gi* hotspots">
+          <figcaption>건물별 priority_score의 공간적 군집 - HOT(빨강)일수록 주변과 함께
+          유의하게 높은 변화가 몰려있는 구역, COLD(파랑)는 반대, 회색(NOT_SIG)은 유의하지 않음</figcaption>
+        </figure>
+        """
 
     return f"""
     <section class="period">
@@ -75,6 +108,7 @@ def _period_section(
         <img src="data:image/png;base64,{_b64_image(priority_png)}" alt="{title} priority map">
         <figcaption>현장조사 우선순위 지도</figcaption>
       </figure>
+      {spatial_html}
     </section>
     """
 
@@ -97,6 +131,8 @@ def build_html_report(out_path: str | Path) -> Path:
         "outputs/vectors/building_change_results.gpkg",
         "outputs/figures/before_after_change.png",
         "outputs/figures/priority_map.png",
+        gi_star_png="outputs/figures/gi_star_hotspots.png",
+        moran_stats_path="outputs/statistics/global_moran.json",
     )
     recent_section = _period_section(
         "T2→T3 (2024-05-31 → 2026-05-31)",
@@ -104,6 +140,8 @@ def build_html_report(out_path: str | Path) -> Path:
         "outputs_2024_2026/vectors/building_change_results.gpkg",
         "outputs_2024_2026/figures/before_after_change.png",
         "outputs_2024_2026/figures/priority_map.png",
+        gi_star_png="outputs_2024_2026/figures/gi_star_hotspots.png",
+        moran_stats_path="outputs_2024_2026/statistics/global_moran.json",
         extra_note=(
             "2년의 짧은 구간임에도 HIGH 건수가 T1→T2보다 많음 - 최근 개발이 "
             "가속화되고 있다는 신호로 해석 가능(정식 결론 아님, 참고 자료)."
@@ -116,6 +154,8 @@ def build_html_report(out_path: str | Path) -> Path:
         "outputs_2022_2026/vectors/building_change_results.gpkg",
         "outputs_2022_2026/figures/before_after_change.png",
         "outputs_2022_2026/figures/priority_map.png",
+        gi_star_png="outputs_2022_2026/figures/gi_star_hotspots.png",
+        moran_stats_path="outputs_2022_2026/statistics/global_moran.json",
         extra_note=(
             "4년 누적 구간이라 후보 수가 두 2년 구간보다 뚜렷하게 많다(HIGH 201건) - "
             "이는 오탐 급증이 아니라 두 구간의 변화가 산술적으로 겹쳐 잡히기 때문이므로, "
@@ -150,6 +190,7 @@ def build_html_report(out_path: str | Path) -> Path:
   main {{ max-width: 980px; margin: 0 auto; padding: 0 24px; }}
   section {{ background: #fff; border-radius: 10px; padding: 28px 32px; margin: 28px 0; box-shadow: 0 1px 4px rgba(0,0,0,.08); }}
   h2 {{ margin-top: 0; color: #0b3d2e; }}
+  h3 {{ margin: 28px 0 4px; color: #0b3d2e; font-size: 16px; border-top: 1px solid #eee; padding-top: 20px; }}
   .subtitle {{ color: #555; font-size: 14px; margin-top: -8px; }}
   .note {{ background: #fff8e6; border-left: 3px solid #f5a623; padding: 8px 14px; font-size: 13px; }}
   .stat-row {{ display: flex; gap: 16px; margin: 20px 0; }}
@@ -189,6 +230,11 @@ def build_html_report(out_path: str | Path) -> Path:
       (정식 지구계는 국토부 고시 제2021-1285호, 완전 추출은 별도 작업 필요).</p>
       <p>Sentinel-2 10m 해상도는 개별 단독주택 단위 변화 탐지에 근본적 한계가
       있다 - 대형 아파트단지/대규모 토지조성 등 큰 변화 위주로 신뢰할 수 있다.</p>
+      <p>변화탐지의 robust CVA(median/MAD 표준화)와 공간통계(Global Moran's I,
+      Getis-Ord Gi*) 방법론은
+      <a href="https://github.com/yeonjun7724/solafune-sentinel2-change">solafune-sentinel2-change</a>
+      (Solafune 기술평가용으로 별도 작성된 프로젝트)에서 차용해 이 PoC의
+      데이터에 적용한 것이다.</p>
     </div>
   </section>
 </main>

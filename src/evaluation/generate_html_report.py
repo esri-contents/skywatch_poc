@@ -488,6 +488,16 @@ def _arcgis_note(text: str, *products: str) -> str:
     """
 
 
+def _bullets(items: list[str]) -> str:
+    """발표용 - 문단 대신 짧은 불릿으로 핵심만 스캔할 수 있게 한다."""
+    return '<ul class="bullets">' + "".join(f"<li>{it}</li>" for it in items) + "</ul>"
+
+
+def _more(label: str, body_html: str) -> str:
+    """기본은 접혀있는 상세 설명 - 발표 화면은 불릿만 보이고, 필요할 때만 펼쳐서 근거를 보여준다."""
+    return f'<details class="more"><summary>{label}</summary><div class="more-body">{body_html}</div></details>'
+
+
 def _methodology_section() -> str:
     """파이프라인 7단계를 실제 코드/config.yaml 값과 함께 설명한다 (src/pipeline.py 순서 그대로)."""
     return f"""
@@ -507,16 +517,19 @@ def _methodology_section() -> str:
           <div class="pipeline-num">1</div>
           <div class="pipeline-body">
             <h3>전처리 &amp; 정합 검증</h3>
-            <p>Sentinel-2 원본 밴드(B02/B03/B04/B08, 10m)를 분석 좌표계로 재투영하고 AOI로 클립해
-            4밴드 스택을 만듭니다. 두 시점 영상이 픽셀 단위로 어긋나면 실제 변화가 아니라 정합
-            오차가 변화로 잡히기 때문에, ECC(Enhanced Correlation Coefficient) 방식으로 정합
-            오차를 먼저 측정합니다.</p>
-            {_param_chips(("CRS", "EPSG:5186"), ("정합 오차", "1.26m (0.126px)"), ("ecc_score", "0.979"),
-                          ("허용 기준", "≤ 10m (1px)"))}
+            {_bullets([
+                "Sentinel-2 4밴드(10m) 재투영 + AOI 클립",
+                "ECC로 정합 오차 실측 → <strong>1.26m (0.126px)</strong>",
+                "허용 기준 10m(1px) 대비 충분히 안정적",
+            ])}
+            {_param_chips(("CRS", "EPSG:5186"), ("ecc_score", "0.979"))}
+            {_more("왜 이 검증이 필요한가",
+                "두 시점 영상이 픽셀 단위로 어긋나면 실제 변화가 아니라 정합 오차가 변화로 "
+                "잡히기 때문에, ECC(Enhanced Correlation Coefficient) 방식으로 정합 오차를 "
+                "먼저 측정합니다.")}
             {_arcgis_note(
-                "동일한 정합 검증을 ArcGIS Pro의 Image Analyst 확장에서 GUI로 수행할 수 있습니다. "
-                "Auto Registration 도구가 기준 영상 대비 이동량을 계산해주고, 여러 시점 영상을 "
-                "Mosaic Dataset으로 관리하면 재투영·클립을 반복 자동화할 수 있습니다.",
+                "Image Analyst의 Auto Registration으로 GUI에서 동일 검증, Mosaic Dataset으로 "
+                "여러 시점 영상을 관리하면 재투영·클립이 자동화됩니다.",
                 "Image Analyst", "Mosaic Dataset",
             )}
           </div>
@@ -526,37 +539,32 @@ def _methodology_section() -> str:
           <div class="pipeline-num">2</div>
           <div class="pipeline-body">
             <h3>변화탐지 앙상블 - 3개 방법을 균등 가중 결합</h3>
-            <p>어떤 단일 지표도 완벽하지 않다는 전제로, 성질이 다른 세 가지 방법을 <strong>1/3씩
-            균등 가중</strong>으로 결합해 {_term("change_probability")}(0~1)를 산출합니다.</p>
             <div class="method-grid">
               <div class="method-card">
                 <div class="method-tag">Method A</div>
                 <h4>Robust CVA</h4>
-                <p>밴드별 (T2−T1) 차분을 <strong>median/MAD로 표준화</strong>(이상치에 강건)한 뒤
-                유클리드 거리로 결합하고, 최댓값이 아니라 <strong>상위 1%(99th percentile)</strong>를
-                기준으로 0~1로 clip합니다. 전역 최댓값으로 정규화하는 단순한 방식은 구름 잔여물
-                같은 극단 픽셀 하나에 전체 스케일이 눌려버리는 문제가 있어, 이 방식으로
-                대체했습니다.</p>
+                <p>median/MAD 표준화 + 상위 1% 정규화 - 극단 픽셀에 강건</p>
               </div>
               <div class="method-card">
                 <div class="method-tag">Method B</div>
                 <h4>SSIM</h4>
-                <p>T1/T2의 국소 밝기·대비·구조 패턴이 다를수록(구조적 유사도가 낮을수록) 변화
-                점수가 높아집니다. 단순한 밝기 차이만으로는 잡히지 않는, "패턴 자체가 달라진"
-                변화를 보완합니다.</p>
+                <p>구조·패턴 변화 포착 - 밝기 차이만으론 안 잡히는 변화 보완</p>
               </div>
               <div class="method-card">
                 <div class="method-tag">Method C</div>
                 <h4>Edge / Texture</h4>
-                <p>T1/T2 각각의 Canny 엣지맵을 추출해 XOR로 차분합니다. 건물 외곽선처럼 엣지가
-                새로 생기거나 사라지는 - 신축·철거에서 특히 두드러지는 - 변화를 잡기 위한
-                방법입니다.</p>
+                <p>윤곽선 변화 - 신축·철거에서 특히 두드러짐</p>
               </div>
             </div>
+            {_more("왜 세 방법을 섞는가",
+                "어떤 단일 지표도 완벽하지 않다는 전제로 1/3씩 균등 가중 결합해 "
+                f"{_term('change_probability')}(0~1)를 산출합니다. Robust CVA는 최댓값이 아니라 "
+                "99th percentile을 기준으로 clip하는데, 전역 최댓값으로 정규화하는 단순한 방식은 "
+                "구름 잔여물 같은 극단 픽셀 하나에 전체 스케일이 눌려버리는 문제가 있어 이 방식으로 "
+                "대체했습니다.")}
             {_arcgis_note(
-                "Image Analyst의 Change Detection 도구(Compute Change Raster)가 이와 유사한 여러 "
-                "변화탐지 알고리즘을 코드 없이 제공합니다. ArcGIS Pro는 딥러닝 기반 객체 탐지 "
-                "(Detect Objects Using Deep Learning)까지 라이선스만으로 바로 활용할 수 있습니다.",
+                "Image Analyst Change Detection(Compute Change Raster)이 유사 알고리즘을 코드 "
+                "없이 제공하고, Detect Objects Using Deep Learning까지 라이선스만으로 활용 가능합니다.",
                 "Image Analyst", "Detect Objects Using Deep Learning",
             )}
           </div>
@@ -566,17 +574,18 @@ def _methodology_section() -> str:
           <div class="pipeline-num">3</div>
           <div class="pipeline-body">
             <h3>임계값 결정 &amp; 후처리</h3>
-            <p>고정 임계값으로 이진 마스크를 만듭니다. Otsu 자동 임계값도 구현되어 있지만, 이
-            AOI에서는 분포 특성상 훨씬 공격적인 값이 선택되어 변화 후보가 급증하기 때문에(14.87%
-            vs 3.82%), 육안 QA로 검증되기 전까지는 보수적인 고정값을 기본으로 사용합니다. 이진
-            마스크는 opening→closing으로 소금-후추 노이즈를 제거하고, 너무 작은 connected
-            component는 걸러냅니다.</p>
-            {_param_chips(("threshold_method", "fixed"), ("mask_threshold", "0.5"),
-                          ("opening/closing kernel", "3×3"), ("최소 면적", "25 m²"))}
+            {_bullets([
+                "고정 임계값(0.5)으로 이진 마스크 생성",
+                "Otsu 자동 임계값은 과탐 위험 - <strong>14.87% vs 3.82%</strong>(고정값)",
+                "opening→closing 노이즈 제거 + 25m² 미만 성분 제거",
+            ])}
+            {_param_chips(("threshold_method", "fixed"), ("mask_threshold", "0.5"))}
+            {_more("Otsu를 기본값으로 안 쓰는 이유",
+                "이 AOI에서는 분포 특성상 Otsu가 훨씬 공격적인 값을 선택해 변화 후보가 급증합니다. "
+                "육안 QA로 검증되기 전까지는 보수적인 고정값을 기본으로 사용합니다.")}
             {_arcgis_note(
-                "Raster Calculator·Majority Filter 같은 Spatial Analyst 도구로 임계값 결정과 노이즈 "
-                "제거를 그대로 재현할 수 있습니다. ModelBuilder로 단계를 묶으면 파라미터만 바꿔가며 "
-                "반복 실행하는 '분석 모델'로 패키징되어, 다음 촬영분이 들어올 때마다 재사용할 수 있습니다.",
+                "Raster Calculator·Majority Filter로 동일 재현, ModelBuilder로 묶으면 다음 "
+                "촬영분에도 재사용 가능한 분석 모델이 됩니다.",
                 "Spatial Analyst", "ModelBuilder",
             )}
           </div>
@@ -586,19 +595,15 @@ def _methodology_section() -> str:
           <div class="pipeline-num">4</div>
           <div class="pipeline-body">
             <h3>건물 Overlay &amp; 밝기 방향성 계산</h3>
-            <p>Polygon화된 change 영역을 건물 footprint(2,737개)와 공간적으로 overlay해 건물별
-            {_term("change_ratio")}를 구합니다. 큰 change 영역 하나에 건물 여러 개가 걸치는
-            경우가 실제로 흔히 확인되어, {_term("site_id")}로 묶어 "건물 수"와 "실제 현장 수"를
-            구분합니다. 이와 별개로 change_probability가 버리는 정보 - T1→T2 사이 그레이스케일
-            평균 밝기가 밝아졌는지 어두워졌는지({_term("brightness_delta")}) - 도 계산해 다음
-            단계의 보조 근거로 전달합니다.</p>
-            {_param_chips(("버퍼 거리(근접 변화 판정)", "3 m"))}
+            {_bullets([
+                f"건물 footprint(2,737개)와 overlay → {_term('change_ratio')} 산출",
+                f"{_term('site_id')}로 '건물 수' vs '실제 현장 수' 구분",
+                f"{_term('brightness_delta')} 별도 계산 - 다음 단계 보조 근거",
+            ])}
+            {_param_chips(("버퍼 거리", "3 m"))}
             {_arcgis_note(
-                "Intersect·Spatial Join 같은 표준 지오프로세싱 도구가 이 overlay 단계를 그대로 "
-                "대체합니다. ArcGIS API for Python으로 파이프라인 전체를 예약 실행(Notebook, 작업 "
-                "스케줄러)하도록 구성하면, 새 위성 영상이 들어올 때마다 자동으로 갱신되는 레이어를 "
-                "만들 수 있습니다 - 실제로 이 프로젝트의 src/publish/arcgis_online.py가 그 자동화의 "
-                "출발점입니다.",
+                "Intersect·Spatial Join으로 동일 overlay. ArcGIS API for Python으로 예약 실행하면 "
+                "새 위성 영상마다 자동 갱신됩니다 - src/publish/arcgis_online.py가 그 출발점입니다.",
                 "Spatial Join", "ArcGIS API for Python",
             )}
           </div>
@@ -608,19 +613,18 @@ def _methodology_section() -> str:
           <div class="pipeline-num">5</div>
           <div class="pipeline-body">
             <h3>변화유형 분류 (규칙 기반)</h3>
-            <p>건축물대장 사용승인일이 있으면 <strong>이를 최우선 근거</strong>로 사용합니다 -
-            사용승인일이 T1~T2 사이면 확정적으로 신축, 그 밖이면 기존 건물이므로 증축/개축으로
-            판정합니다. 건축물대장에 매칭되지 않은 건물만 change_ratio 크기로 근사 판정
-            (휴리스틱)하며, 이때만 brightness_delta 방향이 기대와 어긋나면
-            {_term("directional_consistency_flag")}을 켭니다(라벨 자체는 그대로 유지합니다).
-            건물과 교차하지 않는 고신뢰 변화는 철거 후보로 판단하되, 밝기가 오히려 뚜렷하게
-            증가했다면(철거 방향과 모순) 철거 대신 기타 변화로 분류합니다.</p>
-            {_param_chips(("신축 판정 change_ratio", "≥ 0.5"), ("건축물대장 PNU 매칭률", "67.7%"),
-                          ("철거 후보 mean_change_score", "≥ 0.6"))}
+            {_bullets([
+                "건축물대장 사용승인일 있으면 <strong>최우선 근거</strong>(T1~T2 내=신축, 그 밖=증축)",
+                "대장 미매칭 건물만 change_ratio 휴리스틱 판정",
+                f"방향 불일치 시 {_term('directional_consistency_flag')} 표시(라벨은 유지)",
+            ])}
+            {_param_chips(("신축 판정", "change_ratio ≥ 0.5"), ("PNU 매칭률", "67.7%"))}
+            {_more("철거 판정은 어떻게 다른가",
+                "건물과 교차하지 않는 고신뢰 변화는 철거 후보로 판단하되, 밝기가 오히려 뚜렷하게 "
+                "증가했다면(철거 방향과 모순) 철거 대신 기타 변화로 분류합니다.")}
             {_arcgis_note(
-                "이 규칙을 Arcade 표현식이나 Attribute Rules로 Feature Layer에 직접 내장하면, "
-                "담당자가 편집기에서 값을 수정하는 즉시 변화유형이 자동으로 재계산됩니다 - "
-                "Python을 다시 돌리지 않아도 편집 시점에 규칙이 살아있는 레이어가 되는 것입니다.",
+                "Arcade 표현식/Attribute Rules로 Feature Layer에 규칙을 직접 내장하면, 담당자가 "
+                "값을 수정하는 즉시 변화유형이 자동 재계산됩니다.",
                 "Arcade", "Attribute Rules",
             )}
           </div>
@@ -632,19 +636,17 @@ def _methodology_section() -> str:
             <h3>현장조사 우선순위 점수화</h3>
             <p class="formula">priority_score = 0.4 · change_confidence + 0.3 · change_ratio
             + 0.2 · administrative_uncertainty + 0.1 · building_relevance</p>
-            <p>{_term("change_confidence")}는 change_probability의 최댓값이며,
-            {_term("administrative_uncertainty")}는 건축물대장으로 설명되면 0에 가깝고 설명되지
-            않으면 1입니다. {_term("building_relevance")}는 change_type이 신축·증축·철거면 1.0,
-            그 외(예: 건물과 무관한 주변 토지 변화)면 0.3입니다. 가중치가 가장 큰
-            change_confidence(0.4)가 영상 근거를, administrative_uncertainty(0.2)가 행정정보
-            공백을 반영하여 "행정정보로 설명되지 않는 큰 변화"를 자연스럽게 상위로 끌어올리는
-            구조입니다.</p>
             {_param_chips(("HIGH", "≥ 0.7"), ("MEDIUM", "≥ 0.4"), ("LOW", "< 0.4"))}
+            {_more("네 항목이 각각 뭘 의미하나",
+                f"{_term('change_confidence')}는 change_probability의 최댓값이며, "
+                f"{_term('administrative_uncertainty')}는 건축물대장으로 설명되면 0, 설명되지 "
+                f"않으면 1입니다. {_term('building_relevance')}는 change_type이 신축·증축·철거면 "
+                "1.0, 그 외(예: 건물과 무관한 주변 토지 변화)면 0.3입니다. 가중치가 가장 큰 "
+                "change_confidence(0.4)가 영상 근거를, administrative_uncertainty(0.2)가 행정정보 "
+                "공백을 반영해 \"행정정보로 설명되지 않는 큰 변화\"를 자연스럽게 상위로 끌어올립니다.")}
             {_arcgis_note(
-                "같은 가중합산 공식을 Field Calculator/Arcade로 필드에 계산해 넣고 ArcGIS "
-                "Dashboards의 게이지·카테고리 위젯에 연결하면, 현장조사팀이 우선순위 현황을 "
-                "실시간으로 모니터링하는 대시보드가 됩니다. Field Maps로 배포하면 담당자별로 "
-                "오늘 방문할 HIGH 현장 목록이 지도 위 체크리스트로 바로 전달됩니다.",
+                "Field Calculator/Arcade로 동일 공식을 필드에 계산하고 Dashboards 게이지에 연결하면 "
+                "실시간 모니터링 화면이, Field Maps로 배포하면 담당자별 오늘의 방문 목록이 됩니다.",
                 "Dashboards", "Field Maps",
             )}
           </div>
@@ -654,19 +656,15 @@ def _methodology_section() -> str:
           <div class="pipeline-num">7</div>
           <div class="pipeline-body">
             <h3>공간통계 검증 (Global Moran's I / Getis-Ord Gi*)</h3>
-            <p>{_term("priority_score")}가 실제로 공간적으로 군집되어 있는지(=구조화된 변화)
-            아니면 산발적 노이즈인지를 <strong>Global Moran's I</strong>(KNN row-standardized
-            weights)로 먼저 통계 검정합니다. 이어서 <strong>Getis-Ord Gi*</strong>(binary
-            weights)로 어느 건물이 주변과 함께 유의하게 높거나 낮은 값을 갖는 hotspot/coldspot
-            ({_term("gi_class")})인지 90/95/99% 신뢰수준으로 분류합니다. 두 검정 모두 permutation
-            방식이라 실행할 때마다 결과가 흔들리지 않도록 random seed를 고정합니다.</p>
+            {_bullets([
+                f"Global Moran's I → {_term('priority_score')}의 공간적 군집 여부 검정",
+                f"Getis-Ord Gi* → 건물별 {_term('gi_class')}(hotspot/coldspot) 90/95/99% 분류",
+                "permutation 검정이라 random seed 고정으로 재현성 확보",
+            ])}
             {_param_chips(("KNN k", "8"), ("permutations", "999"), ("random_seed", "42"))}
             {_arcgis_note(
-                "Global Moran's I와 Getis-Ord Gi*는 ArcGIS Pro Spatial Statistics 툴박스에 각각 "
-                "Spatial Autocorrelation(Global Moran's I), Hot Spot Analysis(Getis-Ord Gi*)로 "
-                "기본 내장되어 있어 코드 없이 동일한 분석을 수행할 수 있습니다. 세 시점을 함께 "
-                "보려면 Space-Time Cube와 Emerging Hot Spot Analysis로 확장해, '어디가 최근에 새로 "
-                "hotspot이 되었는지'까지 자동으로 분류할 수 있습니다.",
+                "Spatial Statistics 툴박스의 Spatial Autocorrelation·Hot Spot Analysis로 코드 없이 "
+                "동일 분석. Space-Time Cube로 확장하면 최근 새로 생긴 hotspot까지 자동 분류됩니다.",
                 "Spatial Statistics 툴박스", "Space-Time Cube",
             )}
           </div>
@@ -682,50 +680,36 @@ def _arcgis_section() -> str:
     cards = [
         (
             "layers", "데이터 관리 &amp; 발행",
-            "T1/T2/T3 결과를 각각 별도 파일로 관리하는 대신 Hosted Feature Layer로 발행하고 "
-            "시간 인식(time-aware) 속성을 주면, 하나의 Web Map에서 시점 슬라이더로 세 시점을 "
-            "스와이프 비교할 수 있습니다. 원본 위성영상은 Mosaic Dataset/Image Service로 "
-            "카탈로그화해 매번 파일을 새로 내려받지 않아도 됩니다.",
+            ["T1/T2/T3를 Hosted Feature Layer로 발행", "시간 인식 속성 → Web Map 시점 슬라이더 비교",
+             "원본 영상은 Mosaic Dataset/Image Service로 카탈로그화"],
             ["Hosted Feature Layer", "Image Service", "Time-Aware Layers"],
         ),
         (
             "field", "현장조사 연계",
-            "HIGH 등급 현장 목록을 Field Maps로 담당자 태블릿에 오프라인 지도로 배포하고, "
-            "Survey123으로 현장 사진·체크리스트를 수집하면 결과가 바로 원본 레이어에 반영됩니다. "
-            "이 리포트의 '방향성 재확인 권장' 후보를 그대로 오늘의 현장조사 목록으로 넘길 수 "
-            "있습니다.",
+            ["HIGH 현장 목록 → Field Maps 오프라인 배포", "Survey123으로 현장 사진·체크리스트 수집",
+             "'방향성 재확인 권장' 후보 = 오늘의 현장조사 목록"],
             ["Field Maps", "Survey123", "오프라인 지도"],
         ),
         (
             "dashboard", "의사결정 대시보드",
-            "이 리포트의 통계·차트·지도를 ArcGIS Dashboards로 옮기면 파이프라인을 재실행할 "
-            "때마다 자동으로 갱신되는 실시간 화면이 됩니다. 담당 부서·법정동·우선순위별 필터와 "
-            "드릴다운을 추가해, 발표 슬라이드가 아니라 상시 운영되는 모니터링 도구로 확장할 수 "
-            "있습니다.",
+            ["이 리포트의 통계·차트·지도 → 실시간 갱신 화면", "부서·법정동·우선순위별 필터/드릴다운",
+             "발표 슬라이드가 아니라 상시 운영 도구로"],
             ["Dashboards", "Arcade", "Web Map"],
         ),
         (
             "share", "대내외 공유 &amp; 스토리텔링",
-            "오늘 이 발표 내용을 StoryMaps로 옮기면 지도·그림·설명이 스크롤 한 번으로 이어지는 "
-            "웹 기반 인터랙티브 문서가 됩니다. 대국민 공개나 타 기관 공유가 필요해지면 "
-            "Experience Builder로 권한이 분리된 별도 공개용 앱도 같은 데이터 위에서 바로 구성할 "
-            "수 있습니다.",
+            ["오늘 발표 내용 → StoryMaps 인터랙티브 문서", "대국민 공개는 Experience Builder로 권한 분리"],
             ["StoryMaps", "Experience Builder"],
         ),
         (
             "automate", "자동화 &amp; 확장 분석",
-            "이 PoC에는 이미 <code>src/publish/arcgis_online.py</code>로 ArcGIS API for Python "
-            "자동 발행 스크립트가 작성되어 있습니다 - 새 위성영상이 들어올 때마다 파이프라인을 "
-            "예약 실행(Notebook Server)해 레이어를 자동 갱신하는 구조로 그대로 확장됩니다. 분석 "
-            "범위를 넓힐 때도 Space-Time Cube 등 시계열 공간통계를 코드 추가 없이 붙일 수 "
-            "있습니다.",
+            [f"이미 작성됨: <code>src/publish/arcgis_online.py</code>", "Notebook Server 예약 실행 → 레이어 자동 갱신",
+             "Space-Time Cube 등 시계열 통계 코드 추가 없이 확장"],
             ["ArcGIS API for Python", "Notebook Server"],
         ),
         (
             "shield", "거버넌스 &amp; 협업",
-            "Portal for ArcGIS/ArcGIS Hub로 옮기면 부서·기관별 권한을 분리한 레이어 공유 체계와 "
-            "접근 로그를 갖추게 됩니다. LH 내부 여러 사업지구가 같은 파이프라인을 쓰게 되더라도, "
-            "사업지구별 그룹과 권한만 나눠 동일한 분석 자산을 재사용할 수 있습니다.",
+            ["부서·기관별 권한 분리 + 접근 로그", "LH 내 여러 사업지구가 같은 파이프라인·자산 재사용"],
             ["Portal for ArcGIS", "ArcGIS Hub"],
         ),
     ]
@@ -734,19 +718,50 @@ def _arcgis_section() -> str:
         <div class="capability-card">
           {_icon(icon)}
           <h3>{title}</h3>
-          <p>{body}</p>
+          {_bullets(bullets)}
           <div class="gis-products">{"".join(f'<span class="gis-chip">{p}</span>' for p in products)}</div>
         </div>
         """
-        for icon, title, body, products in cards
+        for icon, title, bullets, products in cards
+    )
+    mapping_rows = [
+        ("변화탐지 앙상블 (Robust CVA + SSIM + Edge/Texture)",
+         ["Image Analyst", "Compute Change Raster", "Detect Objects Using Deep Learning"]),
+        ("임계값 결정 &amp; 후처리 (opening/closing, 최소 면적)",
+         ["Spatial Analyst", "Raster Calculator", "ModelBuilder"]),
+        ("건물 Overlay (change_ratio, site_id 그룹핑)",
+         ["Spatial Join", "Intersect"]),
+        ("변화유형 분류 규칙 (대장 우선 + 휴리스틱)",
+         ["Arcade", "Attribute Rules"]),
+        ("우선순위 점수화 (가중합산 공식)",
+         ["Field Calculator", "Arcade", "Dashboards"]),
+        ("Global Moran's I (공간적 군집 검정)",
+         ["Spatial Statistics 툴박스", "Spatial Autocorrelation"]),
+        ("Getis-Ord Gi* (hotspot/coldspot 분류)",
+         ["Spatial Statistics 툴박스", "Hot Spot Analysis", "Space-Time Cube"]),
+        ("결과 자동 발행 (T1/T2/T3 레이어 갱신)",
+         ["ArcGIS API for Python", "Notebook Server"]),
+    ]
+    mapping_html = "".join(
+        f'<tr><td>{label}</td><td>{"".join(f"<span class=\'gis-chip\'>{p}</span>" for p in feats)}</td></tr>'
+        for label, feats in mapping_rows
     )
     return f"""
     <section id="arcgis" class="card">
       <p class="eyebrow">확장 로드맵</p>
       <h2>ArcGIS 플랫폼으로 확장하면</h2>
-      <p class="subtitle">지금까지는 이 분석이 Python PoC로 재현 가능하다는 것을 보여드렸습니다.
-      같은 데이터와 같은 방법론을 ArcGIS 플랫폼에 올리면, 1회성 분석 리포트가 아니라 LH가
-      지속적으로 운영할 수 있는 제품이 됩니다.</p>
+      <p class="subtitle">Python PoC를 ArcGIS 플랫폼에 올리면, 1회성 분석 리포트가 아니라
+      LH가 지속적으로 운영할 수 있는 제품이 됩니다.</p>
+
+      <h3 class="section-divider">지금 이 분석, ArcGIS 기능으로 이렇게 구현됩니다</h3>
+      <div class="table-scroll">
+        <table class="mapping-table">
+          <tr><th>이 PoC에서 한 것</th><th>대응하는 ArcGIS 기능</th></tr>
+          {mapping_html}
+        </table>
+      </div>
+
+      <h3 class="section-divider">여기서 더 확장하면</h3>
       <div class="capability-grid">
         {cards_html}
       </div>
@@ -838,47 +853,56 @@ def _context_section() -> str:
           <div class="bar-el"></div>
           {_icon("speed", "context-icon")}
           <div>
-            <p><strong>택지 조성 속도가 절반 가까이 빨라지고 있습니다.</strong>
-            2026년 8월 13일 정부 부동산 대책에서 3기 신도시를 포함한 공공택지의 발표~착공 기간을
-            기존 68개월에서 37개월로 단축하는 방안이 발표됐고, 추가 제도 개선이 완료되면 31개월까지
-            단축이 목표입니다. 국토교통부·기획재정부·LH 등이 참여하는 '범정부 택지 신속 혁신단'도
-            함께 출범했습니다<sup>2</sup>. 사업기간이 이만큼 압축되면, 지구 내 건축물 변화를 확인하는
-            주기도 함께 빨라져야 합니다 - 연 1회 수동 실태조사로는 이 속도를 따라가기 어렵습니다.</p>
+            <p><strong>택지 조성 속도가 절반 가까이 빨라지고 있습니다.</strong></p>
             {_compare_bars([
                 ("기존", 68, "68개월", "var(--ink-soft)"),
                 ("개선 후", 37, "37개월", "var(--link)"),
                 ("제도개선 완료 시", 31, "31개월", "var(--accent)"),
             ])}
+            {_more("근거 및 시사점",
+                "2026년 8월 13일 정부 부동산 대책에서 3기 신도시를 포함한 공공택지의 발표~착공 "
+                "기간을 기존 68개월에서 37개월로 단축하는 방안이 발표됐고, 추가 제도 개선이 완료되면 "
+                "31개월까지 단축이 목표입니다. 국토교통부·기획재정부·LH 등이 참여하는 '범정부 택지 "
+                "신속 혁신단'도 함께 출범했습니다<sup>2</sup>. 사업기간이 이만큼 압축되면, 지구 내 "
+                "건축물 변화를 확인하는 주기도 함께 빨라져야 합니다 - 연 1회 수동 실태조사로는 이 "
+                "속도를 따라가기 어렵습니다.")}
           </div>
         </div>
         <div class="limit-item context-item">
           <div class="bar-el"></div>
           {_icon("legal", "context-icon")}
-          <p><strong>무허가 건축물은 원칙적으로 보상 대상에서 제외됩니다.</strong>
-          토지보상법 시행규칙상 관계법령을 위반해 허가 없이 지어진 건축물은 보상하지 않으며,
-          1989년 1월 25일 이후 지어진 무허가 건축물 소유자는 이주대책·주거이전비 대상에서도
-          제외됩니다<sup>3</sup>. 즉 "이 건물이 언제 생겼는지"가 보상 실무에서 법적으로 중요한
-          쟁점이 됩니다. 위성 변화탐지는 T1/T2/T3 촬영일이 명확한 시계열 근거이므로, 특정 시점
-          이후 새로 생기거나 크게 바뀐 건축물을 객관적인 날짜와 함께 짚어낼 수 있습니다.</p>
+          <div>
+            <p><strong>무허가 건축물은 원칙적으로 보상 대상에서 제외됩니다.</strong></p>
+            {_bullets([
+                "1989.1.25 이후 무허가 건축물 → 이주대책·주거이전비 대상에서도 제외<sup>3</sup>",
+                "즉 \"이 건물이 언제 생겼는지\"가 보상 실무의 법적 쟁점",
+                "위성 변화탐지 = 촬영일이 명확한 시계열 증거",
+            ])}
+          </div>
         </div>
         <div class="limit-item context-item">
           <div class="bar-el"></div>
           {_icon("handshake", "context-icon")}
-          <p><strong>LH가 이미 공개적으로 표명한 방향과 같은 선상에 있습니다.</strong>
-          LH는 2023년 11월 UN과 협의의사록(RoD)을 체결해 GeoAI, 드론 웍스 플랫폼, 도시
-          디지털트윈, 지리공간정보 분석 시스템 분야 기술 교류를 추진해 왔습니다. 당시 관계자는
-          "새로운 도시를 건설하는 데 있어서도 AI가 접목된 공간정보 기술이 차별화된 도시를
-          만드는 데 큰 역할을 할 것"이라고 밝혔습니다<sup>4</sup>. 이 PoC의 위성 변화탐지 +
-          공간통계 접근은 이 방향의 구체적인 실행 사례로 볼 수 있습니다.</p>
+          <div>
+            <p><strong>LH가 이미 공개적으로 표명한 방향과 같은 선상에 있습니다.</strong></p>
+            {_bullets([
+                "2023.11 LH-UN 협의의사록(RoD): GeoAI·드론·도시 디지털트윈 교류<sup>4</sup>",
+                "\"AI가 접목된 공간정보 기술이 차별화된 도시를 만드는 데 큰 역할\" (LH 관계자)",
+                "이 PoC = 그 방향의 구체적 실행 사례",
+            ])}
+          </div>
         </div>
         <div class="limit-item context-item">
           <div class="bar-el"></div>
           {_icon("satellite", "context-icon")}
-          <p><strong>국가 차원에서도 검증되고 있는 접근입니다.</strong>
-          국토위성영상과 딥러닝을 결합해 건물·도로를 탐지하는 연구가 대한원격탐사학회지 등에
-          발표되고 있으며, 국토교통부·한국국토정보공사 등에서 국토현황정보 구축과 모니터링
-          고도화에 활용될 것으로 기대되고 있습니다<sup>5</sup>. 위성 기반 변화탐지는 이 PoC만의
-          실험이 아니라, 국가 국토모니터링 체계가 실제로 향하고 있는 방향입니다.</p>
+          <div>
+            <p><strong>국가 차원에서도 검증되고 있는 접근입니다.</strong></p>
+            {_bullets([
+                "국토위성 + 딥러닝 건물·도로 탐지 연구, 대한원격탐사학회지 등 발표<sup>5</sup>",
+                "국토교통부·한국국토정보공사 - 국토현황정보 구축·모니터링에 활용 기대",
+                "이 PoC만의 실험이 아니라 국가 국토모니터링의 방향",
+            ])}
+          </div>
         </div>
       </div>
 
@@ -1552,6 +1576,26 @@ def build_html_report(out_path: str | Path) -> Path:
   .capability-card h3 {{ font-size: 15px; font-weight: 800; color: var(--gis); margin: 0 0 8px; }}
   .capability-card p {{ margin: 0 0 10px; font-size: 13px; line-height: 1.7; color: var(--ink); }}
   .capability-card .gis-products {{ display: flex; gap: 6px; flex-wrap: wrap; }}
+  .capability-card .bullets {{ margin: 0 0 12px; }}
+
+  .mapping-table td:first-child {{ font-weight: 600; max-width: 320px; }}
+  .mapping-table td:last-child {{ display: flex; gap: 6px; flex-wrap: wrap; padding-top: 10px; padding-bottom: 10px; }}
+
+  /* 발표용 불릿 + 접이식 상세 */
+  .bullets {{ list-style: none; margin: 8px 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }}
+  .bullets li {{ position: relative; padding-left: 16px; font-size: 13px; line-height: 1.55; }}
+  .bullets li::before {{
+    content: ""; position: absolute; left: 0; top: 7px; width: 6px; height: 6px;
+    border-radius: 50%; background: var(--accent);
+  }}
+  details.more {{ margin-top: 10px; }}
+  details.more summary {{
+    cursor: pointer; font-size: 12px; font-weight: 700; color: var(--link); list-style: none;
+  }}
+  details.more summary::-webkit-details-marker {{ display: none; }}
+  details.more summary::before {{ content: "+ "; }}
+  details.more[open] summary::before {{ content: "− "; }}
+  .more-body {{ margin-top: 8px; font-size: 13px; line-height: 1.7; color: var(--ink-soft); }}
 
   .legend-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; margin-top: 8px; }}
   @media (max-width: 800px) {{ .legend-grid {{ grid-template-columns: 1fr; }} }}

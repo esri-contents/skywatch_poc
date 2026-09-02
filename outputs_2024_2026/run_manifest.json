@@ -1,0 +1,64 @@
+{
+  "timestamp_utc": "2026-09-01T10:32:44.036664+00:00",
+  "seed": 42,
+  "git_commit": "5fdf2c8bcf8564d54e9ab76dc3d486494aee95f8",
+  "inputs": {
+    "t1": {
+      "path": "data\\processed\\imagery\\2024_stack.tif",
+      "sha256": "d59b917998ac99b8f55a8c0c3ef9d58a1889a02878b379f43069df3a03e3c68f"
+    },
+    "t2": {
+      "path": "data\\processed\\imagery\\2026_stack.tif",
+      "sha256": "f38ee03f92f24f911cf52bedf9c33b21ac5006c26ab51764aecd690f901767c6"
+    },
+    "aoi": {
+      "path": "data\\aoi\\changneung_test_aoi.gpkg",
+      "sha256": "e34c1826d2bf4c6ebfca598b06dcdd69e40db8ef828b5452087cfb1f97cd41fa"
+    },
+    "buildings": {
+      "path": "data\\processed\\buildings\\changneung_buildings_clipped.gpkg",
+      "sha256": "73bc6f598c40e2c80a25f8cf40ffe67bea827205407fcb07788c297e40c3d4d7"
+    },
+    "building_register": {
+      "path": "data\\raw\\building_register\\changneung_title_info.json",
+      "sha256": "a1a7f26edfa1bf1373e8515be61bd637886eb33f20e4cd48b3f3bc95be59d0d8"
+    }
+  },
+  "params": {
+    "threshold_method": "fixed",
+    "used_threshold": 0.5,
+    "min_component_area_m2": 25,
+    "buffer_m": 3,
+    "priority_scoring_weights": {
+      "change_confidence": 0.4,
+      "change_ratio": 0.3,
+      "administrative_uncertainty": 0.2,
+      "building_relevance": 0.1
+    },
+    "spatial_statistics": {
+      "k": 8,
+      "permutations": 999
+    },
+    "global_moran": {
+      "I": 0.1570076213448432,
+      "p_sim": 0.001,
+      "z_sim": 4.762244849988228,
+      "n": 189,
+      "k": 8
+    }
+  },
+  "package_versions": {
+    "rasterio": "1.4.3",
+    "geopandas": "1.1.4",
+    "shapely": "2.1.2",
+    "pyproj": "3.7.2",
+    "fiona": "1.10.1",
+    "numpy": "2.5.2",
+    "pandas": "3.0.5",
+    "opencv-python": "5.0.0.93",
+    "scikit-image": "0.26.0",
+    "scikit-learn": "1.9.0",
+    "libpysal": "4.15.0",
+    "esda": "2.10.0"
+  }
+}

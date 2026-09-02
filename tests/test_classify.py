@@ -75,6 +75,7 @@ def test_register_evidence_before_t1_forces_expansion():
 def test_unmatched_high_score_is_demolition_candidate():
     change_polys = gpd.GeoDataFrame([{
         "geometry": Point(10, 10).buffer(1),
+        "change_id": "CHG_00001",
         "mean_change_score": 0.8,
         "change_area_m2": 100,
     }])
@@ -86,6 +87,7 @@ def test_unmatched_high_score_is_demolition_candidate():
 def test_unmatched_low_score_is_other_change():
     change_polys = gpd.GeoDataFrame([{
         "geometry": Point(10, 10).buffer(1),
+        "change_id": "CHG_00001",
         "mean_change_score": 0.1,
         "change_area_m2": 100,
     }])

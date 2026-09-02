@@ -1,5 +1,8 @@
-gdal
-rasterio
+# gdal: 별도 설치 안 함 - rasterio/fiona가 자체 GDAL을 번들하며, pip에서 소스 빌드 시
+# Windows에 MSVC Build Tools가 필요해 실패한다(코드에서 osgeo를 직접 import하지 않음).
+# rasterio==1.5.1은 이 머신의 Windows Smart App Control(평판 기반 차단)에 걸려
+# DLL load failed(ImportError)가 발생함이 실측 확인됨 - 평판이 쌓인 1.4.x로 고정.
+rasterio==1.4.3
 geopandas
 shapely
 pyproj
@@ -13,10 +16,13 @@ matplotlib
 rasterstats
 rioxarray
 xarray
+libpysal
+esda
 tqdm
 python-dotenv
 pyyaml
 requests
 pystac-client
 planetary-computer
+arcgis
 pytest

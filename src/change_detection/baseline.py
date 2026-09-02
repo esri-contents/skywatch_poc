@@ -13,8 +13,9 @@ import cv2
 import numpy as np
 import rasterio
 
-from .spectral import pixel_diff
+from .spectral import robust_cva
 from .structural import ssim_change
+from .thresholding import compute_otsu_threshold
 
 logger = logging.getLogger("baseline_change")
 
@@ -51,8 +52,9 @@ def run_baseline_change_detection(
     out_mask_path: str | Path,
     band_order: list[str] = ("B02", "B03", "B04", "B08"),
     ensemble_weights: dict[str, float] = None,
+    threshold_method: str = "fixed",
     mask_threshold: float = 0.5,
-) -> tuple[Path, Path]:
+) -> tuple[Path, Path, float]:
     """Baseline Change Detection 전체 실행: 3개 방법 -> 앙상블 -> 확률/마스크 raster 저장.
 
     Args:
@@ -62,10 +64,15 @@ def run_baseline_change_detection(
         out_mask_path: 저장할 change_mask.tif 경로.
         band_order: 스택의 밴드 순서.
         ensemble_weights: {"spectral":.., "structural":.., "edge_texture":..} 가중치.
-        mask_threshold: change_probability에서 change_mask를 만들 임계값.
+        threshold_method: "fixed"(기본, mask_threshold 고정값 사용) 또는
+            "otsu"(AOI 유효 픽셀 분포에서 자동 산정 - 이 AOI에서는 훨씬
+            공격적인 임계값을 골라 변화 후보가 급증하므로 육안 QA 전에는
+            기본값으로 쓰지 않는다).
+        mask_threshold: threshold_method="fixed"일 때 쓰는 고정 임계값. "otsu"가
+            유효 픽셀 부족 등으로 계산 불가할 때의 fallback으로도 쓰인다.
 
     Returns:
-        (change_probability 경로, change_mask 경로)
+        (change_probability 경로, change_mask 경로, 실제 사용된 임계값)
     """
     band_order = list(band_order)
     weights = ensemble_weights or {"spectral": 1 / 3, "structural": 1 / 3, "edge_texture": 1 / 3}
@@ -79,9 +86,16 @@ def run_baseline_change_detection(
         t1 = s1.read()
         t2 = s2.read()
         profile = s1.profile.copy()
+        nodata1, nodata2 = s1.nodata, s2.nodata
 
-    logger.info("[CHANGE] Method A: pixel_diff")
-    spectral_score = pixel_diff(t1, t2)
+    # AOI clip 바깥(NoData) 픽셀은 배경/변화 분포를 왜곡시키므로 Otsu 계산에서 제외.
+    # T1/T2가 서로 다른 소스일 경우 nodata 값이 다를 수 있어 각자의 값으로 검사한다.
+    valid1 = np.all(t1 != nodata1, axis=0) if nodata1 is not None else np.ones(t1.shape[1:], dtype=bool)
+    valid2 = np.all(t2 != nodata2, axis=0) if nodata2 is not None else np.ones(t2.shape[1:], dtype=bool)
+    valid_mask = valid1 & valid2
+
+    logger.info("[CHANGE] Method A: robust CVA (median/MAD)")
+    spectral_score = robust_cva(t1, t2)
 
     gray1 = to_grayscale(t1, band_order)
     gray2 = to_grayscale(t2, band_order)
@@ -99,7 +113,14 @@ def run_baseline_change_detection(
         + weights["edge_texture"] * edge_score
     ).astype(np.float32)
 
-    change_mask = (change_prob >= mask_threshold).astype(np.uint8)
+    if threshold_method == "otsu":
+        used_threshold = compute_otsu_threshold(change_prob, valid_mask, fallback=mask_threshold)
+    elif threshold_method == "fixed":
+        used_threshold = mask_threshold
+    else:
+        raise ValueError(f"[CHANGE] 알 수 없는 threshold_method: {threshold_method}")
+
+    change_mask = ((change_prob >= used_threshold) & valid_mask).astype(np.uint8)
 
     prob_profile = profile.copy()
     prob_profile.update(count=1, dtype="float32", nodata=None)
@@ -116,7 +137,7 @@ def run_baseline_change_detection(
         dst.write(change_mask, 1)
 
     logger.info(
-        "[CHANGE] 저장 완료: prob=%s mask=%s (변화 픽셀 비율=%.2f%%)",
-        out_prob_path, out_mask_path, 100 * change_mask.mean(),
+        "[CHANGE] 저장 완료: prob=%s mask=%s (threshold=%.4f[%s], 변화 픽셀 비율=%.2f%%)",
+        out_prob_path, out_mask_path, used_threshold, threshold_method, 100 * change_mask.mean(),
     )
-    return out_prob_path, out_mask_path
+    return out_prob_path, out_mask_path, used_threshold

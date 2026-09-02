@@ -7,7 +7,8 @@ Baseline 실행 결과를 근거로, 동일 파이프라인에 SkyWatch 상용 �
 ## 왜 상용 영상이 필요한가 (실측 근거)
 
 - AOI(창릉동, 10.99km²)에서 Sentinel-2(10m) 기반으로 검출된 change
-  polygon은 33개, **평균 면적 7,351m²**였다. 이는 대형 아파트단지/대규모
+  polygon은 69개, **평균 면적 6,169m²**였다(robust CVA 적용 후 재측정,
+  2026-09-01). 이는 대형 아파트단지/대규모
   토지조성 규모만 잡히고, 개별 단독주택 단위(수십~수백m²)의 신축·증축은
   10m 픽셀 안에 묻혀 원천적으로 분리되지 않는다는 뜻이다.
 - 후처리 최소면적 threshold(config.yaml: 10/25/50/100m²) 중 10~50m²는
@@ -77,9 +78,9 @@ Baseline 실행 결과를 근거로, 동일 파이프라인에 SkyWatch 상용 �
 
 ```text
 Spatial resolution      Sentinel-2 10m  vs  SkyWatch(요청 예정)
-Building change recall  (본 PoC 33개 polygon 대비 재계산)
+Building change recall  (본 PoC 69개 polygon 대비 재계산)
 Precision               (Human Validation Sample 대비 재계산)
-Minimum detectable size 7,351m²(현재 평균) vs (목표: 수십m² 단위)
+Minimum detectable size 6,169m²(현재 평균) vs (목표: 수십m² 단위)
 False positive rate     (Human Validation Sample 확보 후)
 Acquisition latency     비교 예정
 Cost per km²            비교 예정

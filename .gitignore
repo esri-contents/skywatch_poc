@@ -26,6 +26,7 @@ data/processed/**/*
 !data/interim/.gitkeep
 !data/processed/.gitkeep
 
+# outputs_<T1>_<T2>/ 처럼 기간별로 분리된 실행 결과 디렉토리도 동일하게 적용.
 outputs/rasters/**/*.tif
 outputs/rasters/**/*.tiff
 outputs/vectors/**/*.gpkg
@@ -34,6 +35,14 @@ outputs/vectors/**/*.shp
 outputs/maps/**/*.png
 outputs/maps/**/*.pdf
 outputs/figures/**/*.png
+outputs_*/rasters/**/*.tif
+outputs_*/rasters/**/*.tiff
+outputs_*/vectors/**/*.gpkg
+outputs_*/vectors/**/*.geojson
+outputs_*/vectors/**/*.shp
+outputs_*/maps/**/*.png
+outputs_*/maps/**/*.pdf
+outputs_*/figures/**/*.png
 
 # Jupyter
 .ipynb_checkpoints/

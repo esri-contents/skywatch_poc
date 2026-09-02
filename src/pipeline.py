@@ -26,7 +26,9 @@ from .buildings.overlay import overlay_buildings_with_changes
 from .buildings.validation import compute_administrative_uncertainty, join_building_register
 from .change_detection.baseline import run_baseline_change_detection
 from .change_detection.postprocess import clean_mask, polygonize_change
+from .evaluation.spatial_statistics import compute_gi_star, compute_global_moran
 from .scoring.priority import compute_priority_score
+from .utils.manifest import build_run_manifest
 
 logging.basicConfig(
     level=logging.INFO,
@@ -80,8 +82,14 @@ def run_change_detection(
     prob_path = out_dir / "rasters" / "change_probability.tif"
     mask_path = out_dir / "rasters" / "change_mask.tif"
 
-    logger.info("[CHANGE] Baseline Change Detection 시작")
-    run_baseline_change_detection(t1_path, t2_path, prob_path, mask_path)
+    cd_cfg = cfg.get("change_detection", {})
+    threshold_method = cd_cfg.get("threshold_method", "otsu")
+    seed = cfg.get("random_seed", 42)
+
+    logger.info("[CHANGE] Baseline Change Detection 시작 (threshold_method=%s)", threshold_method)
+    _, _, used_threshold = run_baseline_change_detection(
+        t1_path, t2_path, prob_path, mask_path, threshold_method=threshold_method,
+    )
 
     with rasterio.open(mask_path) as src:
         raw_mask = src.read(1)
@@ -145,6 +153,18 @@ def run_change_detection(
         medium_threshold=cfg["priority_scoring"]["thresholds"]["medium"],
     )
 
+    sp_cfg = cfg.get("spatial_statistics", {})
+    sp_k = sp_cfg.get("k", 8)
+    sp_permutations = sp_cfg.get("permutations", 999)
+    logger.info("[SPATIAL] Global Moran's I / Getis-Ord Gi* 계산 (k=%d)", sp_k)
+    moran_result = compute_global_moran(scored, value_col="priority_score", k=sp_k, permutations=sp_permutations, seed=seed)
+    scored = compute_gi_star(scored, value_col="priority_score", k=sp_k, permutations=sp_permutations, seed=seed)
+
+    stats_dir = out_dir / "statistics"
+    stats_dir.mkdir(parents=True, exist_ok=True)
+    with open(stats_dir / "global_moran.json", "w", encoding="utf-8") as f:
+        json.dump(moran_result, f, ensure_ascii=False, indent=2)
+
     scored.to_file(vec_dir / "building_change_results.gpkg", driver="GPKG", layer="building_change_results")
     # GeoJSON(RFC 7946)은 WGS84(EPSG:4326) 좌표를 요구한다. 분석 CRS(EPSG:5186,
     # 미터 단위) 그대로 저장하면 "crs" 멤버를 무시하는 도구(ArcGIS Online의
@@ -155,6 +175,24 @@ def run_change_detection(
     report_dir.mkdir(parents=True, exist_ok=True)
     summary_cols = [c for c in scored.columns if c != "geometry"]
     scored[summary_cols].to_csv(report_dir / "building_change_summary.csv", index=False)
+
+    build_run_manifest(
+        input_paths={
+            "t1": t1_path, "t2": t2_path, "aoi": aoi_path, "buildings": building_path,
+            "building_register": building_register_path or "",
+        },
+        params={
+            "threshold_method": threshold_method,
+            "used_threshold": used_threshold,
+            "min_component_area_m2": pp_cfg["min_component_area_m2"],
+            "buffer_m": buffer_m,
+            "priority_scoring_weights": cfg["priority_scoring"]["weights"],
+            "spatial_statistics": {"k": sp_k, "permutations": sp_permutations},
+            "global_moran": moran_result,
+        },
+        out_path=out_dir / "run_manifest.json",
+        seed=seed,
+    )
 
     logger.info(
         "[PIPELINE] 완료: 총 %d개 변화 후보 (%s)",

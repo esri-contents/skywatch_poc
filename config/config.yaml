@@ -41,14 +41,31 @@ alignment:
   max_allowed_rmse_m: 10.0   # 1 픽셀(10m) 기준. 실측값(1.26m)은 이 기준을 충분히 만족.
 
 change_detection:
-  methods: ["pixel_diff", "ssim", "edge_texture", "ensemble"]
+  # robust_cva: solafune-sentinel2-change 차용 - 밴드별 median/MAD 표준화 후
+  # 유클리드 결합 + percentile 정규화. pixel_diff(전역 max 정규화, 극단 픽셀
+  # 하나에 취약)를 대체. ssim/edge_texture는 기존과 동일.
+  methods: ["robust_cva", "ssim", "edge_texture", "ensemble"]
   min_area_thresholds_m2: [10, 25, 50, 100]
+  # otsu: change_probability 분포(AOI 유효 픽셀만)에서 임계값을 자동 산정.
+  # fixed로 바꾸면 mask_threshold 고정값을 쓴다.
+  threshold_method: "fixed"
+  mask_threshold: 0.5   # threshold_method=fixed일 때, 또는 otsu 계산 불가 시 fallback
 
 postprocess:
   morphology:
     opening_kernel: 3
     closing_kernel: 3
   min_component_area_m2: 25   # config 값 - 실험으로 조정
+
+# solafune-sentinel2-change의 Global Moran's I / Getis-Ord Gi* 차용.
+# building_change_results의 priority_score가 공간적으로 군집되어 있는지
+# (=산발적 노이즈가 아니라 실제 구조화된 변화인지) 통계적으로 검증하고,
+# 어느 건물들이 유의한 hotspot에 속하는지 표시한다.
+spatial_statistics:
+  k: 8              # KNN 이웃 수 (Moran's I는 row-standardized, Gi*는 binary weights)
+  permutations: 999 # permutation 검정 반복 횟수
+
+random_seed: 42   # 공간통계 permutation 등 확률적 단계의 재현성용 (run_manifest.json에 기록)
 
 classification:
   buffer_distances_m: [3, 5]

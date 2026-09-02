@@ -58,6 +58,10 @@ def _require_key(key: str | None, env_name: str) -> str:
 
 
 VWORLD_BUILDING_LAYER = "lt_c_spbd"  # 도로명주소건물 (VWorld WFS GetCapabilities로 확인됨)
+# 연속지적도(필지 경계). VWorld WFS GetCapabilities 응답에서 실제로 확인됨
+# (2026-09-01) - 본번(대표 필지)과 부번(분할된 필지)이 별도 레이어로 나뉘어
+# 있어 전체 필지를 얻으려면 둘 다 받아야 한다.
+VWORLD_CADASTRE_LAYERS = ["lp_pa_cbnd_bonbun", "lp_pa_cbnd_bubun"]
 
 
 def download_vworld_wfs_layer(

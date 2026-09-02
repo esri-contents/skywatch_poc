@@ -174,6 +174,66 @@ def _flow_diagram(stage_labels: list[str]) -> str:
     return f'<div class="flow-diagram">{"".join(nodes)}</div>'
 
 
+def _donut(counts: dict[str, int], colors: dict[str, str], order: list[str], center_label: str = "") -> str:
+    """counts를 CSS conic-gradient 도넛 차트로 그린다 (라이브러리 없음, 순수 CSS)."""
+    total = sum(counts.get(k, 0) for k in order) or 1
+    segments = []
+    acc = 0.0
+    for k in order:
+        n = counts.get(k, 0)
+        if n <= 0:
+            continue
+        pct = 100 * n / total
+        segments.append(f"{colors[k]} {acc:.2f}% {acc + pct:.2f}%")
+        acc += pct
+    gradient = ", ".join(segments) if segments else "var(--surface-alt) 0% 100%"
+    return f"""
+    <div class="donut" style="background: conic-gradient({gradient})">
+      <div class="donut-hole">
+        <span class="donut-total">{total:,}</span>
+        <span class="donut-total-label">{center_label}</span>
+      </div>
+    </div>
+    """
+
+
+def _timeline(points: list[tuple[str, str, bool]], start_year: float, end_year: float) -> str:
+    """지구지정~준공예정 구간 위에 마일스톤을 찍는 가로 타임라인 (순수 CSS).
+
+    points: (연도 라벨, 설명, 강조 여부) 튜플 목록. 위치는 start_year~end_year
+    구간에서 연도 라벨의 앞 4자리 숫자를 파싱해 비율로 계산한다.
+    """
+    span = end_year - start_year or 1
+    markers = []
+    for i, (year_label, desc, emphasize) in enumerate(points):
+        year_num = float(year_label[:4])
+        left = 100 * (year_num - start_year) / span
+        left = max(2, min(98, left))
+        side = "top" if i % 2 == 0 else "bottom"
+        cls = "timeline-point emphasize" if emphasize else "timeline-point"
+        markers.append(f"""
+        <div class="{cls} timeline-{side}" style="left:{left:.1f}%">
+          <div class="timeline-dot"></div>
+          <div class="timeline-label"><strong>{year_label}</strong><span>{desc}</span></div>
+        </div>
+        """)
+    return f'<div class="timeline"><div class="timeline-track"></div>{"".join(markers)}</div>'
+
+
+def _compare_bars(rows: list[tuple[str, float, str, str]], unit: str = "") -> str:
+    """(라벨, 값, 표시값, 색) 목록을 가로 비교 막대로 그린다 - before/after 대비용."""
+    max_v = max(v for _, v, _, _ in rows) or 1
+    items = "".join(f"""
+        <div class="compare-row">
+          <span class="compare-label">{label}</span>
+          <div class="compare-track"><div class="compare-fill" style="width:{100 * v / max_v:.1f}%;background:{color}">
+            <span class="compare-value">{display}{unit}</span>
+          </div></div>
+        </div>
+        """ for label, v, display, color in rows)
+    return f'<div class="compare-bars">{items}</div>'
+
+
 def _period_stats(results_path: str | Path) -> dict:
     gdf = gpd.read_file(results_path)
     priority = gdf["inspection_priority"].value_counts().to_dict()
@@ -385,8 +445,9 @@ def _param_chips(*pairs: tuple[str, str]) -> str:
     return f'<div class="param-chips">{items}</div>'
 
 
-# 6개 ArcGIS 역량 카드용 아이콘. 손으로 그린 베지어 경로 대신 rect/circle/line/polygon
-# 기본 도형만 조합한 line-art 스타일 - 뷰박스 0 0 32 32, stroke는 CSS(.capability-icon)에서 지정.
+# ArcGIS 역량 카드 / 정책 배경 / 한계 섹션용 아이콘. 손으로 그린 베지어 경로 대신
+# rect/circle/line/polygon 기본 도형만 조합한 line-art 스타일 - 뷰박스 0 0 32 32,
+# stroke 색은 CSS(.capability-icon/.context-icon/.limit-icon)에서 지정.
 CAPABILITY_ICONS = {
     "layers": '<rect x="6" y="7" width="20" height="5" rx="1.5"/><rect x="6" y="14" width="20" height="5" rx="1.5"/><rect x="6" y="21" width="20" height="5" rx="1.5"/>',
     "field": '<rect x="5" y="5" width="22" height="22" rx="2"/><circle cx="16" cy="14" r="3.2"/><line x1="16" y1="17.2" x2="16" y2="23"/><line x1="10" y1="23" x2="22" y2="23"/>',
@@ -394,11 +455,19 @@ CAPABILITY_ICONS = {
     "share": '<circle cx="8" cy="16" r="3.2"/><circle cx="24" cy="7" r="3.2"/><circle cx="24" cy="25" r="3.2"/><line x1="10.8" y1="14.5" x2="21.2" y2="8.5"/><line x1="10.8" y1="17.5" x2="21.2" y2="23.5"/>',
     "automate": '<rect x="5" y="13" width="6" height="6" rx="1"/><rect x="13" y="5" width="6" height="6" rx="1"/><rect x="21" y="13" width="6" height="6" rx="1"/><rect x="13" y="21" width="6" height="6" rx="1"/><line x1="11" y1="14" x2="14" y2="10"/><line x1="18" y1="10" x2="21" y2="14"/><line x1="21" y1="18" x2="18" y2="21"/><line x1="14" y1="21" x2="11" y2="18"/>',
     "shield": '<polygon points="16,4 26,8 26,17 16,28 6,17 6,8"/><polyline points="11,16 14.5,19.5 21,12"/>',
+    "speed": '<circle cx="16" cy="16" r="11"/><line x1="16" y1="16" x2="16" y2="9"/><line x1="16" y1="16" x2="21" y2="19"/>',
+    "legal": '<line x1="16" y1="6" x2="16" y2="26"/><line x1="6" y1="10" x2="26" y2="10"/><circle cx="8" cy="17" r="4"/><circle cx="24" cy="17" r="4"/><line x1="12" y1="26" x2="20" y2="26"/>',
+    "handshake": '<circle cx="12" cy="16" r="7"/><circle cx="20" cy="16" r="7"/>',
+    "satellite": '<rect x="12" y="12" width="8" height="8" rx="1"/><rect x="2" y="13" width="7" height="6" rx="1"/><rect x="23" y="13" width="7" height="6" rx="1"/><line x1="9" y1="16" x2="12" y2="16"/><line x1="20" y1="16" x2="23" y2="16"/><line x1="20" y1="12" x2="26" y2="6"/><line x1="27" y1="5" x2="27.2" y2="5.2"/>',
+    "warning": '<polygon points="16,5 28,26 4,26"/><line x1="16" y1="13" x2="16" y2="19"/><line x1="16" y1="22" x2="16" y2="22.3"/>',
+    "boundary": '<polygon points="16,4 27,10 27,22 16,28 5,22 5,10" stroke-dasharray="3,3"/>',
+    "resolution": '<rect x="5" y="5" width="8" height="8"/><rect x="15" y="5" width="8" height="8"/><rect x="5" y="15" width="8" height="8"/><rect x="15" y="15" width="8" height="8"/>',
+    "flag": '<line x1="8" y1="4" x2="8" y2="28"/><polyline points="8,6 24,6 18,12 24,18 8,18"/>',
 }
 
 
-def _icon(name: str) -> str:
-    return f'<svg class="capability-icon" viewBox="0 0 32 32" aria-hidden="true">{CAPABILITY_ICONS[name]}</svg>'
+def _icon(name: str, css_class: str = "capability-icon") -> str:
+    return f'<svg class="{css_class}" viewBox="0 0 32 32" aria-hidden="true">{CAPABILITY_ICONS[name]}</svg>'
 
 
 def _arcgis_note(text: str, *products: str) -> str:
@@ -748,34 +817,62 @@ def _context_section() -> str:
       이 리포트의 AOI(행정동 경계 근사, 10.99km²)는 위 공공주택지구 지정 경계(8.12km²)와 정확히
       일치하지 않습니다 - 자세한 내용은 한계·유의사항 섹션을 참고하시기 바랍니다.</p>
 
-      <div class="limits-grid" style="margin-top:24px">
-        <div class="limit-item context-item"><div class="bar-el"></div>
-          <p><strong>택지 조성 속도가 절반 가까이 빨라지고 있습니다.</strong>
-          2026년 8월 13일 정부 부동산 대책에서 3기 신도시를 포함한 공공택지의 발표~착공 기간을
-          기존 68개월에서 37개월로 단축하는 방안이 발표됐고, 추가 제도 개선이 완료되면 31개월까지
-          단축이 목표입니다. 국토교통부·기획재정부·LH 등이 참여하는 '범정부 택지 신속 혁신단'도
-          함께 출범했습니다<sup>2</sup>. 사업기간이 이만큼 압축되면, 지구 내 건축물 변화를 확인하는
-          주기도 함께 빨라져야 합니다 - 연 1회 수동 실태조사로는 이 속도를 따라가기 어렵습니다.</p></div>
-        <div class="limit-item context-item"><div class="bar-el"></div>
+      <h3 class="section-divider">지구지정부터 준공까지, 이 리포트의 촬영 시점</h3>
+      {_timeline([
+          ("2020", "지구지정", False),
+          ("2022", "T1 촬영", True),
+          ("2024", "T2 촬영", True),
+          ("2026", "T3 촬영 · 8·13대책 · 현재", True),
+          ("2029", "준공예정", False),
+      ], start_year=2020, end_year=2029)}
+
+      <div class="limits-grid" style="margin-top:32px">
+        <div class="limit-item context-item">
+          <div class="bar-el"></div>
+          {_icon("speed", "context-icon")}
+          <div>
+            <p><strong>택지 조성 속도가 절반 가까이 빨라지고 있습니다.</strong>
+            2026년 8월 13일 정부 부동산 대책에서 3기 신도시를 포함한 공공택지의 발표~착공 기간을
+            기존 68개월에서 37개월로 단축하는 방안이 발표됐고, 추가 제도 개선이 완료되면 31개월까지
+            단축이 목표입니다. 국토교통부·기획재정부·LH 등이 참여하는 '범정부 택지 신속 혁신단'도
+            함께 출범했습니다<sup>2</sup>. 사업기간이 이만큼 압축되면, 지구 내 건축물 변화를 확인하는
+            주기도 함께 빨라져야 합니다 - 연 1회 수동 실태조사로는 이 속도를 따라가기 어렵습니다.</p>
+            {_compare_bars([
+                ("기존", 68, "68개월", "var(--ink-soft)"),
+                ("개선 후", 37, "37개월", "var(--link)"),
+                ("제도개선 완료 시", 31, "31개월", "var(--accent)"),
+            ])}
+          </div>
+        </div>
+        <div class="limit-item context-item">
+          <div class="bar-el"></div>
+          {_icon("legal", "context-icon")}
           <p><strong>무허가 건축물은 원칙적으로 보상 대상에서 제외됩니다.</strong>
           토지보상법 시행규칙상 관계법령을 위반해 허가 없이 지어진 건축물은 보상하지 않으며,
           1989년 1월 25일 이후 지어진 무허가 건축물 소유자는 이주대책·주거이전비 대상에서도
           제외됩니다<sup>3</sup>. 즉 "이 건물이 언제 생겼는지"가 보상 실무에서 법적으로 중요한
           쟁점이 됩니다. 위성 변화탐지는 T1/T2/T3 촬영일이 명확한 시계열 근거이므로, 특정 시점
-          이후 새로 생기거나 크게 바뀐 건축물을 객관적인 날짜와 함께 짚어낼 수 있습니다.</p></div>
-        <div class="limit-item context-item"><div class="bar-el"></div>
+          이후 새로 생기거나 크게 바뀐 건축물을 객관적인 날짜와 함께 짚어낼 수 있습니다.</p>
+        </div>
+        <div class="limit-item context-item">
+          <div class="bar-el"></div>
+          {_icon("handshake", "context-icon")}
           <p><strong>LH가 이미 공개적으로 표명한 방향과 같은 선상에 있습니다.</strong>
           LH는 2023년 11월 UN과 협의의사록(RoD)을 체결해 GeoAI, 드론 웍스 플랫폼, 도시
           디지털트윈, 지리공간정보 분석 시스템 분야 기술 교류를 추진해 왔습니다. 당시 관계자는
           "새로운 도시를 건설하는 데 있어서도 AI가 접목된 공간정보 기술이 차별화된 도시를
           만드는 데 큰 역할을 할 것"이라고 밝혔습니다<sup>4</sup>. 이 PoC의 위성 변화탐지 +
-          공간통계 접근은 이 방향의 구체적인 실행 사례로 볼 수 있습니다.</p></div>
-        <div class="limit-item context-item"><div class="bar-el"></div>
+          공간통계 접근은 이 방향의 구체적인 실행 사례로 볼 수 있습니다.</p>
+        </div>
+        <div class="limit-item context-item">
+          <div class="bar-el"></div>
+          {_icon("satellite", "context-icon")}
           <p><strong>국가 차원에서도 검증되고 있는 접근입니다.</strong>
           국토위성영상과 딥러닝을 결합해 건물·도로를 탐지하는 연구가 대한원격탐사학회지 등에
           발표되고 있으며, 국토교통부·한국국토정보공사 등에서 국토현황정보 구축과 모니터링
           고도화에 활용될 것으로 기대되고 있습니다<sup>5</sup>. 위성 기반 변화탐지는 이 PoC만의
-          실험이 아니라, 국가 국토모니터링 체계가 실제로 향하고 있는 방향입니다.</p></div>
+          실험이 아니라, 국가 국토모니터링 체계가 실제로 향하고 있는 방향입니다.</p>
+        </div>
       </div>
 
       <p class="fine-print" style="margin-top:18px">
@@ -941,7 +1038,10 @@ def _period_section(
           <table><caption>현장조사 우선순위</caption><tr><th>등급</th><th class="num">건수</th></tr>{priority_rows}</table>
           {_bar(priority, PRIORITY_COLORS, ["HIGH", "MEDIUM", "LOW"])}
         </div>
-        <table><caption>변화유형</caption><tr><th>유형</th><th class="num">건수</th></tr>{change_type_rows}</table>
+        <div class="table-with-donut">
+          <table><caption>변화유형</caption><tr><th>유형</th><th class="num">건수</th></tr>{change_type_rows}</table>
+          {_donut(change_type, CHANGE_TYPE_COLORS, list(CHANGE_TYPE_COLORS.keys()), center_label="건")}
+        </div>
       </div>
 
       <figure class="figure-wide">
@@ -1222,6 +1322,9 @@ def build_html_report(out_path: str | Path) -> Path:
 
   .tables {{ display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 20px 0; }}
   @media (max-width: 680px) {{ .tables {{ grid-template-columns: 1fr; }} }}
+  .table-with-donut {{ display: flex; align-items: center; gap: 20px; }}
+  .table-with-donut table {{ flex: 1; }}
+  @media (max-width: 560px) {{ .table-with-donut {{ flex-direction: column; }} }}
 
   .stat-row {{ display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin: 20px 0; }}
   .stat-row.stat-row-4 {{ grid-template-columns: repeat(4, 1fr); }}
@@ -1320,11 +1423,55 @@ def build_html_report(out_path: str | Path) -> Path:
   }}
   .flow-arrow {{ color: var(--rule); font-size: 14px; flex-shrink: 0; }}
 
-  /* ArcGIS 역량 카드 아이콘 */
+  /* ArcGIS 역량 카드 / 맥락 아이콘 (공용) */
   .capability-icon {{
     width: 30px; height: 30px; fill: none; stroke: var(--gis);
     stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; margin-bottom: 10px;
   }}
+  .context-icon {{
+    width: 26px; height: 26px; fill: none; stroke: var(--link);
+    stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0;
+  }}
+  .limit-icon {{
+    width: 22px; height: 22px; fill: none; stroke: var(--accent);
+    stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0;
+  }}
+
+  /* 도넛 차트 (순수 CSS conic-gradient) */
+  .donut-wrap {{ display: flex; align-items: center; justify-content: center; margin: 10px 0; }}
+  .donut {{
+    width: 128px; height: 128px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }}
+  .donut-hole {{
+    width: 76px; height: 76px; border-radius: 50%; background: var(--surface);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }}
+  .donut-total {{ font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }}
+  .donut-total-label {{ font-size: 10px; color: var(--ink-soft); }}
+
+  /* 지구지정~준공예정 타임라인 */
+  .timeline {{ position: relative; height: 90px; margin: 28px 20px 10px; }}
+  .timeline-track {{ position: absolute; top: 45px; left: 0; right: 0; height: 3px; background: var(--rule); border-radius: 2px; }}
+  .timeline-point {{ position: absolute; top: 45px; transform: translateX(-50%); text-align: center; }}
+  .timeline-dot {{
+    width: 12px; height: 12px; border-radius: 50%; background: var(--link);
+    border: 2px solid var(--surface); margin: -6px auto 0; position: relative; z-index: 1;
+  }}
+  .timeline-point.emphasize .timeline-dot {{ background: var(--accent); width: 15px; height: 15px; margin-top: -7px; }}
+  .timeline-label {{ display: flex; flex-direction: column; font-size: 11.5px; line-height: 1.4; white-space: nowrap; }}
+  .timeline-label strong {{ font-size: 12.5px; }}
+  .timeline-label span {{ color: var(--ink-soft); }}
+  .timeline-top .timeline-label {{ position: absolute; bottom: 22px; left: 50%; transform: translateX(-50%); }}
+  .timeline-bottom .timeline-label {{ position: absolute; top: 22px; left: 50%; transform: translateX(-50%); }}
+
+  /* before/after 가로 비교 막대 */
+  .compare-bars {{ display: flex; flex-direction: column; gap: 10px; margin: 14px 0; max-width: 480px; }}
+  .compare-row {{ display: grid; grid-template-columns: 64px 1fr; align-items: center; gap: 10px; }}
+  .compare-label {{ font-size: 12.5px; color: var(--ink-soft); font-weight: 600; }}
+  .compare-track {{ height: 30px; background: var(--surface-alt); border-radius: 4px; overflow: hidden; }}
+  .compare-fill {{ height: 100%; display: flex; align-items: center; justify-content: flex-end; padding: 0 10px; border-radius: 4px; }}
+  .compare-value {{ color: #fff; font-size: 12.5px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }}
 
   details.provenance {{ margin-top: 20px; border-top: 1px solid var(--rule); padding-top: 14px; }}
   details.provenance summary {{
@@ -1396,10 +1543,13 @@ def build_html_report(out_path: str | Path) -> Path:
 
   .limits-grid {{ display: grid; gap: 14px; margin-top: 8px; }}
   .limit-item {{
-    display: grid; grid-template-columns: 4px 1fr; gap: 16px; align-items: start;
+    display: grid; grid-template-columns: 4px 28px 1fr; gap: 16px; align-items: start;
   }}
   .limit-item .bar-el {{ align-self: stretch; background: var(--accent); border-radius: 100px; }}
+  .limit-item .limit-icon {{ margin-top: 1px; }}
+  .context-item {{ grid-template-columns: 4px 32px 1fr; }}
   .context-item .bar-el {{ background: var(--link); }}
+  .context-item .context-icon {{ margin-top: 2px; }}
   sup {{ font-size: 10px; color: var(--link); font-weight: 700; }}
   .limit-item p {{ margin: 0; font-size: 13.5px; line-height: 1.7; }}
 
@@ -1456,22 +1606,34 @@ def build_html_report(out_path: str | Path) -> Path:
     <p class="eyebrow">반드시 함께 읽을 것</p>
     <h2>한계와 유의사항</h2>
     <div class="limits-grid">
-      <div class="limit-item"><div class="bar-el"></div>
+      <div class="limit-item">
+        <div class="bar-el"></div>
+        {_icon("warning", "limit-icon")}
         <p><strong>이 시스템은 불법건축물을 자동으로 판정하지 않습니다.</strong>
         HIGH/MEDIUM/LOW는 "영상 변화가 크고 + 건물과 겹치고 + 보유한 행정정보로는
         설명되지 않음"이라는 뜻일 뿐입니다. "설명되지 않음"은 실제 위반일 수도 있지만,
-        건축물대장 조인율(67.7%)이 그 건물의 허가 이력을 놓친 결과일 수도 있습니다.</p></div>
-      <div class="limit-item"><div class="bar-el"></div>
+        건축물대장 조인율(67.7%)이 그 건물의 허가 이력을 놓친 결과일 수도 있습니다.</p>
+      </div>
+      <div class="limit-item">
+        <div class="bar-el"></div>
+        {_icon("boundary", "limit-icon")}
         <p><strong>AOI는 정식 지구계가 아니라 행정동 경계 근사치</strong>입니다
         (정식 지구계는 국토부 고시 제2021-1285호에 근거하며, 완전한 추출을 위해서는
-        별도 작업이 필요합니다).</p></div>
-      <div class="limit-item"><div class="bar-el"></div>
+        별도 작업이 필요합니다).</p>
+      </div>
+      <div class="limit-item">
+        <div class="bar-el"></div>
+        {_icon("resolution", "limit-icon")}
         <p>Sentinel-2 10m 해상도는 개별 단독주택 단위의 변화 탐지에 근본적인 한계가
-        있습니다 - 대형 아파트단지·대규모 토지조성 등 큰 변화 위주로 신뢰하시기 바랍니다.</p></div>
-      <div class="limit-item"><div class="bar-el"></div>
+        있습니다 - 대형 아파트단지·대규모 토지조성 등 큰 변화 위주로 신뢰하시기 바랍니다.</p>
+      </div>
+      <div class="limit-item">
+        <div class="bar-el"></div>
+        {_icon("flag", "limit-icon")}
         <p>{_term("directional_consistency_flag")}는 밝기 방향 하나만 보는 보조 신호입니다 -
         계절·식생 변화 등으로도 바뀔 수 있어 라벨을 자동으로 뒤집지는 않습니다. HIGH
-        등급이면서 이 플래그가 켜진 후보는 반드시 담당자가 직접 확인하시기 바랍니다.</p></div>
+        등급이면서 이 플래그가 켜진 후보는 반드시 담당자가 직접 확인하시기 바랍니다.</p>
+      </div>
     </div>
   </section>
 </main>

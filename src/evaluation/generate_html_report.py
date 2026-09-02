@@ -120,6 +120,17 @@ def _period_stats(results_path: str | Path) -> dict:
         if "directional_consistency_flag" in gdf else 0
     )
 
+    # HIGH 등급이 실제로 "행정정보로 설명 안 되는" 건인지 검증 - 대장 매칭 여부별
+    # HIGH 비중을 비교한다(우선순위 점수화 로직이 의도대로 작동하는지의 근거자료).
+    register_by_tier = None
+    if "has_register_match" in gdf:
+        is_matched = gdf["has_register_match"].astype(str) == "True"
+        for label, subset in (("matched", gdf[is_matched]), ("unmatched", gdf[~is_matched])):
+            if len(subset):
+                pct_high = 100 * (subset["inspection_priority"] == "HIGH").sum() / len(subset)
+                register_by_tier = register_by_tier or {}
+                register_by_tier[label] = {"n": len(subset), "pct_high": pct_high}
+
     area = gdf["change_area_m2"].dropna() if "change_area_m2" in gdf else gdf.iloc[0:0]
     area_stats = (
         {"median": float(area.median()), "mean": float(area.mean()), "max": float(area.max())}
@@ -138,7 +149,7 @@ def _period_stats(results_path: str | Path) -> dict:
             gdf.groupby("site_id")
             .agg(area_m2=("change_area_m2", "sum"), n_buildings=("change_area_m2", "size"))
             .sort_values("area_m2", ascending=False)
-            .head(5)
+            .head(8)
         )
         for site_id, row in agg.iterrows():
             sub = gdf[gdf["site_id"] == site_id]
@@ -160,6 +171,7 @@ def _period_stats(results_path: str | Path) -> dict:
         "n_sites": n_sites, "total": total,
         "n_register": n_register, "n_flagged": n_flagged,
         "area_stats": area_stats, "purpose_counts": purpose_counts, "top_sites": top_sites,
+        "register_by_tier": register_by_tier,
     }
 
 
@@ -258,6 +270,23 @@ def _insights_block(stats: dict) -> str:
         </div>
         """
 
+    register_html = ""
+    rbt = stats.get("register_by_tier")
+    if rbt and "matched" in rbt and "unmatched" in rbt:
+        m, u = rbt["matched"], rbt["unmatched"]
+        register_html = f"""
+        <div class="insight-callout">
+          <div class="insight-num">{u["pct_high"]:.0f}%<span class="fine-print"> vs {m["pct_high"]:.0f}%</span></div>
+          <div class="insight-body">
+            <strong>건축물대장에 매칭되지 않은 후보가 HIGH로 분류되는 비율이 더 높습니다.</strong>
+            대장 미매칭 {u["n"]:,}건 중 {u["pct_high"]:.0f}%가 HIGH인 반면, 대장 매칭
+            {m["n"]:,}건 중에서는 {m["pct_high"]:.0f}%만 HIGH입니다. {_term("administrative_uncertainty")}
+            가중치(0.2)가 의도한 대로 "행정정보로 설명되지 않는 변화"를 실제로 상위 우선순위로
+            끌어올리고 있다는 근거입니다.
+          </div>
+        </div>
+        """
+
     return f"""
     <div class="insights-grid">
       <div>
@@ -273,6 +302,7 @@ def _insights_block(stats: dict) -> str:
         {gi_html}
       </div>
     </div>
+    {register_html}
     {top_table}
     """
 
@@ -280,6 +310,17 @@ def _insights_block(stats: dict) -> str:
 def _param_chips(*pairs: tuple[str, str]) -> str:
     items = "".join(f'<span class="param-chip">{k} = {v}</span>' for k, v in pairs)
     return f'<div class="param-chips">{items}</div>'
+
+
+def _arcgis_note(text: str, *products: str) -> str:
+    """파이프라인 각 단계 아래 붙는 "ArcGIS로는" 노트 - 같은 단계를 ArcGIS 제품으로 재현/확장하는 방법."""
+    chips = "".join(f'<span class="gis-chip">{p}</span>' for p in products)
+    return f"""
+    <div class="arcgis-note">
+      <span class="gis-tag">ArcGIS로는</span>
+      <div><p>{text}</p><div class="gis-products">{chips}</div></div>
+    </div>
+    """
 
 
 def _methodology_section() -> str:
@@ -303,6 +344,12 @@ def _methodology_section() -> str:
             오차를 먼저 측정합니다.</p>
             {_param_chips(("CRS", "EPSG:5186"), ("정합 오차", "1.26m (0.126px)"), ("ecc_score", "0.979"),
                           ("허용 기준", "≤ 10m (1px)"))}
+            {_arcgis_note(
+                "동일한 정합 검증을 ArcGIS Pro의 Image Analyst 확장에서 GUI로 수행할 수 있습니다. "
+                "Auto Registration 도구가 기준 영상 대비 이동량을 계산해주고, 여러 시점 영상을 "
+                "Mosaic Dataset으로 관리하면 재투영·클립을 반복 자동화할 수 있습니다.",
+                "Image Analyst", "Mosaic Dataset",
+            )}
           </div>
         </li>
 
@@ -337,6 +384,12 @@ def _methodology_section() -> str:
                 방법입니다.</p>
               </div>
             </div>
+            {_arcgis_note(
+                "Image Analyst의 Change Detection 도구(Compute Change Raster)가 이와 유사한 여러 "
+                "변화탐지 알고리즘을 코드 없이 제공합니다. ArcGIS Pro는 딥러닝 기반 객체 탐지 "
+                "(Detect Objects Using Deep Learning)까지 라이선스만으로 바로 활용할 수 있습니다.",
+                "Image Analyst", "Detect Objects Using Deep Learning",
+            )}
           </div>
         </li>
 
@@ -351,6 +404,12 @@ def _methodology_section() -> str:
             component는 걸러냅니다.</p>
             {_param_chips(("threshold_method", "fixed"), ("mask_threshold", "0.5"),
                           ("opening/closing kernel", "3×3"), ("최소 면적", "25 m²"))}
+            {_arcgis_note(
+                "Raster Calculator·Majority Filter 같은 Spatial Analyst 도구로 임계값 결정과 노이즈 "
+                "제거를 그대로 재현할 수 있습니다. ModelBuilder로 단계를 묶으면 파라미터만 바꿔가며 "
+                "반복 실행하는 '분석 모델'로 패키징되어, 다음 촬영분이 들어올 때마다 재사용할 수 있습니다.",
+                "Spatial Analyst", "ModelBuilder",
+            )}
           </div>
         </li>
 
@@ -365,6 +424,14 @@ def _methodology_section() -> str:
             평균 밝기가 밝아졌는지 어두워졌는지({_term("brightness_delta")}) - 도 계산해 다음
             단계의 보조 근거로 전달합니다.</p>
             {_param_chips(("버퍼 거리(근접 변화 판정)", "3 m"))}
+            {_arcgis_note(
+                "Intersect·Spatial Join 같은 표준 지오프로세싱 도구가 이 overlay 단계를 그대로 "
+                "대체합니다. ArcGIS API for Python으로 파이프라인 전체를 예약 실행(Notebook, 작업 "
+                "스케줄러)하도록 구성하면, 새 위성 영상이 들어올 때마다 자동으로 갱신되는 레이어를 "
+                "만들 수 있습니다 - 실제로 이 프로젝트의 src/publish/arcgis_online.py가 그 자동화의 "
+                "출발점입니다.",
+                "Spatial Join", "ArcGIS API for Python",
+            )}
           </div>
         </li>
 
@@ -381,6 +448,12 @@ def _methodology_section() -> str:
             증가했다면(철거 방향과 모순) 철거 대신 기타 변화로 분류합니다.</p>
             {_param_chips(("신축 판정 change_ratio", "≥ 0.5"), ("건축물대장 PNU 매칭률", "67.7%"),
                           ("철거 후보 mean_change_score", "≥ 0.6"))}
+            {_arcgis_note(
+                "이 규칙을 Arcade 표현식이나 Attribute Rules로 Feature Layer에 직접 내장하면, "
+                "담당자가 편집기에서 값을 수정하는 즉시 변화유형이 자동으로 재계산됩니다 - "
+                "Python을 다시 돌리지 않아도 편집 시점에 규칙이 살아있는 레이어가 되는 것입니다.",
+                "Arcade", "Attribute Rules",
+            )}
           </div>
         </li>
 
@@ -398,6 +471,13 @@ def _methodology_section() -> str:
             공백을 반영하여 "행정정보로 설명되지 않는 큰 변화"를 자연스럽게 상위로 끌어올리는
             구조입니다.</p>
             {_param_chips(("HIGH", "≥ 0.7"), ("MEDIUM", "≥ 0.4"), ("LOW", "< 0.4"))}
+            {_arcgis_note(
+                "같은 가중합산 공식을 Field Calculator/Arcade로 필드에 계산해 넣고 ArcGIS "
+                "Dashboards의 게이지·카테고리 위젯에 연결하면, 현장조사팀이 우선순위 현황을 "
+                "실시간으로 모니터링하는 대시보드가 됩니다. Field Maps로 배포하면 담당자별로 "
+                "오늘 방문할 HIGH 현장 목록이 지도 위 체크리스트로 바로 전달됩니다.",
+                "Dashboards", "Field Maps",
+            )}
           </div>
         </li>
 
@@ -412,6 +492,14 @@ def _methodology_section() -> str:
             ({_term("gi_class")})인지 90/95/99% 신뢰수준으로 분류합니다. 두 검정 모두 permutation
             방식이라 실행할 때마다 결과가 흔들리지 않도록 random seed를 고정합니다.</p>
             {_param_chips(("KNN k", "8"), ("permutations", "999"), ("random_seed", "42"))}
+            {_arcgis_note(
+                "Global Moran's I와 Getis-Ord Gi*는 ArcGIS Pro Spatial Statistics 툴박스에 각각 "
+                "Spatial Autocorrelation(Global Moran's I), Hot Spot Analysis(Getis-Ord Gi*)로 "
+                "기본 내장되어 있어 코드 없이 동일한 분석을 수행할 수 있습니다. 세 시점을 함께 "
+                "보려면 Space-Time Cube와 Emerging Hot Spot Analysis로 확장해, '어디가 최근에 새로 "
+                "hotspot이 되었는지'까지 자동으로 분류할 수 있습니다.",
+                "Spatial Statistics 툴박스", "Space-Time Cube",
+            )}
           </div>
         </li>
 
@@ -420,7 +508,91 @@ def _methodology_section() -> str:
     """
 
 
+def _arcgis_section() -> str:
+    """이 PoC를 ArcGIS 플랫폼 위에 올리면 무엇이 가능해지는지 정리한 섹션 (LH 발표용)."""
+    cards = [
+        (
+            "데이터 관리 &amp; 발행",
+            "T1/T2/T3 결과를 각각 별도 파일로 관리하는 대신 Hosted Feature Layer로 발행하고 "
+            "시간 인식(time-aware) 속성을 주면, 하나의 Web Map에서 시점 슬라이더로 세 시점을 "
+            "스와이프 비교할 수 있습니다. 원본 위성영상은 Mosaic Dataset/Image Service로 "
+            "카탈로그화해 매번 파일을 새로 내려받지 않아도 됩니다.",
+            ["Hosted Feature Layer", "Image Service", "Time-Aware Layers"],
+        ),
+        (
+            "현장조사 연계",
+            "HIGH 등급 현장 목록을 Field Maps로 담당자 태블릿에 오프라인 지도로 배포하고, "
+            "Survey123으로 현장 사진·체크리스트를 수집하면 결과가 바로 원본 레이어에 반영됩니다. "
+            "이 리포트의 '방향성 재확인 권장' 후보를 그대로 오늘의 현장조사 목록으로 넘길 수 "
+            "있습니다.",
+            ["Field Maps", "Survey123", "오프라인 지도"],
+        ),
+        (
+            "의사결정 대시보드",
+            "이 리포트의 통계·차트·지도를 ArcGIS Dashboards로 옮기면 파이프라인을 재실행할 "
+            "때마다 자동으로 갱신되는 실시간 화면이 됩니다. 담당 부서·법정동·우선순위별 필터와 "
+            "드릴다운을 추가해, 발표 슬라이드가 아니라 상시 운영되는 모니터링 도구로 확장할 수 "
+            "있습니다.",
+            ["Dashboards", "Arcade", "Web Map"],
+        ),
+        (
+            "대내외 공유 &amp; 스토리텔링",
+            "오늘 이 발표 내용을 StoryMaps로 옮기면 지도·그림·설명이 스크롤 한 번으로 이어지는 "
+            "웹 기반 인터랙티브 문서가 됩니다. 대국민 공개나 타 기관 공유가 필요해지면 "
+            "Experience Builder로 권한이 분리된 별도 공개용 앱도 같은 데이터 위에서 바로 구성할 "
+            "수 있습니다.",
+            ["StoryMaps", "Experience Builder"],
+        ),
+        (
+            "자동화 &amp; 확장 분석",
+            "이 PoC에는 이미 <code>src/publish/arcgis_online.py</code>로 ArcGIS API for Python "
+            "자동 발행 스크립트가 작성되어 있습니다 - 새 위성영상이 들어올 때마다 파이프라인을 "
+            "예약 실행(Notebook Server)해 레이어를 자동 갱신하는 구조로 그대로 확장됩니다. 분석 "
+            "범위를 넓힐 때도 Space-Time Cube 등 시계열 공간통계를 코드 추가 없이 붙일 수 "
+            "있습니다.",
+            ["ArcGIS API for Python", "Notebook Server"],
+        ),
+        (
+            "거버넌스 &amp; 협업",
+            "Portal for ArcGIS/ArcGIS Hub로 옮기면 부서·기관별 권한을 분리한 레이어 공유 체계와 "
+            "접근 로그를 갖추게 됩니다. LH 내부 여러 사업지구가 같은 파이프라인을 쓰게 되더라도, "
+            "사업지구별 그룹과 권한만 나눠 동일한 분석 자산을 재사용할 수 있습니다.",
+            ["Portal for ArcGIS", "ArcGIS Hub"],
+        ),
+    ]
+    cards_html = "".join(
+        f"""
+        <div class="capability-card">
+          <h3>{title}</h3>
+          <p>{body}</p>
+          <div class="gis-products">{"".join(f'<span class="gis-chip">{p}</span>' for p in products)}</div>
+        </div>
+        """
+        for title, body, products in cards
+    )
+    return f"""
+    <section id="arcgis" class="card">
+      <p class="eyebrow">확장 로드맵</p>
+      <h2>ArcGIS 플랫폼으로 확장하면</h2>
+      <p class="subtitle">지금까지는 이 분석이 Python PoC로 재현 가능하다는 것을 보여드렸습니다.
+      같은 데이터와 같은 방법론을 ArcGIS 플랫폼에 올리면, 1회성 분석 리포트가 아니라 LH가
+      지속적으로 운영할 수 있는 제품이 됩니다.</p>
+      <div class="capability-grid">
+        {cards_html}
+      </div>
+    </section>
+    """
+
+
 # ---------------------------------------------------------- section pieces --
+
+def _years_elapsed(span: str) -> float:
+    """'2022-05-17 → 2024-05-31' 형태의 span 문자열에서 경과 연수를 계산한다."""
+    start_s, end_s = (s.strip() for s in span.split("→"))
+    start = datetime.strptime(start_s, "%Y-%m-%d")
+    end = datetime.strptime(end_s, "%Y-%m-%d")
+    return (end - start).days / 365.25
+
 
 def _summary_table(periods: list[dict]) -> str:
     """세 실행을 나란히 놓고 비교하는 표 - 상세 섹션을 읽기 전에 전체 모양을 먼저 보여준다."""
@@ -431,8 +603,12 @@ def _summary_table(periods: list[dict]) -> str:
     header_cells = "".join(f'<th class="period-col">{p["code"]}</th>' for p in periods)
     rows = "".join([
         row("촬영 구간", lambda p: p["span"]),
+        row("경과 기간", lambda p: f'{_years_elapsed(p["span"]):.2f}년'),
         row("변화 후보(건물 기준)", lambda p: f'{p["stats"]["total"]:,}건'),
         row("실제 현장 수(site_id)", lambda p: f'{p["stats"]["n_sites"]:,}곳'),
+        row("연간 환산 HIGH 건수", lambda p: (
+            f'<span class="mono">{p["stats"]["priority"].get("HIGH", 0) / _years_elapsed(p["span"]):.1f}건/년</span>'
+        )),
         row("우선순위 분포", lambda p: _bar(p["stats"]["priority"], PRIORITY_COLORS, ["HIGH", "MEDIUM", "LOW"])
             + f'<div class="bar-legend">{_chip("HIGH " + str(p["stats"]["priority"].get("HIGH", 0)), PRIORITY_COLORS["HIGH"])} '
               f'{_chip("MED " + str(p["stats"]["priority"].get("MEDIUM", 0)), PRIORITY_COLORS["MEDIUM"])} '
@@ -704,6 +880,27 @@ def build_html_report(out_path: str | Path) -> Path:
         </div>
         """
 
+    velocity_html = ""
+    if len(periods) >= 2:
+        p_t1t2, p_t2t3 = periods[0], periods[1]
+        rate_t1t2 = p_t1t2["stats"]["priority"].get("HIGH", 0) / _years_elapsed(p_t1t2["span"])
+        rate_t2t3 = p_t2t3["stats"]["priority"].get("HIGH", 0) / _years_elapsed(p_t2t3["span"])
+        if rate_t1t2 > 0:
+            pct_change = 100 * (rate_t2t3 - rate_t1t2) / rate_t1t2
+            velocity_html = f"""
+            <div class="insight-callout">
+              <div class="insight-num">{pct_change:+.0f}%</div>
+              <div class="insight-body">
+                <strong>연간 HIGH 발생 속도가 {p_t1t2["code"]} 대비 {p_t2t3["code"]}에서
+                {pct_change:+.0f}% 변화했습니다.</strong>
+                두 구간 모두 정확히 2년 안팎이라 연간 환산값을 직접 비교할 수 있습니다 -
+                {p_t1t2["code"]}는 연간 {rate_t1t2:.1f}건, {p_t2t3["code"]}는 연간 {rate_t2t3:.1f}건입니다.
+                단일 시점 스냅샷이 아니라 두 번의 독립적인 실행으로 얻은 추세이므로, 개발 속도
+                변화를 시사하는 근거로 참고할 수 있습니다(공식 결론이 아닌 참고 자료입니다).
+              </div>
+            </div>
+            """
+
     period_sections = "".join(
         _period_section(
             p["id"], p["code"], p["title"], p["subtitle"], p["stats"],
@@ -754,6 +951,8 @@ def build_html_report(out_path: str | Path) -> Path:
     --accent: #b5792a;
     --accent-soft: #f3e6cf;
     --link: #2c5c52;
+    --gis: #2f6690;
+    --gis-soft: #e6eef4;
     --shadow: 0 1px 2px rgba(20,37,35,.05), 0 8px 24px rgba(20,37,35,.06);
     --font-sans: "Noto Sans KR", "Pretendard Variable", Pretendard, "Malgun Gothic",
                  "Apple SD Gothic Neo", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -770,6 +969,8 @@ def build_html_report(out_path: str | Path) -> Path:
       --accent: #e0a748;
       --accent-soft: #2f2718;
       --link: #86c7b3;
+      --gis: #7ab0d6;
+      --gis-soft: #1b2c38;
       --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.35);
     }}
   }}
@@ -942,6 +1143,31 @@ def build_html_report(out_path: str | Path) -> Path:
   .method-card h4 {{ margin: 0 0 6px; font-size: 14px; font-weight: 700; }}
   .method-card p {{ margin: 0; font-size: 12.5px; line-height: 1.65; color: var(--ink-soft); }}
 
+  .arcgis-note {{
+    display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: start;
+    background: var(--gis-soft); border-radius: 6px; padding: 10px 14px; margin-top: 14px;
+    font-size: 12.5px; line-height: 1.65;
+  }}
+  .arcgis-note .gis-tag {{
+    font-size: 10.5px; font-weight: 800; letter-spacing: .05em; color: var(--gis);
+    text-transform: uppercase; white-space: nowrap; padding-top: 1px;
+  }}
+  .arcgis-note p {{ margin: 0; color: var(--ink); }}
+  .arcgis-note .gis-products {{ display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }}
+  .gis-chip {{
+    font-size: 11px; font-weight: 700; background: var(--surface); color: var(--gis);
+    border: 1px solid var(--gis); padding: 2px 8px; border-radius: 100px;
+  }}
+
+  .capability-grid {{ display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-top: 16px; }}
+  @media (max-width: 800px) {{ .capability-grid {{ grid-template-columns: 1fr; }} }}
+  .capability-card {{
+    background: var(--gis-soft); border-radius: 8px; padding: 20px 22px;
+  }}
+  .capability-card h3 {{ font-size: 15px; font-weight: 800; color: var(--gis); margin: 0 0 8px; }}
+  .capability-card p {{ margin: 0 0 10px; font-size: 13px; line-height: 1.7; color: var(--ink); }}
+  .capability-card .gis-products {{ display: flex; gap: 6px; flex-wrap: wrap; }}
+
   .legend-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; margin-top: 8px; }}
   @media (max-width: 800px) {{ .legend-grid {{ grid-template-columns: 1fr; }} }}
   .legend-list {{ list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }}
@@ -972,6 +1198,7 @@ def build_html_report(out_path: str | Path) -> Path:
   <a href="#overview">개요</a>
   <a href="#legend">읽는 법</a>
   <a href="#methodology">방법론</a>
+  <a href="#arcgis">확장 로드맵</a>
   {nav_items}
   {'<a href="#cadastre">지적 연계</a>' if cadastre_html else ""}
   <a href="#limitations">한계·유의사항</a>
@@ -983,12 +1210,15 @@ def build_html_report(out_path: str | Path) -> Path:
     <p class="subtitle">T1→T2가 공식 Baseline이며, T2→T3와 T1→T3는 참고용으로 함께 실행한 확장
     비교입니다. 상세 지도와 표는 아래 각 구간 섹션에서 확인하실 수 있습니다.</p>
     {_summary_table(periods)}
+    {velocity_html}
     {persistence_html}
   </section>
 
   {_legend_section()}
 
   {_methodology_section()}
+
+  {_arcgis_section()}
 
   {period_sections}
 

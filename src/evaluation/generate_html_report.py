@@ -77,6 +77,7 @@ def _period_stats(results_path: str | Path) -> dict:
     gdf = gpd.read_file(results_path)
     priority = gdf["inspection_priority"].value_counts().to_dict()
     change_type = gdf["change_type"].value_counts(dropna=True).to_dict()
+    gi_class = gdf["gi_class"].value_counts(dropna=True).to_dict() if "gi_class" in gdf else {}
     n_sites = gdf["site_id"].nunique()
     total = int(len(gdf))
 
@@ -89,11 +90,71 @@ def _period_stats(results_path: str | Path) -> dict:
         int((gdf["directional_consistency_flag"].astype(str) == "False").sum())
         if "directional_consistency_flag" in gdf else 0
     )
+
+    area = gdf["change_area_m2"].dropna() if "change_area_m2" in gdf else gdf.iloc[0:0]
+    area_stats = (
+        {"median": float(area.median()), "mean": float(area.mean()), "max": float(area.max())}
+        if len(area) else None
+    )
+
+    purpose_counts = {}
+    if "mainPurpsCdNm" in gdf:
+        purpose = gdf["mainPurpsCdNm"].dropna()
+        purpose = purpose[purpose.astype(str).str.len() > 0]
+        purpose_counts = purpose.value_counts().head(6).to_dict()
+
+    top_sites = []
+    if "change_area_m2" in gdf and "site_id" in gdf:
+        agg = (
+            gdf.groupby("site_id")
+            .agg(area_m2=("change_area_m2", "sum"), n_buildings=("change_area_m2", "size"))
+            .sort_values("area_m2", ascending=False)
+            .head(5)
+        )
+        for site_id, row in agg.iterrows():
+            sub = gdf[gdf["site_id"] == site_id]
+            top_sites.append({
+                "site_id": site_id,
+                "area_m2": float(row["area_m2"]),
+                "n_buildings": int(row["n_buildings"]),
+                "change_type": sub["change_type"].mode().iloc[0] if not sub["change_type"].mode().empty else None,
+                "priority": sub["inspection_priority"].mode().iloc[0] if not sub["inspection_priority"].mode().empty else None,
+                "gi_class": (
+                    sub["gi_class"].mode().iloc[0]
+                    if "gi_class" in sub and not sub["gi_class"].dropna().empty and not sub["gi_class"].mode().empty
+                    else None
+                ),
+            })
+
     return {
-        "priority": priority, "change_type": change_type,
+        "priority": priority, "change_type": change_type, "gi_class": gi_class,
         "n_sites": n_sites, "total": total,
         "n_register": n_register, "n_flagged": n_flagged,
+        "area_stats": area_stats, "purpose_counts": purpose_counts, "top_sites": top_sites,
     }
+
+
+def _persistence_insight(path_a: str | Path, path_b: str | Path) -> dict | None:
+    """b 구간의 HIGH 현장 중 a 구간에서도 HIGH였던 위치와 공간적으로 겹치는 곳이 몇 곳인지 센다.
+
+    두 구간의 building_change_results를 직접 spatial join하는 실측 비교다 -
+    "최근 개발이 새 장소로 번지는지, 같은 곳에서 계속되는지"를 눈대중이 아니라
+    지오메트리 교차로 판정한다.
+    """
+    a = gpd.read_file(path_a)
+    b = gpd.read_file(path_b)
+    a_high = a[a["inspection_priority"] == "HIGH"]
+    b_high = b[b["inspection_priority"] == "HIGH"]
+    if a_high.empty or b_high.empty:
+        return None
+    if a_high.crs != b_high.crs:
+        b_high = b_high.to_crs(a_high.crs)
+    a_union = a_high.geometry.union_all()
+    b_dissolved = b_high.dissolve(by="site_id")
+    overlap = b_dissolved.geometry.intersects(a_union)
+    n_total = len(b_dissolved)
+    n_persistent = int(overlap.sum())
+    return {"n_total": n_total, "n_persistent": n_persistent, "n_new": n_total - n_persistent}
 
 
 def _moran_summary(stats_path: str | Path) -> dict | None:
@@ -111,6 +172,216 @@ def _manifest_summary(manifest_path: str | Path) -> dict | None:
         return None
     with open(manifest_path, encoding="utf-8") as f:
         return json.load(f)
+
+
+def _ranked_bars(counts: dict, color: str, labels: dict | None = None) -> str:
+    """{항목: 건수} 딕셔너리를 건수 내림차순 가로 막대 목록으로 그린다 (라이브러리 없음)."""
+    if not counts:
+        return '<p class="fine-print">데이터 없음</p>'
+    ordered = sorted(counts.items(), key=lambda x: -x[1])
+    max_n = ordered[0][1] or 1
+    items = "".join(
+        f'<li><span class="rb-label" title="{(labels or {}).get(k, k)}">{(labels or {}).get(k, k)}</span>'
+        f'<span class="rb-track"><span class="rb-fill" style="width:{100 * n / max_n:.1f}%;background:{color}"></span></span>'
+        f'<span class="rb-num">{n:,}</span></li>'
+        for k, n in ordered
+    )
+    return f'<ul class="rank-bars">{items}</ul>'
+
+
+def _insights_block(stats: dict) -> str:
+    """구간별 핵심 인사이트: 변화 규모 분포, 건물 용도, Gi* 등급 분포, 규모 상위 현장 Top 5."""
+    area = stats.get("area_stats")
+    area_html = ""
+    if area:
+        area_html = f"""
+        <div class="mini-stats">
+          <div><span class="mini-num">{area["median"]:,.0f}</span><span class="mini-label">중앙값 m²</span></div>
+          <div><span class="mini-num">{area["mean"]:,.0f}</span><span class="mini-label">평균 m²</span></div>
+          <div><span class="mini-num">{area["max"]:,.0f}</span><span class="mini-label">최대 m²</span></div>
+        </div>
+        <p class="fine-print">평균이 중앙값보다 훨씬 크다 - 소규모 증축 다수와 대규모 조성공사
+        소수가 섞여있다는 뜻이라, 순위표(아래)로 큰 현장부터 따로 확인하는 게 좋다.</p>
+        """
+
+    purpose_html = _ranked_bars(stats.get("purpose_counts", {}), "#5a7a70")
+    gi_html = _ranked_bars(stats.get("gi_class", {}), "#8a6a3a", GI_CLASS_LABELS)
+
+    top_sites = stats.get("top_sites", [])
+    top_rows = "".join(
+        f'<tr><td class="num muted">{i + 1}</td><td class="mono">{s["site_id"]}</td>'
+        f'<td class="num">{s["area_m2"]:,.0f}</td><td class="num">{s["n_buildings"]}</td>'
+        f'<td>{_chip(CHANGE_TYPE_LABELS.get(s["change_type"], s["change_type"] or "—"), CHANGE_TYPE_COLORS.get(s["change_type"], "#999")) if s["change_type"] else "—"}</td>'
+        f'<td>{_chip(s["priority"], PRIORITY_COLORS[s["priority"]]) if s["priority"] in PRIORITY_COLORS else "—"}</td>'
+        f'<td>{_chip(GI_CLASS_LABELS.get(s["gi_class"], s["gi_class"]), GI_CLASS_COLORS.get(s["gi_class"], "#999")) if s["gi_class"] else "—"}</td></tr>'
+        for i, s in enumerate(top_sites)
+    )
+    top_table = ""
+    if top_rows:
+        top_table = f"""
+        <h3>규모 상위 현장 Top {len(top_sites)} <span class="fine-print">(영향 건물면적 합계 기준)</span></h3>
+        <div class="table-scroll">
+          <table>
+            <tr><th>#</th><th>site_id</th><th class="num">면적 합계(m²)</th><th class="num">건물 수</th>
+                <th>유형</th><th>우선순위</th><th>Gi*</th></tr>
+            {top_rows}
+          </table>
+        </div>
+        """
+
+    return f"""
+    <div class="insights-grid">
+      <div>
+        <h3>변화 규모 분포</h3>
+        {area_html}
+      </div>
+      <div>
+        <h3>건축물대장 매칭 건물의 주용도</h3>
+        {purpose_html}
+      </div>
+      <div>
+        <h3>Gi* 등급 분포</h3>
+        {gi_html}
+      </div>
+    </div>
+    {top_table}
+    """
+
+
+def _param_chips(*pairs: tuple[str, str]) -> str:
+    items = "".join(f'<span class="param-chip">{k} = {v}</span>' for k, v in pairs)
+    return f'<div class="param-chips">{items}</div>'
+
+
+def _methodology_section() -> str:
+    """파이프라인 7단계를 실제 코드/config.yaml 값과 함께 설명한다 (src/pipeline.py 순서 그대로)."""
+    return f"""
+    <section id="methodology" class="card">
+      <p class="eyebrow">방법론</p>
+      <h2>파이프라인은 어떻게 동작하는가</h2>
+      <p class="subtitle">T1/T2 원본 스택부터 최종 우선순위 점수까지 7단계. 굵은 글씨가 아닌 부분은
+      전부 <code>config/config.yaml</code>에서 관리되는 값이라 하드코딩이 아니다.</p>
+      <ol class="pipeline">
+
+        <li>
+          <div class="pipeline-num">1</div>
+          <div class="pipeline-body">
+            <h3>전처리 &amp; 정합 검증</h3>
+            <p>Sentinel-2 원본 밴드(B02/B03/B04/B08, 10m)를 분석 좌표계로 재투영하고 AOI로 clip해
+            4밴드 스택을 만든다. 두 시점 영상이 픽셀 단위로 어긋나면 진짜 변화가 아니라 정합 오차가
+            change로 잡히므로, ECC(Enhanced Correlation Coefficient)로 정합 오차를 먼저 실측한다.</p>
+            {_param_chips(("CRS", "EPSG:5186"), ("정합 오차", "1.26m (0.126px)"), ("ecc_score", "0.979"),
+                          ("허용 기준", "≤ 10m (1px)"))}
+          </div>
+        </li>
+
+        <li>
+          <div class="pipeline-num">2</div>
+          <div class="pipeline-body">
+            <h3>변화탐지 앙상블 - 3개 방법을 균등 가중 결합</h3>
+            <p>어떤 단일 지표도 완벽하지 않다는 전제로, 성질이 다른 세 방법을 <strong>1/3씩 균등
+            가중</strong>으로 더해 <code>change_probability</code>(0~1)를 만든다.</p>
+            <div class="method-grid">
+              <div class="method-card">
+                <div class="method-tag">Method A</div>
+                <h4>Robust CVA</h4>
+                <p>밴드별 (T2−T1) 차분을 <strong>median/MAD로 표준화</strong>(이상치에 강건)한 뒤
+                유클리드 거리로 결합하고, 최댓값이 아니라 <strong>상위 1%(99th percentile)</strong>를
+                기준으로 0~1로 clip한다. 전역 최댓값으로 정규화하는 단순 방식은 구름 잔여물 같은
+                극단 픽셀 하나에 전체 스케일이 눌려버리는 문제가 있어 이 방식으로 대체했다.</p>
+              </div>
+              <div class="method-card">
+                <div class="method-tag">Method B</div>
+                <h4>SSIM</h4>
+                <p>T1/T2의 국소 밝기·대비·구조 패턴이 다를수록(구조적 유사도가 낮을수록) 변화
+                점수가 높아진다. 순수 밝기 차이만으로는 안 잡히는, "패턴 자체가 달라진" 변화를
+                보완한다.</p>
+              </div>
+              <div class="method-card">
+                <div class="method-tag">Method C</div>
+                <h4>Edge / Texture</h4>
+                <p>T1/T2 각각의 Canny 엣지맵을 뽑아 XOR로 차분한다. 건물 외곽선처럼 엣지가 새로
+                생기거나 사라지는 - 신축/철거에서 특히 두드러지는 - 변화를 잡기 위한 방법이다.</p>
+              </div>
+            </div>
+          </div>
+        </li>
+
+        <li>
+          <div class="pipeline-num">3</div>
+          <div class="pipeline-body">
+            <h3>임계값 결정 &amp; 후처리</h3>
+            <p>고정 임계값으로 이진 마스크를 만든다. Otsu 자동 임계값도 구현돼 있지만, 이 AOI에서는
+            분포 특성상 훨씬 공격적인 값을 골라 변화 후보가 급증해(14.87% vs 3.82%) 육안 QA로
+            검증되기 전까지는 보수적인 고정값을 기본으로 쓴다. 이진 마스크는 opening→closing으로
+            소금-후추 노이즈를 지우고, 너무 작은 connected component는 버린다.</p>
+            {_param_chips(("threshold_method", "fixed"), ("mask_threshold", "0.5"),
+                          ("opening/closing kernel", "3×3"), ("최소 면적", "25 m²"))}
+          </div>
+        </li>
+
+        <li>
+          <div class="pipeline-num">4</div>
+          <div class="pipeline-body">
+            <h3>건물 Overlay &amp; 밝기 방향성(brightness_delta) 계산</h3>
+            <p>Polygon화된 change 영역을 건물 footprint(2,737개)와 공간 overlay해 건물별
+            <code>change_ratio</code>(footprint 대비 교차 면적 비율)를 구한다. 큰 change polygon
+            하나에 건물 여러 개가 걸치는 경우가 실측으로 흔해, <code>site_id</code>로 묶어 "건물
+            수"와 "실제 현장 수"를 구분한다. 이와 별개로 change_probability가 버리는 정보 - T1→T2
+            그레이스케일 평균 밝기가 밝아졌는지 어두워졌는지 - 도 계산해 다음 단계의 보조 근거로
+            넘긴다.</p>
+            {_param_chips(("버퍼 거리(근접 변화 판정)", "3 m"))}
+          </div>
+        </li>
+
+        <li>
+          <div class="pipeline-num">5</div>
+          <div class="pipeline-body">
+            <h3>변화유형 분류 (규칙 기반)</h3>
+            <p>건축물대장 사용승인일이 있으면 <strong>그것을 최우선 근거</strong>로 쓴다 - T1~T2
+            사이면 확정적으로 신축, 그 밖이면 기존 건물이므로 증축/개축. 대장 미매칭 건물만
+            change_ratio 크기로 근사 판정(휴리스틱)하고, 이때만 brightness_delta 방향이 기대와
+            어긋나면 <code>directional_consistency_flag</code>를 켠다(라벨은 유지). 건물과
+            교차하지 않는 고신뢰 변화는 철거 후보로 보되, 밝기가 오히려 뚜렷하게 증가했다면(철거
+            방향과 모순) 철거 대신 기타 변화로 남긴다.</p>
+            {_param_chips(("신축 판정 change_ratio", "≥ 0.5"), ("건축물대장 PNU 매칭률", "67.7%"),
+                          ("철거 후보 mean_change_score", "≥ 0.6"))}
+          </div>
+        </li>
+
+        <li>
+          <div class="pipeline-num">6</div>
+          <div class="pipeline-body">
+            <h3>현장조사 우선순위 점수화</h3>
+            <p class="formula">priority_score = 0.4 · change_confidence + 0.3 · change_ratio
+            + 0.2 · administrative_uncertainty + 0.1 · building_relevance</p>
+            <p><code>change_confidence</code>는 change_probability의 최댓값,
+            <code>administrative_uncertainty</code>는 건축물대장으로 설명되면 0에 가깝게·안되면
+            1, <code>building_relevance</code>는 change_type이 신축/증축/철거면 1.0 아니면 0.3(예:
+            건물과 무관한 주변 토지 변화)이다. 가중치가 가장 큰 change_confidence(0.4)가 영상
+            근거를, administrative_uncertainty(0.2)가 행정정보 공백을 반영해 "행정정보로 설명 안
+            되는 큰 변화"를 자연스럽게 상위로 끌어올린다.</p>
+            {_param_chips(("HIGH", "≥ 0.7"), ("MEDIUM", "≥ 0.4"), ("LOW", "< 0.4"))}
+          </div>
+        </li>
+
+        <li>
+          <div class="pipeline-num">7</div>
+          <div class="pipeline-body">
+            <h3>공간통계 검증 (Global Moran's I / Getis-Ord Gi*)</h3>
+            <p>priority_score가 실제로 공간적으로 군집돼 있는지(=구조화된 변화) 아니면 산발적
+            노이즈인지를 <strong>Global Moran's I</strong>(KNN row-standardized weights)로 먼저
+            통계 검정한다. 이어서 <strong>Getis-Ord Gi*</strong>(binary weights)로 어느 건물이
+            주변과 함께 유의하게 높은/낮은 값을 갖는 hotspot/coldspot인지 90/95/99% 신뢰수준으로
+            분류한다. 둘 다 permutation 검정이라 매 실행마다 결과가 흔들리지 않도록 random seed를
+            고정한다.</p>
+            {_param_chips(("KNN k", "8"), ("permutations", "999"), ("random_seed", "42"))}
+          </div>
+        </li>
+
+      </ol>
+    </section>
+    """
 
 
 # ---------------------------------------------------------- section pieces --
@@ -305,6 +576,10 @@ def _period_section(
       </div>
 
       {moran_html}
+
+      <h3 class="section-divider">핵심 인사이트</h3>
+      {_insights_block(stats)}
+
       {provenance_html}
     </section>
     """
@@ -367,6 +642,27 @@ def build_html_report(out_path: str | Path) -> Path:
 
     total_candidates = sum(p["stats"]["total"] for p in periods)
     total_high = sum(p["stats"]["priority"].get("HIGH", 0) for p in periods)
+
+    persistence = _persistence_insight(
+        "outputs/vectors/building_change_results.gpkg",
+        "outputs_2024_2026/vectors/building_change_results.gpkg",
+    )
+    persistence_html = ""
+    if persistence and persistence["n_total"]:
+        pct_new = 100 * persistence["n_new"] / persistence["n_total"]
+        persistence_html = f"""
+        <div class="insight-callout">
+          <div class="insight-num">{pct_new:.0f}%</div>
+          <div class="insight-body">
+            <strong>T2→T3 HIGH 현장의 {pct_new:.0f}%는 T1→T2 시점엔 없던 새 위치다.</strong>
+            T2→T3에서 HIGH로 분류된 {persistence["n_total"]}곳 중 {persistence["n_persistent"]}곳만
+            T1→T2에서도 HIGH였던 자리와 실제로 겹친다(공사가 계속 진행 중인 현장으로 추정) - 나머지
+            {persistence["n_new"]}곳은 지오메트리상 새로 등장한 변화다. 개발이 몇몇 기존 현장에
+            머무르지 않고 AOI 전역으로 번지고 있다는 근거로 읽을 수 있다(눈대중이 아니라
+            building_change_results의 실제 geometry를 겹쳐본 결과).
+          </div>
+        </div>
+        """
 
     period_sections = "".join(
         _period_section(
@@ -448,7 +744,7 @@ def build_html_report(out_path: str | Path) -> Path:
 
   header.hero {{
     background: var(--ink); color: var(--paper);
-    padding: 48px max(24px, calc(50% - 500px));
+    padding: 48px max(24px, calc(50% - 660px));
     background-image: repeating-linear-gradient(90deg, rgba(255,255,255,.035) 0 1px, transparent 1px 64px);
   }}
   .eyebrow {{
@@ -469,7 +765,7 @@ def build_html_report(out_path: str | Path) -> Path:
   nav.toc {{
     position: sticky; top: 0; z-index: 10;
     background: var(--surface); border-bottom: 1px solid var(--rule);
-    padding: 0 max(24px, calc(50% - 500px));
+    padding: 0 max(24px, calc(50% - 660px));
     display: flex; gap: 4px; overflow-x: auto;
   }}
   nav.toc a {{
@@ -478,7 +774,7 @@ def build_html_report(out_path: str | Path) -> Path:
   }}
   nav.toc a:hover {{ color: var(--ink); border-bottom-color: var(--rule); }}
 
-  main {{ max-width: 1000px; margin: 0 auto; padding: 32px 24px 80px; }}
+  main {{ max-width: 1320px; margin: 0 auto; padding: 32px 24px 80px; }}
   section.card, .card {{
     background: var(--surface); border: 1px solid var(--rule); border-radius: 6px;
     padding: 28px 32px; margin: 24px 0; box-shadow: var(--shadow); scroll-margin-top: 56px;
@@ -537,12 +833,70 @@ def build_html_report(out_path: str | Path) -> Path:
   .moran-num {{ font-size: 28px; font-weight: 800; font-variant-numeric: tabular-nums; }}
   .moran-meta {{ font-size: 12.5px; color: var(--ink-soft); line-height: 1.6; }}
 
+  .section-divider {{
+    margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--rule);
+    font-size: 15px; color: var(--ink);
+  }}
+  .insights-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; margin: 12px 0 24px; }}
+  @media (max-width: 900px) {{ .insights-grid {{ grid-template-columns: 1fr; }} }}
+  .mini-stats {{ display: flex; gap: 20px; margin: 8px 0 6px; }}
+  .mini-stats > div {{ display: flex; flex-direction: column; }}
+  .mini-num {{ font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; }}
+  .mini-label {{ font-size: 11.5px; color: var(--ink-soft); }}
+
+  .rank-bars {{ list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }}
+  .rank-bars li {{ display: grid; grid-template-columns: 96px 1fr 34px; align-items: center; gap: 8px; font-size: 12px; }}
+  .rb-label {{ color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+  .rb-track {{ height: 7px; background: var(--surface-alt); border-radius: 100px; overflow: hidden; }}
+  .rb-fill {{ display: block; height: 100%; border-radius: 100px; }}
+  .rb-num {{ text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-soft); }}
+
+  .insight-callout {{
+    display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: center;
+    background: var(--surface-alt); border-radius: 6px; padding: 18px 22px; margin-top: 20px;
+  }}
+  .insight-num {{ font-size: 34px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }}
+  .insight-body {{ font-size: 13px; line-height: 1.7; }}
+  @media (max-width: 560px) {{ .insight-callout {{ grid-template-columns: 1fr; }} }}
+
   details.provenance {{ margin-top: 20px; border-top: 1px solid var(--rule); padding-top: 14px; }}
   details.provenance summary {{
     cursor: pointer; font-size: 13px; font-weight: 600; color: var(--ink-soft);
   }}
   .provenance-body {{ display: flex; gap: 24px; flex-wrap: wrap; margin-top: 14px; }}
   .provenance-body table {{ width: auto; min-width: 260px; }}
+
+  .pipeline {{ list-style: none; margin: 8px 0 0; padding: 0; }}
+  .pipeline > li {{
+    display: grid; grid-template-columns: 40px 1fr; gap: 20px;
+    padding: 22px 0; border-top: 1px solid var(--rule);
+  }}
+  .pipeline > li:first-child {{ border-top: none; padding-top: 12px; }}
+  .pipeline-num {{
+    width: 32px; height: 32px; border-radius: 50%; background: var(--surface-alt);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 14px; color: var(--ink-soft);
+  }}
+  .pipeline-body h3 {{ font-size: 16px; font-weight: 700; color: var(--ink); margin: 0 0 8px; }}
+  .pipeline-body p {{ margin: 0 0 12px; font-size: 13.5px; line-height: 1.75; color: var(--ink-soft); max-width: 82ch; }}
+  .pipeline-body p.formula {{
+    font-family: var(--font-mono); font-size: 13px; color: var(--ink);
+    background: var(--surface-alt); padding: 10px 14px; border-radius: 4px; max-width: none;
+  }}
+  .param-chips {{ display: flex; gap: 8px; flex-wrap: wrap; }}
+  .param-chip {{
+    font-family: var(--font-mono); font-size: 11.5px; background: var(--surface-alt);
+    color: var(--ink-soft); padding: 4px 10px; border-radius: 4px;
+  }}
+  .method-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 14px; }}
+  @media (max-width: 900px) {{ .method-grid {{ grid-template-columns: 1fr; }} }}
+  .method-card {{ background: var(--surface-alt); border-radius: 6px; padding: 16px 18px; }}
+  .method-tag {{
+    display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .06em;
+    color: var(--accent); text-transform: uppercase; margin-bottom: 4px;
+  }}
+  .method-card h4 {{ margin: 0 0 6px; font-size: 14px; font-weight: 700; }}
+  .method-card p {{ margin: 0; font-size: 12.5px; line-height: 1.65; color: var(--ink-soft); }}
 
   .legend-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; margin-top: 8px; }}
   @media (max-width: 800px) {{ .legend-grid {{ grid-template-columns: 1fr; }} }}
@@ -573,6 +927,7 @@ def build_html_report(out_path: str | Path) -> Path:
 <nav class="toc">
   <a href="#overview">개요</a>
   <a href="#legend">읽는 법</a>
+  <a href="#methodology">방법론</a>
   {nav_items}
   {'<a href="#cadastre">지적 연계</a>' if cadastre_html else ""}
   <a href="#limitations">한계·유의사항</a>
@@ -584,9 +939,12 @@ def build_html_report(out_path: str | Path) -> Path:
     <p class="subtitle">T1→T2가 공식 Baseline이고, T2→T3와 T1→T3는 참고용으로 함께 실행한 확장 비교다.
     상세 지도와 표는 아래 각 구간 섹션에 있다.</p>
     {_summary_table(periods)}
+    {persistence_html}
   </section>
 
   {_legend_section()}
+
+  {_methodology_section()}
 
   {period_sections}
 

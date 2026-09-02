@@ -102,12 +102,85 @@ def _bar(counts: dict[str, int], colors: dict[str, str], order: list[str]) -> st
     return f'<div class="bar" role="img" aria-label="분포 막대">{segments}</div>'
 
 
+FUNNEL_COLORS = ["#4c6b64", "#3c5850", "#b5792a", "#8a5a1f"]
+
+
+def _funnel(stages: list[tuple[str, int]], context_note: str = "") -> str:
+    """stages(큰 순서대로)를 폭이 줄어드는 막대 funnel로 그린다 (순수 CSS, 라이브러리 없음).
+
+    첫 stage를 기준(100%)으로 이후 단계가 얼마나 좁혀지는지 시각적으로 보여준다 -
+    "전수조사에서 현장조사 대상까지 어떻게 줄어드는가"를 표/숫자보다 한눈에 전달하기 위함.
+    """
+    base = stages[0][1] or 1
+    rows = []
+    for i, (label, n) in enumerate(stages):
+        pct = 100 * n / base
+        width = 20 + (92 - 20) * (pct / 100)
+        color = FUNNEL_COLORS[min(i, len(FUNNEL_COLORS) - 1)]
+        pct_html = f'<span class="funnel-pct">{pct:.1f}%</span>' if i > 0 else ""
+        rows.append(f"""
+        <div class="funnel-stage" style="width:{width:.1f}%;background:{color}">
+          <span class="funnel-label">{label}</span>
+          <span class="funnel-num">{n:,}{pct_html}</span>
+        </div>
+        """)
+        if i < len(stages) - 1:
+            rows.append('<div class="funnel-connector"></div>')
+    note_html = f'<p class="fine-print funnel-context">{context_note}</p>' if context_note else ""
+    return f'{note_html}<div class="funnel">{"".join(rows)}</div>'
+
+
+def _grouped_bar_chart(periods: list[dict]) -> str:
+    """세 구간의 HIGH/MEDIUM/LOW 건수를 세로 막대 그래프로 나란히 비교한다 (순수 CSS)."""
+    tiers = ["HIGH", "MEDIUM", "LOW"]
+    max_n = max(
+        (p["stats"]["priority"].get(t, 0) for p in periods for t in tiers), default=1
+    ) or 1
+    chart_px = 190
+
+    groups = []
+    for p in periods:
+        bars = "".join(
+            f"""<div class="chart-bar" style="height:{max(4, chart_px * p["stats"]["priority"].get(t, 0) / max_n):.0f}px;background:{PRIORITY_COLORS[t]}">
+                  <span class="chart-bar-value">{p["stats"]["priority"].get(t, 0):,}</span>
+                </div>"""
+            for t in tiers
+        )
+        groups.append(f"""
+        <div class="chart-group">
+          <div class="chart-bars" style="height:{chart_px}px">{bars}</div>
+          <div class="chart-group-label">{p["code"]}</div>
+        </div>
+        """)
+
+    legend = "".join(f'{_chip(t, PRIORITY_COLORS[t])}' for t in tiers)
+    return f"""
+    <div class="chart-wrap">
+      <div class="chart-groups">{"".join(groups)}</div>
+      <div class="chart-legend">{legend}</div>
+    </div>
+    """
+
+
+def _flow_diagram(stage_labels: list[str]) -> str:
+    """방법론 7단계를 한 줄짜리 흐름도로 요약한다 - 아래 상세 목록을 읽기 전에 전체 구조를 먼저 보여준다."""
+    nodes = []
+    for i, label in enumerate(stage_labels):
+        nodes.append(f"""
+        <div class="flow-node"><span class="flow-num">{i + 1}</span>{label}</div>
+        """)
+        if i < len(stage_labels) - 1:
+            nodes.append('<div class="flow-arrow">→</div>')
+    return f'<div class="flow-diagram">{"".join(nodes)}</div>'
+
+
 def _period_stats(results_path: str | Path) -> dict:
     gdf = gpd.read_file(results_path)
     priority = gdf["inspection_priority"].value_counts().to_dict()
     change_type = gdf["change_type"].value_counts(dropna=True).to_dict()
     gi_class = gdf["gi_class"].value_counts(dropna=True).to_dict() if "gi_class" in gdf else {}
     n_sites = gdf["site_id"].nunique()
+    n_sites_high = gdf.loc[gdf["inspection_priority"] == "HIGH", "site_id"].nunique()
     total = int(len(gdf))
 
     # GPKG round-trip은 bool을 "True"/"False" 문자열로 저장하기도 해서 astype(str)로 통일해 비교한다.
@@ -168,7 +241,7 @@ def _period_stats(results_path: str | Path) -> dict:
 
     return {
         "priority": priority, "change_type": change_type, "gi_class": gi_class,
-        "n_sites": n_sites, "total": total,
+        "n_sites": n_sites, "n_sites_high": n_sites_high, "total": total,
         "n_register": n_register, "n_flagged": n_flagged,
         "area_stats": area_stats, "purpose_counts": purpose_counts, "top_sites": top_sites,
         "register_by_tier": register_by_tier,
@@ -312,6 +385,22 @@ def _param_chips(*pairs: tuple[str, str]) -> str:
     return f'<div class="param-chips">{items}</div>'
 
 
+# 6개 ArcGIS 역량 카드용 아이콘. 손으로 그린 베지어 경로 대신 rect/circle/line/polygon
+# 기본 도형만 조합한 line-art 스타일 - 뷰박스 0 0 32 32, stroke는 CSS(.capability-icon)에서 지정.
+CAPABILITY_ICONS = {
+    "layers": '<rect x="6" y="7" width="20" height="5" rx="1.5"/><rect x="6" y="14" width="20" height="5" rx="1.5"/><rect x="6" y="21" width="20" height="5" rx="1.5"/>',
+    "field": '<rect x="5" y="5" width="22" height="22" rx="2"/><circle cx="16" cy="14" r="3.2"/><line x1="16" y1="17.2" x2="16" y2="23"/><line x1="10" y1="23" x2="22" y2="23"/>',
+    "dashboard": '<line x1="8" y1="25" x2="8" y2="15"/><line x1="16" y1="25" x2="16" y2="7"/><line x1="24" y1="25" x2="24" y2="19"/><line x1="5" y1="25" x2="27" y2="25"/>',
+    "share": '<circle cx="8" cy="16" r="3.2"/><circle cx="24" cy="7" r="3.2"/><circle cx="24" cy="25" r="3.2"/><line x1="10.8" y1="14.5" x2="21.2" y2="8.5"/><line x1="10.8" y1="17.5" x2="21.2" y2="23.5"/>',
+    "automate": '<rect x="5" y="13" width="6" height="6" rx="1"/><rect x="13" y="5" width="6" height="6" rx="1"/><rect x="21" y="13" width="6" height="6" rx="1"/><rect x="13" y="21" width="6" height="6" rx="1"/><line x1="11" y1="14" x2="14" y2="10"/><line x1="18" y1="10" x2="21" y2="14"/><line x1="21" y1="18" x2="18" y2="21"/><line x1="14" y1="21" x2="11" y2="18"/>',
+    "shield": '<polygon points="16,4 26,8 26,17 16,28 6,17 6,8"/><polyline points="11,16 14.5,19.5 21,12"/>',
+}
+
+
+def _icon(name: str) -> str:
+    return f'<svg class="capability-icon" viewBox="0 0 32 32" aria-hidden="true">{CAPABILITY_ICONS[name]}</svg>'
+
+
 def _arcgis_note(text: str, *products: str) -> str:
     """파이프라인 각 단계 아래 붙는 "ArcGIS로는" 노트 - 같은 단계를 ArcGIS 제품으로 재현/확장하는 방법."""
     chips = "".join(f'<span class="gis-chip">{p}</span>' for p in products)
@@ -332,6 +421,10 @@ def _methodology_section() -> str:
       <p class="subtitle">T1/T2 원본 스택부터 최종 우선순위 점수까지 총 7단계입니다. 굵게 표시되지
       않은 수치는 모두 <code>config/config.yaml</code>에서 관리되는 값이며, 하드코딩된 값이
       아닙니다.</p>
+      {_flow_diagram([
+          "정합 검증", "변화탐지 앙상블", "임계값·후처리", "건물 Overlay",
+          "변화유형 분류", "우선순위 점수화", "공간통계 검증",
+      ])}
       <ol class="pipeline">
 
         <li>
@@ -512,7 +605,7 @@ def _arcgis_section() -> str:
     """이 PoC를 ArcGIS 플랫폼 위에 올리면 무엇이 가능해지는지 정리한 섹션 (LH 발표용)."""
     cards = [
         (
-            "데이터 관리 &amp; 발행",
+            "layers", "데이터 관리 &amp; 발행",
             "T1/T2/T3 결과를 각각 별도 파일로 관리하는 대신 Hosted Feature Layer로 발행하고 "
             "시간 인식(time-aware) 속성을 주면, 하나의 Web Map에서 시점 슬라이더로 세 시점을 "
             "스와이프 비교할 수 있습니다. 원본 위성영상은 Mosaic Dataset/Image Service로 "
@@ -520,7 +613,7 @@ def _arcgis_section() -> str:
             ["Hosted Feature Layer", "Image Service", "Time-Aware Layers"],
         ),
         (
-            "현장조사 연계",
+            "field", "현장조사 연계",
             "HIGH 등급 현장 목록을 Field Maps로 담당자 태블릿에 오프라인 지도로 배포하고, "
             "Survey123으로 현장 사진·체크리스트를 수집하면 결과가 바로 원본 레이어에 반영됩니다. "
             "이 리포트의 '방향성 재확인 권장' 후보를 그대로 오늘의 현장조사 목록으로 넘길 수 "
@@ -528,7 +621,7 @@ def _arcgis_section() -> str:
             ["Field Maps", "Survey123", "오프라인 지도"],
         ),
         (
-            "의사결정 대시보드",
+            "dashboard", "의사결정 대시보드",
             "이 리포트의 통계·차트·지도를 ArcGIS Dashboards로 옮기면 파이프라인을 재실행할 "
             "때마다 자동으로 갱신되는 실시간 화면이 됩니다. 담당 부서·법정동·우선순위별 필터와 "
             "드릴다운을 추가해, 발표 슬라이드가 아니라 상시 운영되는 모니터링 도구로 확장할 수 "
@@ -536,7 +629,7 @@ def _arcgis_section() -> str:
             ["Dashboards", "Arcade", "Web Map"],
         ),
         (
-            "대내외 공유 &amp; 스토리텔링",
+            "share", "대내외 공유 &amp; 스토리텔링",
             "오늘 이 발표 내용을 StoryMaps로 옮기면 지도·그림·설명이 스크롤 한 번으로 이어지는 "
             "웹 기반 인터랙티브 문서가 됩니다. 대국민 공개나 타 기관 공유가 필요해지면 "
             "Experience Builder로 권한이 분리된 별도 공개용 앱도 같은 데이터 위에서 바로 구성할 "
@@ -544,7 +637,7 @@ def _arcgis_section() -> str:
             ["StoryMaps", "Experience Builder"],
         ),
         (
-            "자동화 &amp; 확장 분석",
+            "automate", "자동화 &amp; 확장 분석",
             "이 PoC에는 이미 <code>src/publish/arcgis_online.py</code>로 ArcGIS API for Python "
             "자동 발행 스크립트가 작성되어 있습니다 - 새 위성영상이 들어올 때마다 파이프라인을 "
             "예약 실행(Notebook Server)해 레이어를 자동 갱신하는 구조로 그대로 확장됩니다. 분석 "
@@ -553,7 +646,7 @@ def _arcgis_section() -> str:
             ["ArcGIS API for Python", "Notebook Server"],
         ),
         (
-            "거버넌스 &amp; 협업",
+            "shield", "거버넌스 &amp; 협업",
             "Portal for ArcGIS/ArcGIS Hub로 옮기면 부서·기관별 권한을 분리한 레이어 공유 체계와 "
             "접근 로그를 갖추게 됩니다. LH 내부 여러 사업지구가 같은 파이프라인을 쓰게 되더라도, "
             "사업지구별 그룹과 권한만 나눠 동일한 분석 자산을 재사용할 수 있습니다.",
@@ -563,12 +656,13 @@ def _arcgis_section() -> str:
     cards_html = "".join(
         f"""
         <div class="capability-card">
+          {_icon(icon)}
           <h3>{title}</h3>
           <p>{body}</p>
           <div class="gis-products">{"".join(f'<span class="gis-chip">{p}</span>' for p in products)}</div>
         </div>
         """
-        for title, body, products in cards
+        for icon, title, body, products in cards
     )
     return f"""
     <section id="arcgis" class="card">
@@ -768,6 +862,14 @@ def _period_section(
           <div class="stat-label"><abbr class="term" title="{TERM_TOOLTIPS["directional_consistency_flag"]}">방향성 재확인 권장</abbr></div>
         </div>
       </div>
+
+      <h3 class="section-divider">전수조사에서 현장조사 대상까지</h3>
+      {_funnel(
+          [("변화 후보(건물기준)", stats["total"]),
+           ("HIGH 우선순위", priority.get("HIGH", 0)),
+           ("HIGH 현장(site_id)", stats["n_sites_high"])],
+          context_note=f'AOI 내 건물 2,737개 가운데 이 구간에서 실제로 변화가 감지된 건물 {stats["total"]:,}개를 기준(100%)으로 합니다.',
+      )}
 
       <div class="tables">
         <div>
@@ -1104,6 +1206,59 @@ def build_html_report(out_path: str | Path) -> Path:
   .insight-body {{ font-size: 13px; line-height: 1.7; }}
   @media (max-width: 560px) {{ .insight-callout {{ grid-template-columns: 1fr; }} }}
 
+  /* 전수조사 -> 현장조사 대상 funnel (순수 CSS, 폭이 줄어드는 막대) */
+  .funnel-context {{ margin: 0 0 12px; }}
+  .funnel {{ display: flex; flex-direction: column; align-items: center; gap: 6px; margin: 4px 0 8px; }}
+  .funnel-stage {{
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    height: 46px; border-radius: 6px; padding: 0 20px; color: #fff;
+  }}
+  .funnel-label {{ font-size: 13px; font-weight: 600; white-space: nowrap; }}
+  .funnel-num {{ font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }}
+  .funnel-pct {{ font-size: 11.5px; font-weight: 500; opacity: .85; margin-left: 6px; }}
+  .funnel-connector {{ width: 2px; height: 8px; background: var(--rule); }}
+
+  /* 세 구간 HIGH/MEDIUM/LOW 세로 막대 그래프 (순수 CSS) */
+  .chart-wrap {{ margin: 16px 0 8px; }}
+  .chart-groups {{
+    display: flex; justify-content: center; align-items: flex-end; gap: 56px;
+    padding: 28px 20px 0; border-bottom: 1px solid var(--rule);
+  }}
+  .chart-group {{ display: flex; flex-direction: column; align-items: center; }}
+  .chart-bars {{ display: flex; gap: 8px; align-items: flex-end; }}
+  .chart-bar {{
+    width: 34px; border-radius: 4px 4px 0 0; position: relative;
+  }}
+  .chart-bar-value {{
+    position: absolute; top: -20px; left: 50%; transform: translateX(-50%);
+    font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap;
+  }}
+  .chart-group-label {{ margin-top: 10px; font-size: 12.5px; font-weight: 700; color: var(--ink-soft); }}
+  .chart-legend {{ display: flex; justify-content: center; gap: 8px; margin-top: 16px; }}
+
+  /* 방법론 상단 한 줄 흐름도 */
+  .flow-diagram {{
+    display: flex; align-items: center; gap: 6px; margin: 18px 0 4px;
+    overflow-x: auto; padding-bottom: 6px;
+  }}
+  .flow-node {{
+    display: flex; align-items: center; gap: 7px; white-space: nowrap;
+    background: var(--surface-alt); border-radius: 100px; padding: 7px 14px 7px 8px;
+    font-size: 12px; font-weight: 700; color: var(--ink);
+  }}
+  .flow-num {{
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; border-radius: 50%; background: var(--accent);
+    color: #fff; font-size: 11px; font-weight: 800;
+  }}
+  .flow-arrow {{ color: var(--rule); font-size: 14px; flex-shrink: 0; }}
+
+  /* ArcGIS 역량 카드 아이콘 */
+  .capability-icon {{
+    width: 30px; height: 30px; fill: none; stroke: var(--gis);
+    stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; margin-bottom: 10px;
+  }}
+
   details.provenance {{ margin-top: 20px; border-top: 1px solid var(--rule); padding-top: 14px; }}
   details.provenance summary {{
     cursor: pointer; font-size: 13px; font-weight: 600; color: var(--ink-soft);
@@ -1209,6 +1364,7 @@ def build_html_report(out_path: str | Path) -> Path:
     <h2>세 구간 한눈에 비교</h2>
     <p class="subtitle">T1→T2가 공식 Baseline이며, T2→T3와 T1→T3는 참고용으로 함께 실행한 확장
     비교입니다. 상세 지도와 표는 아래 각 구간 섹션에서 확인하실 수 있습니다.</p>
+    {_grouped_bar_chart(periods)}
     {_summary_table(periods)}
     {velocity_html}
     {persistence_html}

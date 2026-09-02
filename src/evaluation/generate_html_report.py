@@ -80,7 +80,8 @@ def _period_section(
 
 
 def build_html_report(out_path: str | Path) -> Path:
-    """현재 outputs/ (2022-2024)와 outputs_2024_2026/ (최신 비교) 결과로 리포트를 생성한다.
+    """outputs/ (2022-2024), outputs_2024_2026/ (최신 비교), outputs_2022_2026/
+    (2022 vs 2026 전체 4년 직접 비교) 세 실행 결과로 리포트를 생성한다.
 
     Args:
         out_path: 저장할 HTML 경로.
@@ -106,6 +107,19 @@ def build_html_report(out_path: str | Path) -> Path:
         extra_note=(
             "2년의 짧은 구간임에도 HIGH 건수가 T1→T2보다 많음 - 최근 개발이 "
             "가속화되고 있다는 신호로 해석 가능(정식 결론 아님, 참고 자료)."
+        ),
+    )
+    full_span_section = _period_section(
+        "T1→T3 (2022-05-17 → 2026-05-31, 전체 4년 직접 비교)",
+        "T1→T2와 T2→T3를 이어붙인 것이 아니라 2022년과 2026년 원본을 직접 비교한 결과 - "
+        "중간(2024년)에 생겼다 사라진 변화나 두 구간에 걸쳐 누적된 변화까지 함께 잡는다",
+        "outputs_2022_2026/vectors/building_change_results.gpkg",
+        "outputs_2022_2026/figures/before_after_change.png",
+        "outputs_2022_2026/figures/priority_map.png",
+        extra_note=(
+            "4년 누적 구간이라 후보 수가 두 2년 구간보다 뚜렷하게 많다(HIGH 201건) - "
+            "이는 오탐 급증이 아니라 두 구간의 변화가 산술적으로 겹쳐 잡히기 때문이므로, "
+            "우선순위 판단은 T1→T2/T2→T3의 개별 구간 결과와 함께 봐야 한다."
         ),
     )
 
@@ -163,6 +177,7 @@ def build_html_report(out_path: str | Path) -> Path:
   {baseline_section}
   {cadastre_html}
   {recent_section}
+  {full_span_section}
   <section>
     <h2>반드시 함께 읽을 것</h2>
     <div class="disclaimer">

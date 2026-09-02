@@ -1,11 +1,11 @@
 {
-  "timestamp_utc": "2026-09-02T00:20:03.745360+00:00",
+  "timestamp_utc": "2026-09-02T00:20:06.753815+00:00",
   "seed": 42,
   "git_commit": "c43e7d85c7f6a57a9150ca2af1767f75eddb5b2d",
   "inputs": {
     "t1": {
-      "path": "data\\processed\\imagery\\2024_stack.tif",
-      "sha256": "d59b917998ac99b8f55a8c0c3ef9d58a1889a02878b379f43069df3a03e3c68f"
+      "path": "data\\processed\\imagery\\2022_stack.tif",
+      "sha256": "7f0b8b3d4403445bfe6dc499ce3e5430872b735ce25a546d5e6ca69fc285eb91"
     },
     "t2": {
       "path": "data\\processed\\imagery\\2026_stack.tif",
@@ -40,10 +40,10 @@
       "permutations": 999
     },
     "global_moran": {
-      "I": 0.15678637184698305,
+      "I": 0.20555551093955196,
       "p_sim": 0.001,
-      "z_sim": 4.762863968286922,
-      "n": 189,
+      "z_sim": 8.099055140810261,
+      "n": 307,
       "k": 8
     }
   },

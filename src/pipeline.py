@@ -25,7 +25,7 @@ from .buildings.classify import classify_building_changes, classify_unmatched_ch
 from .buildings.overlay import overlay_buildings_with_changes
 from .buildings.validation import compute_administrative_uncertainty, join_building_register
 from .change_detection.baseline import run_baseline_change_detection
-from .change_detection.postprocess import clean_mask, polygonize_change
+from .change_detection.postprocess import clean_mask, compute_brightness_delta, polygonize_change
 from .evaluation.spatial_statistics import compute_gi_star, compute_global_moran
 from .scoring.priority import compute_priority_score
 from .utils.manifest import build_run_manifest
@@ -110,6 +110,9 @@ def run_change_detection(
 
     logger.info("[CHANGE] Polygon화")
     change_polygons = polygonize_change(cleaned, prob, transform, crs, t1_date, t2_date)
+
+    logger.info("[CHANGE] 밝기 변화 방향(brightness_delta) 계산")
+    change_polygons = compute_brightness_delta(change_polygons, t1_path, t2_path)
 
     vec_dir = out_dir / "vectors"
     vec_dir.mkdir(parents=True, exist_ok=True)

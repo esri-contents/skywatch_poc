@@ -29,7 +29,10 @@ def overlay_buildings_with_changes(
         site_id(교차하는 change polygon의 change_id - 큰 change polygon
         하나에 건물 여러 개가 걸치는 경우가 실측으로 흔히 확인되어, 이 값으로
         "서로 다른 건물 수"와 "서로 다른 실제 현장 수"를 구분할 수 있게 한다.
-        여러 change polygon과 겹치면 그중 면적이 가장 큰 것을 대표로 사용).
+        여러 change polygon과 겹치면 그중 면적이 가장 큰 것을 대표로 사용),
+        brightness_delta(대표 change polygon의 T1->T2 밝기 변화 - postprocess.
+        compute_brightness_delta()가 change_polygons에 미리 채워놨으면 그대로
+        전달, 없으면 None - classify.py에서 방향성 보조 근거로 사용).
     """
     if buildings.crs != change_polygons.crs:
         change_polygons = change_polygons.to_crs(buildings.crs)
@@ -43,8 +46,10 @@ def overlay_buildings_with_changes(
         out["max_change_score"] = None
         out["near_change"] = False
         out["site_id"] = None
+        out["brightness_delta"] = None
         return out
 
+    has_brightness = "brightness_delta" in change_polygons.columns
     change_union = change_polygons.geometry.union_all()
     buffered = out.geometry.buffer(buffer_m)
 
@@ -52,6 +57,7 @@ def overlay_buildings_with_changes(
     max_scores = []
     near_flags = []
     site_ids = []
+    brightness_deltas = []
     for geom, buf_geom in zip(out.geometry, buffered):
         intersection = geom.intersection(change_union)
         change_areas.append(intersection.area)
@@ -61,8 +67,10 @@ def overlay_buildings_with_changes(
         if len(overlapping):
             biggest = overlapping.loc[overlapping.geometry.area.idxmax()]
             site_ids.append(biggest["change_id"])
+            brightness_deltas.append(biggest["brightness_delta"] if has_brightness else None)
         else:
             site_ids.append(None)
+            brightness_deltas.append(None)
 
         near = buf_geom.intersects(change_union) and intersection.area == 0
         near_flags.append(bool(near))
@@ -75,6 +83,7 @@ def overlay_buildings_with_changes(
     out["max_change_score"] = max_scores
     out["near_change"] = near_flags
     out["site_id"] = site_ids
+    out["brightness_delta"] = brightness_deltas
 
     n_sites = out.loc[out["change_ratio"] > 0, "site_id"].nunique()
     logger.info(

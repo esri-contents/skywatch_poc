@@ -51,3 +51,36 @@
 - 이 문서는 `outputs/reports/human_validation_sample.csv`(사람이 직접
   현장/상세 판정을 채우는 표본, 이번에 현재 데이터로 재생성함)를
   대체하지 않는다 - 그 표본은 여전히 비어 있고 실제 검수가 필요하다.
+
+## 후속 조치 (2026-09-02) — 파이프라인에 방향성 검증 반영
+
+위에서 육안으로 짚은 "방향 불일치"는 애초에 `change_probability`(robust_cva/
+ssim/edge_texture 앙상블)가 변화의 **크기만** 담고 **방향**(밝아짐/어두워짐)은
+버리기 때문에 생기는 구조적 문제였다. `postprocess.compute_brightness_delta()`로
+change polygon별 T1→T2 밝기 변화(그레이스케일 평균)를 계산해 `classify.py`에
+보조 근거로 반영했다:
+
+- **DEMOLITION 판정**(건물 미교차 + 고신뢰 점수)에서, `brightness_delta > 0`
+  (T2가 더 밝음 - 철거 방향과 정반대)이면 `OTHER_CHANGE`로 재분류하고
+  근거를 `classification_note`에 남긴다. 라벨을 뒤집을 뿐 삭제하지 않으므로
+  여전히 사람이 확인해야 할 후보로 남는다.
+- **NEW_BUILDING/EXPANSION_OR_RECONSTRUCTION 휴리스틱**(건축물대장 미매칭)에서는
+  라벨을 강제로 바꾸지 않고 `directional_consistency_flag` 컬럼으로 방향
+  일치 여부만 표시한다(대장 근거로 확정된 건은 flag=None - 밝기와 무관하게
+  대장 근거가 우선).
+
+파이프라인을 재실행한 실측 결과:
+
+| 항목 | 2022-2024 | 2024-2026 |
+|---|---|---|
+| DEMOLITION → OTHER_CHANGE 재분류 | 8건 | 9건(**CHG_00070 포함**) |
+| directional_consistency_flag=False (재확인 권장) | 37건 | 18건 |
+
+`CHG_00070`(brightness_delta=+860.6)은 정확히 이 재분류로 잡혀 이제
+`OTHER_CHANGE`다. `CHG_00061`(-804.4)/`CHG_00029`(-832.1)/`CHG_00026`(-464.4)/
+`CHG_00065`(-105.3)/`CHG_00068`(-148.5)도 전부 `directional_consistency_flag=False`로
+자동 플래그됐다 - 더 이상 사람이 32~34개 HIGH 후보를 전수 눈으로 훑지 않아도
+같은 신호를 얻을 수 있다. 다만 밝기 방향은 여전히 근사적 신호다(계절/식생
+변화 등으로도 바뀔 수 있음) - CHG_00026/CHG_00065처럼 식생(초록) 증가가
+원인일 가능성이 있는 경우는 밝기만으로는 구분되지 않으므로, `manual_class`
+현장 검수(human_validation_sample.csv)가 여전히 필요하다.

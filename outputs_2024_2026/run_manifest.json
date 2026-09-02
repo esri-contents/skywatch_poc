@@ -1,7 +1,7 @@
 {
-  "timestamp_utc": "2026-09-01T10:32:44.036664+00:00",
+  "timestamp_utc": "2026-09-02T00:12:07.061902+00:00",
   "seed": 42,
-  "git_commit": "5fdf2c8bcf8564d54e9ab76dc3d486494aee95f8",
+  "git_commit": "2af7cfc9b27aded80807e17db83ed05c3b671c79",
   "inputs": {
     "t1": {
       "path": "data\\processed\\imagery\\2024_stack.tif",
@@ -40,9 +40,9 @@
       "permutations": 999
     },
     "global_moran": {
-      "I": 0.1570076213448432,
+      "I": 0.15678637184698305,
       "p_sim": 0.001,
-      "z_sim": 4.762244849988228,
+      "z_sim": 4.762863968286922,
       "n": 189,
       "k": 8
     }

@@ -6,9 +6,12 @@ import logging
 
 import geopandas as gpd
 import numpy as np
+import rasterio
 from rasterio.features import shapes
 from shapely.geometry import shape
 from skimage.morphology import closing, footprint_rectangle, opening, remove_small_objects
+
+from .baseline import to_grayscale
 
 logger = logging.getLogger("postprocess")
 
@@ -98,3 +101,48 @@ def polygonize_change(
             "max_change_score", "t1_date", "t2_date", "method", "geometry"]
     logger.info("[CHANGE] Polygon화 완료: %d개 (pixel_area=%.1fm^2)", len(gdf), pixel_area_m2)
     return gdf[cols]
+
+
+def compute_brightness_delta(
+    change_polygons: gpd.GeoDataFrame,
+    t1_path: str,
+    t2_path: str,
+    band_order: list[str] = ("B02", "B03", "B04", "B08"),
+) -> gpd.GeoDataFrame:
+    """change polygon별 T1->T2 밝기(RGB 평균) 변화 방향을 계산한다.
+
+    change_probability(robust_cva/ssim/edge_texture 앙상블)는 변화의 "크기"만
+    담고 "방향"(밝아짐/어두워짐)은 버린다. 이 때문에 classify.py의 DEMOLITION
+    판정(건물 미교차 + 고신뢰 변화점수)이, 실제로는 T2에 밝은 신축형 구조물이
+    새로 나타난 경우(철거라면 기대되는 방향과 반대)와 구분되지 않는 문제가
+    실제 육안검수에서 발견됐다(outputs/reports/high_priority_visual_qa.md의
+    CHG_00070). brightness_delta = T2 평균 밝기 - T1 평균 밝기(그레이스케일)의
+    부호를 classify.py에서 보조 근거로 사용해 이 문제를 완화한다.
+    """
+    out = change_polygons.copy()
+    if out.empty:
+        out["brightness_t1"] = []
+        out["brightness_t2"] = []
+        out["brightness_delta"] = []
+        return out
+
+    from rasterstats import zonal_stats
+
+    with rasterio.open(t1_path) as s1:
+        gray1 = to_grayscale(s1.read(), list(band_order))
+        transform = s1.transform
+    with rasterio.open(t2_path) as s2:
+        gray2 = to_grayscale(s2.read(), list(band_order))
+
+    stats1 = zonal_stats(out, gray1, affine=transform, stats=["mean"], nodata=np.nan)
+    stats2 = zonal_stats(out, gray2, affine=transform, stats=["mean"], nodata=np.nan)
+    b1 = [s["mean"] for s in stats1]
+    b2 = [s["mean"] for s in stats2]
+
+    out["brightness_t1"] = [round(v, 2) if v is not None else None for v in b1]
+    out["brightness_t2"] = [round(v, 2) if v is not None else None for v in b2]
+    out["brightness_delta"] = [
+        round(v2 - v1, 2) if v1 is not None and v2 is not None else None
+        for v1, v2 in zip(b1, b2)
+    ]
+    return out

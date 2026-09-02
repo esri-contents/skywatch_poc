@@ -382,9 +382,13 @@ def _insights_block(stats: dict) -> str:
     gi_html = _ranked_bars(stats.get("gi_class", {}), "#8a6a3a", GI_CLASS_LABELS)
 
     top_sites = stats.get("top_sites", [])
+    max_area = max((s["area_m2"] for s in top_sites), default=1) or 1
     top_rows = "".join(
         f'<tr><td class="num muted">{i + 1}</td><td class="mono">{s["site_id"]}</td>'
-        f'<td class="num">{s["area_m2"]:,.0f}</td><td class="num">{s["n_buildings"]}</td>'
+        f'<td class="num">{s["area_m2"]:,.0f}</td>'
+        f'<td><span class="rb-track" style="width:90px;display:inline-block;vertical-align:middle">'
+        f'<span class="rb-fill" style="width:{100 * s["area_m2"] / max_area:.1f}%;background:#8a5a1f"></span></span></td>'
+        f'<td class="num">{s["n_buildings"]}</td>'
         f'<td>{_chip(CHANGE_TYPE_LABELS.get(s["change_type"], s["change_type"] or "—"), CHANGE_TYPE_COLORS.get(s["change_type"], "#999")) if s["change_type"] else "—"}</td>'
         f'<td>{_chip(s["priority"], PRIORITY_COLORS[s["priority"]]) if s["priority"] in PRIORITY_COLORS else "—"}</td>'
         f'<td>{_chip(GI_CLASS_LABELS.get(s["gi_class"], s["gi_class"]), GI_CLASS_COLORS.get(s["gi_class"], "#999")) if s["gi_class"] else "—"}</td></tr>'
@@ -396,7 +400,7 @@ def _insights_block(stats: dict) -> str:
         <h3>규모 상위 현장 Top {len(top_sites)} <span class="fine-print">(영향 건물면적 합계 기준)</span></h3>
         <div class="table-scroll">
           <table>
-            <tr><th>#</th><th>site_id</th><th class="num">면적 합계(m²)</th><th class="num">건물 수</th>
+            <tr><th>#</th><th>site_id</th><th class="num">면적 합계(m²)</th><th>규모</th><th class="num">건물 수</th>
                 <th>유형</th><th>우선순위</th><th>Gi*</th></tr>
             {top_rows}
           </table>
@@ -463,6 +467,9 @@ CAPABILITY_ICONS = {
     "boundary": '<polygon points="16,4 27,10 27,22 16,28 5,22 5,10" stroke-dasharray="3,3"/>',
     "resolution": '<rect x="5" y="5" width="8" height="8"/><rect x="15" y="5" width="8" height="8"/><rect x="5" y="15" width="8" height="8"/><rect x="15" y="15" width="8" height="8"/>',
     "flag": '<line x1="8" y1="4" x2="8" y2="28"/><polyline points="8,6 24,6 18,12 24,18 8,18"/>',
+    "target": '<circle cx="16" cy="16" r="11"/><circle cx="16" cy="16" r="6"/><line x1="16" y1="15.3" x2="16" y2="16.7"/>',
+    "building": '<rect x="8" y="9" width="16" height="19" rx="1"/><rect x="12" y="13" width="3" height="3"/><rect x="17" y="13" width="3" height="3"/><rect x="12" y="18" width="3" height="3"/><rect x="17" y="18" width="3" height="3"/>',
+    "radar": '<circle cx="16" cy="16" r="2.5"/><circle cx="16" cy="16" r="8" stroke-dasharray="2,3.5"/><circle cx="16" cy="16" r="13" stroke-dasharray="2,4.5"/>',
 }
 
 
@@ -908,15 +915,15 @@ def _legend_section() -> str:
       <h2>이 리포트의 색과 지표</h2>
       <div class="legend-grid">
         <div>
-          <h3>현장조사 우선순위</h3>
+          <div class="legend-head">{_icon("target", "context-icon")}<h3>현장조사 우선순위</h3></div>
           <ul class="legend-list">{priority_items}</ul>
         </div>
         <div>
-          <h3>변화유형 (classify.py 규칙기반 판정)</h3>
+          <div class="legend-head">{_icon("building", "context-icon")}<h3>변화유형 (classify.py 규칙기반 판정)</h3></div>
           <ul class="legend-list">{change_items}</ul>
         </div>
         <div>
-          <h3>Gi* 공간 hotspot</h3>
+          <div class="legend-head">{_icon("radar", "context-icon")}<h3>Gi* 공간 hotspot</h3></div>
           <ul class="legend-list">{gi_items}</ul>
           <p class="fine-print">HOT일수록 주변 건물과 함께 유의하게 높은 변화가 몰려있는 구역입니다 -
           산발적 오탐이 아니라 구조화된 변화(대규모 공사장 등)일 가능성이 높다는 뜻입니다.</p>
@@ -1186,11 +1193,20 @@ def build_html_report(out_path: str | Path) -> Path:
     cadastre_fig = Path("outputs/figures/cadastre_context.png")
     cadastre_html = ""
     if cadastre_fig.exists():
+        n_parcels = 10555
+        avg_parcel_m2 = 10_990_000 / n_parcels
         cadastre_html = f"""
         <section id="cadastre" class="card">
           <p class="eyebrow">업무자료 연계</p>
           <h2>지적(필지) 연계</h2>
-          <p class="subtitle">VWorld 연속지적도(본번+부번) - AOI 내 필지 10,555개</p>
+          <p class="subtitle">VWorld 연속지적도(본번+부번) - 변화 후보를 필지 단위까지 내려서 볼 수 있으면,
+          현장조사자가 소유자·지번을 바로 특정할 수 있습니다.</p>
+          <div class="stat-row stat-row-4">
+            <div class="stat-card"><div class="stat-num">{n_parcels:,}</div><div class="stat-label">AOI 내 필지 수</div></div>
+            <div class="stat-card"><div class="stat-num">10.99</div><div class="stat-label">AOI 면적(km²)</div></div>
+            <div class="stat-card"><div class="stat-num stat-num-sm">{avg_parcel_m2:,.0f}</div><div class="stat-label">평균 필지 면적(m²)</div></div>
+            <div class="stat-card"><div class="stat-num">2</div><div class="stat-label">VWorld 레이어(본번+부번)</div></div>
+          </div>
           <figure class="figure-wide">
             <img src="data:image/png;base64,{_b64_image(cadastre_fig)}" alt="cadastre context" loading="lazy">
             <figcaption>변화 후보 - 필지 경계 중첩</figcaption>
@@ -1540,6 +1556,9 @@ def build_html_report(out_path: str | Path) -> Path:
   .legend-grid {{ display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; margin-top: 8px; }}
   @media (max-width: 800px) {{ .legend-grid {{ grid-template-columns: 1fr; }} }}
   .legend-list {{ list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 13px; }}
+  .legend-head {{ display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }}
+  .legend-head .context-icon {{ margin-bottom: 0; }}
+  .legend-head h3 {{ margin: 0; }}
 
   .limits-grid {{ display: grid; gap: 14px; margin-top: 8px; }}
   .limit-item {{

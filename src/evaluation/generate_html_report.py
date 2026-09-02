@@ -5,14 +5,20 @@
 도입, T3 추가 등) 숫자와 그림이 그대로 박제된 채 낡아갔다. 이 스크립트로
 대체해 언제든 최신 결과로 재생성할 수 있게 한다.
 
-이미지는 base64로 인라인 임베드하고, 폰트는 시스템 폰트 스택만 쓴다
-(Google Fonts 등 외부 리소스 의존 없음) - 파일 하나만 공유해도(이메일
-첨부, USB, 인터넷 없는 현장 등) 깨지지 않고 열리게 하기 위함이다.
+이미지는 base64로 인라인 임베드한다. 폰트는 Google Fonts(Noto Sans KR)를
+1순위로 걸고 Pretendard/시스템 폰트를 폴백으로 둔다 - 인터넷이 되는
+일반적인 상황에서는 지정한 폰트로, 오프라인(이메일 첨부 후 인터넷 없는
+PC, USB 등)에서는 시스템 폰트로 자연스럽게 내려가 어떤 환경에서도
+깨지지 않는다.
 
 색상은 이 파일이 새로 정의하지 않고 visualize.py의 PRIORITY_COLORS/
 CHANGE_TYPE_COLORS/GI_CLASS_COLORS를 그대로 가져다 쓴다 - 지도 범례
 색과 표의 chip 색이 반드시 1:1로 일치해야(legend fidelity) 리포트를
 보는 사람이 지도와 표를 같은 언어로 읽을 수 있기 때문이다.
+
+리포트 본문은 보고 대상(의사결정권자)을 고려해 존댓말(합니다체)로
+쓴다. directional_consistency_flag처럼 코드베이스 용어를 그대로 노출하는
+곳은 _term()으로 감싸 마우스오버 시 풀이가 뜨게 한다(TERM_TOOLTIPS 참고).
 """
 
 from __future__ import annotations
@@ -40,6 +46,29 @@ GI_CLASS_LABELS = {
     "NOT_SIG": "유의하지 않음",
     "COLD_90": "COLD 90%", "COLD_95": "COLD 95%", "COLD_99": "COLD 99%",
 }
+
+# 코드베이스 용어를 리포트 본문에 그대로 노출할 때 마우스오버 설명을 붙이기 위한 사전.
+# _term()에서 조회한다 - 등장할 때마다 문장으로 다시 풀어쓰지 않아도 되게 하기 위함.
+TERM_TOOLTIPS = {
+    "change_probability": "변화탐지 앙상블이 픽셀마다 계산한 0~1 변화 강도 점수입니다. 방향(밝아짐/어두워짐)은 담지 않습니다.",
+    "change_ratio": "건물 footprint 면적 대비, change 영역과 교차하는 면적의 비율입니다.",
+    "site_id": "여러 건물이 같은 change 영역(하나의 공사 현장)에 걸쳐 있을 때, 같은 현장임을 나타내는 식별자입니다.",
+    "brightness_delta": "T1→T2 사이 해당 영역의 평균 밝기(그레이스케일) 변화량입니다. 양수이면 더 밝아진 것입니다.",
+    "directional_consistency_flag": "건축물대장 근거가 없는 휴리스틱 판정에서, 밝기 변화 방향이 예상(신축·증축=밝아짐)과 맞는지 표시하는 재확인 플래그입니다. 라벨 자체를 바꾸지는 않습니다.",
+    "priority_score": "change_confidence·change_ratio·administrative_uncertainty·building_relevance 네 근거를 가중합산한 0~1 현장조사 우선순위 점수입니다.",
+    "change_confidence": "change_probability의 최댓값으로, 변화탐지 알고리즘이 해당 후보를 얼마나 강하게 변화로 판단했는지를 나타냅니다.",
+    "administrative_uncertainty": "건축물대장으로 이 변화가 설명되는 정도의 반대값입니다. 설명되면 0에 가깝고, 설명되지 않으면 1입니다.",
+    "building_relevance": "변화유형이 건물 자체의 변화(신축·증축·철거)인지, 건물과 무관한 주변 토지 변화인지를 나타냅니다.",
+    "mean_change_score": "해당 영역 안 픽셀들의 change_probability 평균값입니다.",
+    "gi_class": "Getis-Ord Gi* 통계로 분류한 공간적 hotspot/coldspot 등급입니다.",
+}
+
+
+def _term(code: str) -> str:
+    """코드베이스 용어를 <abbr>로 감싸 마우스오버 설명을 붙인다 (JS 없이 브라우저 기본 툴팁)."""
+    tooltip = TERM_TOOLTIPS.get(code, "")
+    title_attr = f' title="{tooltip}"' if tooltip else ""
+    return f'<abbr class="term"{title_attr}><code>{code}</code></abbr>'
 
 
 # ---------------------------------------------------------------- helpers --
@@ -200,8 +229,8 @@ def _insights_block(stats: dict) -> str:
           <div><span class="mini-num">{area["mean"]:,.0f}</span><span class="mini-label">평균 m²</span></div>
           <div><span class="mini-num">{area["max"]:,.0f}</span><span class="mini-label">최대 m²</span></div>
         </div>
-        <p class="fine-print">평균이 중앙값보다 훨씬 크다 - 소규모 증축 다수와 대규모 조성공사
-        소수가 섞여있다는 뜻이라, 순위표(아래)로 큰 현장부터 따로 확인하는 게 좋다.</p>
+        <p class="fine-print">평균이 중앙값보다 훨씬 큽니다 - 소규모 증축 다수와 대규모 조성공사
+        소수가 섞여있다는 뜻이므로, 아래 순위표로 큰 현장부터 따로 확인하시기를 권장합니다.</p>
         """
 
     purpose_html = _ranked_bars(stats.get("purpose_counts", {}), "#5a7a70")
@@ -258,18 +287,20 @@ def _methodology_section() -> str:
     return f"""
     <section id="methodology" class="card">
       <p class="eyebrow">방법론</p>
-      <h2>파이프라인은 어떻게 동작하는가</h2>
-      <p class="subtitle">T1/T2 원본 스택부터 최종 우선순위 점수까지 7단계. 굵은 글씨가 아닌 부분은
-      전부 <code>config/config.yaml</code>에서 관리되는 값이라 하드코딩이 아니다.</p>
+      <h2>파이프라인은 어떻게 동작하나요</h2>
+      <p class="subtitle">T1/T2 원본 스택부터 최종 우선순위 점수까지 총 7단계입니다. 굵게 표시되지
+      않은 수치는 모두 <code>config/config.yaml</code>에서 관리되는 값이며, 하드코딩된 값이
+      아닙니다.</p>
       <ol class="pipeline">
 
         <li>
           <div class="pipeline-num">1</div>
           <div class="pipeline-body">
             <h3>전처리 &amp; 정합 검증</h3>
-            <p>Sentinel-2 원본 밴드(B02/B03/B04/B08, 10m)를 분석 좌표계로 재투영하고 AOI로 clip해
-            4밴드 스택을 만든다. 두 시점 영상이 픽셀 단위로 어긋나면 진짜 변화가 아니라 정합 오차가
-            change로 잡히므로, ECC(Enhanced Correlation Coefficient)로 정합 오차를 먼저 실측한다.</p>
+            <p>Sentinel-2 원본 밴드(B02/B03/B04/B08, 10m)를 분석 좌표계로 재투영하고 AOI로 클립해
+            4밴드 스택을 만듭니다. 두 시점 영상이 픽셀 단위로 어긋나면 실제 변화가 아니라 정합
+            오차가 변화로 잡히기 때문에, ECC(Enhanced Correlation Coefficient) 방식으로 정합
+            오차를 먼저 측정합니다.</p>
             {_param_chips(("CRS", "EPSG:5186"), ("정합 오차", "1.26m (0.126px)"), ("ecc_score", "0.979"),
                           ("허용 기준", "≤ 10m (1px)"))}
           </div>
@@ -279,29 +310,31 @@ def _methodology_section() -> str:
           <div class="pipeline-num">2</div>
           <div class="pipeline-body">
             <h3>변화탐지 앙상블 - 3개 방법을 균등 가중 결합</h3>
-            <p>어떤 단일 지표도 완벽하지 않다는 전제로, 성질이 다른 세 방법을 <strong>1/3씩 균등
-            가중</strong>으로 더해 <code>change_probability</code>(0~1)를 만든다.</p>
+            <p>어떤 단일 지표도 완벽하지 않다는 전제로, 성질이 다른 세 가지 방법을 <strong>1/3씩
+            균등 가중</strong>으로 결합해 {_term("change_probability")}(0~1)를 산출합니다.</p>
             <div class="method-grid">
               <div class="method-card">
                 <div class="method-tag">Method A</div>
                 <h4>Robust CVA</h4>
                 <p>밴드별 (T2−T1) 차분을 <strong>median/MAD로 표준화</strong>(이상치에 강건)한 뒤
                 유클리드 거리로 결합하고, 최댓값이 아니라 <strong>상위 1%(99th percentile)</strong>를
-                기준으로 0~1로 clip한다. 전역 최댓값으로 정규화하는 단순 방식은 구름 잔여물 같은
-                극단 픽셀 하나에 전체 스케일이 눌려버리는 문제가 있어 이 방식으로 대체했다.</p>
+                기준으로 0~1로 clip합니다. 전역 최댓값으로 정규화하는 단순한 방식은 구름 잔여물
+                같은 극단 픽셀 하나에 전체 스케일이 눌려버리는 문제가 있어, 이 방식으로
+                대체했습니다.</p>
               </div>
               <div class="method-card">
                 <div class="method-tag">Method B</div>
                 <h4>SSIM</h4>
                 <p>T1/T2의 국소 밝기·대비·구조 패턴이 다를수록(구조적 유사도가 낮을수록) 변화
-                점수가 높아진다. 순수 밝기 차이만으로는 안 잡히는, "패턴 자체가 달라진" 변화를
-                보완한다.</p>
+                점수가 높아집니다. 단순한 밝기 차이만으로는 잡히지 않는, "패턴 자체가 달라진"
+                변화를 보완합니다.</p>
               </div>
               <div class="method-card">
                 <div class="method-tag">Method C</div>
                 <h4>Edge / Texture</h4>
-                <p>T1/T2 각각의 Canny 엣지맵을 뽑아 XOR로 차분한다. 건물 외곽선처럼 엣지가 새로
-                생기거나 사라지는 - 신축/철거에서 특히 두드러지는 - 변화를 잡기 위한 방법이다.</p>
+                <p>T1/T2 각각의 Canny 엣지맵을 추출해 XOR로 차분합니다. 건물 외곽선처럼 엣지가
+                새로 생기거나 사라지는 - 신축·철거에서 특히 두드러지는 - 변화를 잡기 위한
+                방법입니다.</p>
               </div>
             </div>
           </div>
@@ -311,10 +344,11 @@ def _methodology_section() -> str:
           <div class="pipeline-num">3</div>
           <div class="pipeline-body">
             <h3>임계값 결정 &amp; 후처리</h3>
-            <p>고정 임계값으로 이진 마스크를 만든다. Otsu 자동 임계값도 구현돼 있지만, 이 AOI에서는
-            분포 특성상 훨씬 공격적인 값을 골라 변화 후보가 급증해(14.87% vs 3.82%) 육안 QA로
-            검증되기 전까지는 보수적인 고정값을 기본으로 쓴다. 이진 마스크는 opening→closing으로
-            소금-후추 노이즈를 지우고, 너무 작은 connected component는 버린다.</p>
+            <p>고정 임계값으로 이진 마스크를 만듭니다. Otsu 자동 임계값도 구현되어 있지만, 이
+            AOI에서는 분포 특성상 훨씬 공격적인 값이 선택되어 변화 후보가 급증하기 때문에(14.87%
+            vs 3.82%), 육안 QA로 검증되기 전까지는 보수적인 고정값을 기본으로 사용합니다. 이진
+            마스크는 opening→closing으로 소금-후추 노이즈를 제거하고, 너무 작은 connected
+            component는 걸러냅니다.</p>
             {_param_chips(("threshold_method", "fixed"), ("mask_threshold", "0.5"),
                           ("opening/closing kernel", "3×3"), ("최소 면적", "25 m²"))}
           </div>
@@ -323,13 +357,13 @@ def _methodology_section() -> str:
         <li>
           <div class="pipeline-num">4</div>
           <div class="pipeline-body">
-            <h3>건물 Overlay &amp; 밝기 방향성(brightness_delta) 계산</h3>
-            <p>Polygon화된 change 영역을 건물 footprint(2,737개)와 공간 overlay해 건물별
-            <code>change_ratio</code>(footprint 대비 교차 면적 비율)를 구한다. 큰 change polygon
-            하나에 건물 여러 개가 걸치는 경우가 실측으로 흔해, <code>site_id</code>로 묶어 "건물
-            수"와 "실제 현장 수"를 구분한다. 이와 별개로 change_probability가 버리는 정보 - T1→T2
-            그레이스케일 평균 밝기가 밝아졌는지 어두워졌는지 - 도 계산해 다음 단계의 보조 근거로
-            넘긴다.</p>
+            <h3>건물 Overlay &amp; 밝기 방향성 계산</h3>
+            <p>Polygon화된 change 영역을 건물 footprint(2,737개)와 공간적으로 overlay해 건물별
+            {_term("change_ratio")}를 구합니다. 큰 change 영역 하나에 건물 여러 개가 걸치는
+            경우가 실제로 흔히 확인되어, {_term("site_id")}로 묶어 "건물 수"와 "실제 현장 수"를
+            구분합니다. 이와 별개로 change_probability가 버리는 정보 - T1→T2 사이 그레이스케일
+            평균 밝기가 밝아졌는지 어두워졌는지({_term("brightness_delta")}) - 도 계산해 다음
+            단계의 보조 근거로 전달합니다.</p>
             {_param_chips(("버퍼 거리(근접 변화 판정)", "3 m"))}
           </div>
         </li>
@@ -338,12 +372,13 @@ def _methodology_section() -> str:
           <div class="pipeline-num">5</div>
           <div class="pipeline-body">
             <h3>변화유형 분류 (규칙 기반)</h3>
-            <p>건축물대장 사용승인일이 있으면 <strong>그것을 최우선 근거</strong>로 쓴다 - T1~T2
-            사이면 확정적으로 신축, 그 밖이면 기존 건물이므로 증축/개축. 대장 미매칭 건물만
-            change_ratio 크기로 근사 판정(휴리스틱)하고, 이때만 brightness_delta 방향이 기대와
-            어긋나면 <code>directional_consistency_flag</code>를 켠다(라벨은 유지). 건물과
-            교차하지 않는 고신뢰 변화는 철거 후보로 보되, 밝기가 오히려 뚜렷하게 증가했다면(철거
-            방향과 모순) 철거 대신 기타 변화로 남긴다.</p>
+            <p>건축물대장 사용승인일이 있으면 <strong>이를 최우선 근거</strong>로 사용합니다 -
+            사용승인일이 T1~T2 사이면 확정적으로 신축, 그 밖이면 기존 건물이므로 증축/개축으로
+            판정합니다. 건축물대장에 매칭되지 않은 건물만 change_ratio 크기로 근사 판정
+            (휴리스틱)하며, 이때만 brightness_delta 방향이 기대와 어긋나면
+            {_term("directional_consistency_flag")}을 켭니다(라벨 자체는 그대로 유지합니다).
+            건물과 교차하지 않는 고신뢰 변화는 철거 후보로 판단하되, 밝기가 오히려 뚜렷하게
+            증가했다면(철거 방향과 모순) 철거 대신 기타 변화로 분류합니다.</p>
             {_param_chips(("신축 판정 change_ratio", "≥ 0.5"), ("건축물대장 PNU 매칭률", "67.7%"),
                           ("철거 후보 mean_change_score", "≥ 0.6"))}
           </div>
@@ -355,12 +390,13 @@ def _methodology_section() -> str:
             <h3>현장조사 우선순위 점수화</h3>
             <p class="formula">priority_score = 0.4 · change_confidence + 0.3 · change_ratio
             + 0.2 · administrative_uncertainty + 0.1 · building_relevance</p>
-            <p><code>change_confidence</code>는 change_probability의 최댓값,
-            <code>administrative_uncertainty</code>는 건축물대장으로 설명되면 0에 가깝게·안되면
-            1, <code>building_relevance</code>는 change_type이 신축/증축/철거면 1.0 아니면 0.3(예:
-            건물과 무관한 주변 토지 변화)이다. 가중치가 가장 큰 change_confidence(0.4)가 영상
-            근거를, administrative_uncertainty(0.2)가 행정정보 공백을 반영해 "행정정보로 설명 안
-            되는 큰 변화"를 자연스럽게 상위로 끌어올린다.</p>
+            <p>{_term("change_confidence")}는 change_probability의 최댓값이며,
+            {_term("administrative_uncertainty")}는 건축물대장으로 설명되면 0에 가깝고 설명되지
+            않으면 1입니다. {_term("building_relevance")}는 change_type이 신축·증축·철거면 1.0,
+            그 외(예: 건물과 무관한 주변 토지 변화)면 0.3입니다. 가중치가 가장 큰
+            change_confidence(0.4)가 영상 근거를, administrative_uncertainty(0.2)가 행정정보
+            공백을 반영하여 "행정정보로 설명되지 않는 큰 변화"를 자연스럽게 상위로 끌어올리는
+            구조입니다.</p>
             {_param_chips(("HIGH", "≥ 0.7"), ("MEDIUM", "≥ 0.4"), ("LOW", "< 0.4"))}
           </div>
         </li>
@@ -369,12 +405,12 @@ def _methodology_section() -> str:
           <div class="pipeline-num">7</div>
           <div class="pipeline-body">
             <h3>공간통계 검증 (Global Moran's I / Getis-Ord Gi*)</h3>
-            <p>priority_score가 실제로 공간적으로 군집돼 있는지(=구조화된 변화) 아니면 산발적
-            노이즈인지를 <strong>Global Moran's I</strong>(KNN row-standardized weights)로 먼저
-            통계 검정한다. 이어서 <strong>Getis-Ord Gi*</strong>(binary weights)로 어느 건물이
-            주변과 함께 유의하게 높은/낮은 값을 갖는 hotspot/coldspot인지 90/95/99% 신뢰수준으로
-            분류한다. 둘 다 permutation 검정이라 매 실행마다 결과가 흔들리지 않도록 random seed를
-            고정한다.</p>
+            <p>{_term("priority_score")}가 실제로 공간적으로 군집되어 있는지(=구조화된 변화)
+            아니면 산발적 노이즈인지를 <strong>Global Moran's I</strong>(KNN row-standardized
+            weights)로 먼저 통계 검정합니다. 이어서 <strong>Getis-Ord Gi*</strong>(binary
+            weights)로 어느 건물이 주변과 함께 유의하게 높거나 낮은 값을 갖는 hotspot/coldspot
+            ({_term("gi_class")})인지 90/95/99% 신뢰수준으로 분류합니다. 두 검정 모두 permutation
+            방식이라 실행할 때마다 결과가 흔들리지 않도록 random seed를 고정합니다.</p>
             {_param_chips(("KNN k", "8"), ("permutations", "999"), ("random_seed", "42"))}
           </div>
         </li>
@@ -422,9 +458,9 @@ def _legend_section() -> str:
     priority_items = "".join(
         f'<li>{_chip(tier, PRIORITY_COLORS[tier])} {desc}</li>'
         for tier, desc in [
-            ("HIGH", "즉시 현장조사 권장 - 변화가 크고 행정정보로 설명 안 됨"),
-            ("MEDIUM", "우선순위 후순위 현장조사 대상"),
-            ("LOW", "참고용 - 변화가 작거나 근거가 약함"),
+            ("HIGH", "즉시 현장조사를 권장합니다 - 변화가 크고 행정정보로 설명되지 않습니다."),
+            ("MEDIUM", "후순위 현장조사 대상입니다."),
+            ("LOW", "참고용입니다 - 변화가 작거나 근거가 약합니다."),
         ]
     )
     change_items = "".join(
@@ -450,15 +486,16 @@ def _legend_section() -> str:
         <div>
           <h3>Gi* 공간 hotspot</h3>
           <ul class="legend-list">{gi_items}</ul>
-          <p class="fine-print">HOT일수록 주변 건물과 함께 유의하게 높은 변화가 몰려있는 구역 -
-          산발적 오탐이 아니라 구조화된 변화(대규모 공사장 등)일 가능성이 높다는 뜻.</p>
+          <p class="fine-print">HOT일수록 주변 건물과 함께 유의하게 높은 변화가 몰려있는 구역입니다 -
+          산발적 오탐이 아니라 구조화된 변화(대규모 공사장 등)일 가능성이 높다는 뜻입니다.</p>
         </div>
       </div>
       <p class="fine-print callout-note">
-        <strong>directional_consistency_flag</strong> - change_probability는 변화의 크기만
-        담고 방향(밝아짐/어두워짐)은 버린다. 건축물대장 미매칭 휴리스틱 판정에 한해
+        {_term("directional_consistency_flag")}란 - {_term("change_probability")}는 변화의
+        크기만 담고 방향(밝아짐/어두워짐)은 버립니다. 건축물대장 미매칭 휴리스틱 판정에 한해
         T1→T2 밝기 변화 방향이 기대(신축·증축 = 밝아짐)와 어긋나면 라벨은 유지한 채
-        재확인 플래그만 켠다. 대장 근거로 확정된 건은 이 플래그와 무관하게 신뢰도가 가장 높다.
+        재확인 플래그만 켭니다. 건축물대장 근거로 확정된 건은 이 플래그와 무관하게 신뢰도가
+        가장 높습니다. (용어에 마우스를 올리면 풀이가 표시됩니다.)
       </p>
     </section>
     """
@@ -498,8 +535,8 @@ def _period_section(
           <div class="moran-num">{moran["I"]:.3f}</div>
           <div class="moran-meta">
             Global Moran's I &middot; p = {moran["p_sim"]:.3f} &middot; n = {moran["n"]:,} &middot; k = {moran["k"]}<br>
-            {"공간적으로 유의하게 군집됨(p&lt;0.05) - 산발적 노이즈가 아니라 구조화된 변화 패턴."
-             if sig else "통계적으로 유의한 군집이 확인되지 않음."}
+            {"공간적으로 유의하게 군집되어 있습니다(p&lt;0.05) - 산발적 노이즈가 아니라 구조화된 변화 패턴입니다."
+             if sig else "통계적으로 유의한 군집은 확인되지 않았습니다."}
           </div>
         </div>
         """
@@ -551,7 +588,9 @@ def _period_section(
         <div class="stat-card"><div class="stat-num">{stats["n_sites"]:,}</div><div class="stat-label">실제 현장 수(site_id)</div></div>
         <div class="stat-card stat-accent"><div class="stat-num">{priority.get("HIGH", 0):,}</div><div class="stat-label">HIGH 우선순위</div></div>
         <div class="stat-card"><div class="stat-num">{stats["n_register"]:,}</div><div class="stat-label">건축물대장 근거 확정</div></div>
-        <div class="stat-card"><div class="stat-num">{stats["n_flagged"]:,}</div><div class="stat-label">방향성 재확인 권장</div></div>
+        <div class="stat-card"><div class="stat-num">{stats["n_flagged"]:,}</div>
+          <div class="stat-label"><abbr class="term" title="{TERM_TOOLTIPS["directional_consistency_flag"]}">방향성 재확인 권장</abbr></div>
+        </div>
       </div>
 
       <div class="tables">
@@ -609,25 +648,26 @@ def build_html_report(out_path: str | Path) -> Path:
         {
             "id": "t2-t3", "code": "T2 → T3", "span": "2024-05-31 → 2026-05-31",
             "title": "T2 → T3 (2024-05-31 → 2026-05-31)",
-            "subtitle": "최신 영상 연장 비교 - 참고용 (2026-09-01 신규 확보)",
+            "subtitle": "최신 영상 연장 비교입니다 - 참고용 (2026-09-01 신규 확보)",
             "out_dir": "outputs_2024_2026",
             "extra_note": (
-                "2년의 짧은 구간임에도 HIGH 건수가 T1→T2보다 많음 - 최근 개발이 "
-                "가속화되고 있다는 신호로 해석 가능(정식 결론 아님, 참고 자료)."
+                "2년의 짧은 구간임에도 HIGH 건수가 T1→T2보다 많습니다 - 최근 개발이 "
+                "가속화되고 있다는 신호로 해석할 수 있습니다(정식 결론이 아닌 참고 자료입니다)."
             ),
         },
         {
             "id": "t1-t3", "code": "T1 → T3", "span": "2022-05-17 → 2026-05-31",
             "title": "T1 → T3 (2022-05-17 → 2026-05-31, 전체 4년 직접 비교)",
             "subtitle": (
-                "T1→T2와 T2→T3를 이어붙인 것이 아니라 2022년과 2026년 원본을 직접 비교한 결과 - "
-                "중간(2024년)에 생겼다 사라진 변화나 두 구간에 걸쳐 누적된 변화까지 함께 잡는다"
+                "T1→T2와 T2→T3를 이어붙인 것이 아니라 2022년과 2026년 원본을 직접 비교한 "
+                "결과입니다 - 중간(2024년)에 생겼다 사라진 변화나 두 구간에 걸쳐 누적된 변화까지 "
+                "함께 포착합니다."
             ),
             "out_dir": "outputs_2022_2026",
             "extra_note": (
-                "4년 누적 구간이라 후보 수가 두 2년 구간보다 뚜렷하게 많다(HIGH 건수 최다) - "
+                "4년 누적 구간이므로 후보 수가 두 2년 구간보다 뚜렷하게 많습니다(HIGH 건수 최다) - "
                 "이는 오탐 급증이 아니라 두 구간의 변화가 산술적으로 겹쳐 잡히기 때문이므로, "
-                "우선순위 판단은 T1→T2/T2→T3의 개별 구간 결과와 함께 봐야 한다."
+                "우선순위 판단은 T1→T2·T2→T3의 개별 구간 결과와 함께 확인하시기 바랍니다."
             ),
         },
     ]
@@ -654,12 +694,12 @@ def build_html_report(out_path: str | Path) -> Path:
         <div class="insight-callout">
           <div class="insight-num">{pct_new:.0f}%</div>
           <div class="insight-body">
-            <strong>T2→T3 HIGH 현장의 {pct_new:.0f}%는 T1→T2 시점엔 없던 새 위치다.</strong>
-            T2→T3에서 HIGH로 분류된 {persistence["n_total"]}곳 중 {persistence["n_persistent"]}곳만
-            T1→T2에서도 HIGH였던 자리와 실제로 겹친다(공사가 계속 진행 중인 현장으로 추정) - 나머지
-            {persistence["n_new"]}곳은 지오메트리상 새로 등장한 변화다. 개발이 몇몇 기존 현장에
-            머무르지 않고 AOI 전역으로 번지고 있다는 근거로 읽을 수 있다(눈대중이 아니라
-            building_change_results의 실제 geometry를 겹쳐본 결과).
+            <strong>T2→T3 HIGH 현장의 {pct_new:.0f}%는 T1→T2 시점에는 없던 새로운 위치입니다.</strong>
+            T2→T3에서 HIGH로 분류된 {persistence["n_total"]}곳 가운데 {persistence["n_persistent"]}곳만
+            T1→T2에서도 HIGH였던 자리와 실제로 겹칩니다(공사가 계속 진행 중인 현장으로 추정됩니다) -
+            나머지 {persistence["n_new"]}곳은 지오메트리상 새로 등장한 변화입니다. 개발이 몇몇 기존
+            현장에 머무르지 않고 AOI 전역으로 번지고 있다는 근거로 해석할 수 있습니다(눈대중이 아니라
+            building_change_results의 실제 geometry를 겹쳐 확인한 결과입니다).
           </div>
         </div>
         """
@@ -700,6 +740,9 @@ def build_html_report(out_path: str | Path) -> Path:
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>고양 창릉 Building Change Intelligence - 결과 리포트</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
 <style>
   :root {{
     --ink: #142523;
@@ -712,8 +755,8 @@ def build_html_report(out_path: str | Path) -> Path:
     --accent-soft: #f3e6cf;
     --link: #2c5c52;
     --shadow: 0 1px 2px rgba(20,37,35,.05), 0 8px 24px rgba(20,37,35,.06);
-    --font-sans: "Pretendard Variable", Pretendard, "Malgun Gothic", "Apple SD Gothic Neo",
-                 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-sans: "Noto Sans KR", "Pretendard Variable", Pretendard, "Malgun Gothic",
+                 "Apple SD Gothic Neo", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     --font-mono: "D2Coding", "JetBrains Mono", Consolas, "SFMono-Regular", Menlo, monospace;
   }}
   @media (prefers-color-scheme: dark) {{
@@ -781,7 +824,8 @@ def build_html_report(out_path: str | Path) -> Path:
   }}
   h2 {{ margin: 0 0 6px; font-size: 22px; font-weight: 800; letter-spacing: -.01em; text-wrap: balance; }}
   h3 {{ margin: 0 0 8px; font-size: 14px; font-weight: 700; color: var(--ink-soft); }}
-  .subtitle {{ color: var(--ink-soft); font-size: 14px; margin: 0 0 18px; max-width: 68ch; }}
+  .subtitle {{ color: var(--ink-soft); font-size: 14px; margin: 0 0 18px; }}
+  abbr.term {{ text-decoration: underline dotted; text-decoration-color: var(--accent); cursor: help; }}
 
   .callout-note {{
     background: var(--accent-soft); border-left: 3px solid var(--accent);
@@ -878,10 +922,10 @@ def build_html_report(out_path: str | Path) -> Path:
     font-weight: 800; font-size: 14px; color: var(--ink-soft);
   }}
   .pipeline-body h3 {{ font-size: 16px; font-weight: 700; color: var(--ink); margin: 0 0 8px; }}
-  .pipeline-body p {{ margin: 0 0 12px; font-size: 13.5px; line-height: 1.75; color: var(--ink-soft); max-width: 82ch; }}
+  .pipeline-body p {{ margin: 0 0 12px; font-size: 13.5px; line-height: 1.75; color: var(--ink-soft); }}
   .pipeline-body p.formula {{
     font-family: var(--font-mono); font-size: 13px; color: var(--ink);
-    background: var(--surface-alt); padding: 10px 14px; border-radius: 4px; max-width: none;
+    background: var(--surface-alt); padding: 10px 14px; border-radius: 4px;
   }}
   .param-chips {{ display: flex; gap: 8px; flex-wrap: wrap; }}
   .param-chip {{
@@ -936,8 +980,8 @@ def build_html_report(out_path: str | Path) -> Path:
   <section id="overview" class="card">
     <p class="eyebrow">개요</p>
     <h2>세 구간 한눈에 비교</h2>
-    <p class="subtitle">T1→T2가 공식 Baseline이고, T2→T3와 T1→T3는 참고용으로 함께 실행한 확장 비교다.
-    상세 지도와 표는 아래 각 구간 섹션에 있다.</p>
+    <p class="subtitle">T1→T2가 공식 Baseline이며, T2→T3와 T1→T3는 참고용으로 함께 실행한 확장
+    비교입니다. 상세 지도와 표는 아래 각 구간 섹션에서 확인하실 수 있습니다.</p>
     {_summary_table(periods)}
     {persistence_html}
   </section>
@@ -955,24 +999,25 @@ def build_html_report(out_path: str | Path) -> Path:
     <h2>한계와 유의사항</h2>
     <div class="limits-grid">
       <div class="limit-item"><div class="bar-el"></div>
-        <p><strong>이 시스템은 불법건축물을 자동 판정하지 않는다.</strong>
+        <p><strong>이 시스템은 불법건축물을 자동으로 판정하지 않습니다.</strong>
         HIGH/MEDIUM/LOW는 "영상 변화가 크고 + 건물과 겹치고 + 보유한 행정정보로는
-        설명 안 됨"이라는 뜻일 뿐이다. "설명 안 됨"은 실제 위반일 수도, 건축물대장
-        조인(67.7%)이 그 건물의 허가 이력을 놓친 것일 수도 있다.</p></div>
+        설명되지 않음"이라는 뜻일 뿐입니다. "설명되지 않음"은 실제 위반일 수도 있지만,
+        건축물대장 조인율(67.7%)이 그 건물의 허가 이력을 놓친 결과일 수도 있습니다.</p></div>
       <div class="limit-item"><div class="bar-el"></div>
-        <p><strong>AOI는 정식 지구계가 아니라 행정동 경계 근사치</strong>다
-        (정식 지구계는 국토부 고시 제2021-1285호, 완전 추출은 별도 작업 필요).</p></div>
+        <p><strong>AOI는 정식 지구계가 아니라 행정동 경계 근사치</strong>입니다
+        (정식 지구계는 국토부 고시 제2021-1285호에 근거하며, 완전한 추출을 위해서는
+        별도 작업이 필요합니다).</p></div>
       <div class="limit-item"><div class="bar-el"></div>
-        <p>Sentinel-2 10m 해상도는 개별 단독주택 단위 변화 탐지에 근본적 한계가
-        있다 - 대형 아파트단지·대규모 토지조성 등 큰 변화 위주로 신뢰할 수 있다.</p></div>
+        <p>Sentinel-2 10m 해상도는 개별 단독주택 단위의 변화 탐지에 근본적인 한계가
+        있습니다 - 대형 아파트단지·대규모 토지조성 등 큰 변화 위주로 신뢰하시기 바랍니다.</p></div>
       <div class="limit-item"><div class="bar-el"></div>
-        <p>directional_consistency_flag는 밝기 방향 하나만 보는 보조 신호다 - 계절/식생
-        변화 등으로도 바뀔 수 있어 라벨을 자동으로 뒤집지 않는다. HIGH 등급이면서
-        이 플래그가 켜진 후보는 사람이 직접 확인해야 한다.</p></div>
+        <p>{_term("directional_consistency_flag")}는 밝기 방향 하나만 보는 보조 신호입니다 -
+        계절·식생 변화 등으로도 바뀔 수 있어 라벨을 자동으로 뒤집지는 않습니다. HIGH
+        등급이면서 이 플래그가 켜진 후보는 반드시 담당자가 직접 확인하시기 바랍니다.</p></div>
     </div>
   </section>
 </main>
-<footer>src/evaluation/generate_html_report.py 로 생성 · 파이프라인 재실행 후 이 스크립트를 다시 돌리면 최신화된다.</footer>
+<footer>src/evaluation/generate_html_report.py로 생성되었습니다 · 파이프라인 재실행 후 이 스크립트를 다시 실행하면 최신 내용으로 갱신됩니다.</footer>
 </body>
 </html>
 """

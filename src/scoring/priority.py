@@ -1,10 +1,12 @@
 """현장조사 우선순위 점수 산정.
 
-administrative_uncertainty: 건축물대장/인허가 정보가 아직 없어(README 참고)
-모든 변화에 대해 "행정적으로 설명 가능한지" 확인이 불가능한 상태다. 따라서
-현재는 모든 후보에 대해 1.0(완전 불확실)로 고정한다. 건축물대장 확보 후
-사용승인일/허가일이 T1~T2 사이에 있으면 0에 가깝게(행정적으로 설명됨)
-낮춰야 한다.
+administrative_uncertainty: STEP 13(`src/buildings/validation.py`의
+compute_administrative_uncertainty)이 건축물대장 매칭 여부와 사용승인일로
+이미 계산해 넘겨준 값을 그대로 쓴다 - 대장 미매칭이면 1.0(완전 불확실),
+매칭+사용승인일이 T1~T2 사이면 0.1(인허가로 설명됨), 매칭+구간 밖이면 0.6.
+이 컬럼이 없는 입력(건축물대장을 아예 넘기지 않은 실행)에 한해서만
+1.0으로 fallback한다 - 그 fallback 경로는 아래 compute_priority_score의
+if/else에서 처리한다.
 """
 
 from __future__ import annotations

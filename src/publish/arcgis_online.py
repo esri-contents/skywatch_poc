@@ -24,7 +24,15 @@ import os
 from pathlib import Path
 from typing import Any
 
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    # ArcGIS Pro의 arcgispro-py3 환경(`src/arcpy_pipeline`이 이 모듈을 재사용하는
+    # 환경)에는 python-dotenv가 기본으로 없다. .env 파싱은 이 값들을 읽는 데만
+    # 쓰는 부가기능이므로, 없으면 os.environ만 쓰는 것으로 조용히 낮춘다 -
+    # arcpy 환경에서는 어차피 시스템 환경변수나 AGOL 계정을 별도 설정하게 된다.
+    def load_dotenv() -> None:
+        return None
 
 logger = logging.getLogger("publish.arcgis_online")
 

@@ -85,3 +85,44 @@ validation_sample:
   high_n: 50
   medium_n: 30
   low_n: 20
+
+# --- 아래는 LH 요구사항(config/lh_requirements.yaml) 반영을 위해
+# src/arcpy_pipeline/*가 사용하는 파라미터다. Baseline(src/*)은 사용하지 않는다.
+
+compensation:
+  # 보상 기준일(통상 공람공고일). 반드시 사업부서가 확정한 실제 날짜로
+  # 채워야 한다 - 이 값이 틀리면 compensation_status 전체가 무효가 된다.
+  # PoC 단계에서는 예시로 비워둔다: null이면 pipeline.py가 보상기준일 판정
+  # 단계(REQ03)를 건너뛰고 그 사실을 lh_traceability.md에 기록한다.
+  baseline_date: null   # 예: "2023-06-01"
+
+illegal_screening:
+  # 실제 footprint / 대장 건축면적 이 값을 넘으면 면적초과 신호로 본다.
+  # footprint 정의 차이·대장 1:다 대응 오차를 흡수하기 위해 넉넉히 잡음.
+  tolerance_ratio: 1.3
+  strong_change_ratio: 0.5
+  strong_confidence: 0.6
+
+progress_monitor:
+  grid_cell_size_m: 250.0
+  site_persistence_distance_m: 30.0
+
+imagery_tasking:
+  # search_bbox_wgs84와 동일 - 아카이브 조회/최신영상 확인용 "검색" 범위.
+  recent_days_window: 90
+  season_months: [4, 6]   # 계절 일치 비교를 위한 월 범위 (4~6월)
+
+field_survey:
+  buffer_m_for_near_change: 3.0
+
+reality_3d:
+  review_buffer_m: 20.0
+  floor_height_m: 3.0
+  target_gsd_cm: 3.0
+  overlap_pct: 75
+
+arcgis_pro:
+  # arcpy 파이프라인 산출물 저장 위치 (Baseline의 outputs/*.gpkg 대신 FileGDB).
+  output_gdb: outputs/arcgis/changneung.gdb
+  # report_builder.py가 재사용할 빈 프로젝트 템플릿 - 최초 1회 사람이 준비.
+  template_aprx: outputs/arcgis/templates/blank_template.aprx

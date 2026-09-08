@@ -1,0 +1,160 @@
+# LH 요구 기능 ↔ 구현 모듈 추적 매트릭스 (Traceability Matrix)
+#
+# LH가 제시한 요구 기능 11개(수요가 높은 순)와 현업 애로사항 5개를, 실제로
+# 어느 모듈이 어떤 산출물로 대응하는지 기계가 읽을 수 있게 기록한다.
+# src/arcpy_pipeline/pipeline.py가 실행 시 이 파일을 읽어 각 요구사항의
+# 산출물이 실제로 생성됐는지 검증하고 outputs/reports/lh_traceability.md를
+# 만든다 - "요구사항을 반영했다"는 주장을 산출물로 증명하기 위한 장치다.
+#
+# status 값:
+#   implemented  - 이 저장소 코드로 end-to-end 동작
+#   partial      - 핵심 로직은 있으나 외부 자원(계정/유료영상/수동데이터) 필요
+#   blocked      - 외부 자원이 없으면 원리적으로 불가 (사유를 blocker에 기록)
+
+survey:
+  # LH 설문 결과 (5점 만점) - 우선순위 판단 근거로 보존한다.
+  business_adoption_value: 4.69
+  on_demand_imagery_value: 4.69
+  field_survey_prioritization: 4.46
+  time_saving_potential: 4.31
+  relevance_to_current_work: 4.08
+  reality_3d_decision_support: 4.08
+
+pain_points:
+  - id: PP1
+    text: "넓은 사업지역에서 계속 발생하는 변화를 추적하기 어려움"
+    addressed_by: [REQ01, REQ04, REQ07]
+  - id: PP2
+    text: "보고서 작성에 많은 시간이 소요됨"
+    addressed_by: [REQ10]
+  - id: PP3
+    text: "현장 상황을 적시에 파악하기 어려움"
+    addressed_by: [REQ05, REQ06]
+  - id: PP4
+    text: "최신 영상과 공간데이터 확보가 어려움"
+    addressed_by: [REQ06]
+  - id: PP5
+    text: "여러 시스템에 흩어진 데이터의 정합·연계가 어려움"
+    addressed_by: [REQ08]
+
+requirements:
+  - id: REQ01
+    rank: 1
+    title: "토지 및 건축물 변화 확인"
+    module: src/arcpy_pipeline/change_detect.py
+    outputs:
+      - outputs/arcgis/changneung.gdb/change_polygons
+      - outputs/arcgis/changneung.gdb/building_change_results
+    status: implemented
+
+  - id: REQ02
+    rank: 2
+    title: "불법·무허가 개발 의심지역 식별"
+    module: src/arcpy_pipeline/illegal_screen.py
+    outputs:
+      - outputs/arcgis/changneung.gdb/illegal_screening
+      - outputs/reports/illegal_screening.csv
+    status: implemented
+    note: >
+      법적 위반 판정이 아니라 "행정정보로 설명되지 않는 변화"의 등급화다.
+      경기도 위반건축물 공개데이터는 분기별 집계뿐이라 건물 단위 정답이
+      존재하지 않는다(handoff.md 7번 참고).
+
+  - id: REQ03
+    rank: 3
+    title: "보상 기준일 전후의 토지·건물 변화 확인"
+    module: src/arcpy_pipeline/compensation.py
+    outputs:
+      - outputs/arcgis/changneung.gdb/compensation_screening
+      - outputs/reports/compensation_screening.csv
+    status: implemented
+    note: >
+      보상 기준일(공람공고일)을 config에서 받아 그 전후로 시계열을 쪼개고,
+      기준일 이후 발생한 변화 중 건축물대장 근거가 없는 건을 등급화한다.
+
+  - id: REQ04
+    rank: 4
+    title: "사업지구 전체의 개발 진행 상황 모니터링"
+    module: src/arcpy_pipeline/progress_monitor.py
+    outputs:
+      - outputs/arcgis/changneung.gdb/progress_by_block
+      - outputs/reports/development_progress.csv
+    status: implemented
+
+  - id: REQ05
+    rank: 5
+    title: "현장조사 대상 지역 선별 및 우선순위 지정"
+    module: src/arcpy_pipeline/field_survey.py
+    outputs:
+      - outputs/arcgis/changneung.gdb/survey_sites
+      - outputs/reports/field_survey_workorder.csv
+    status: implemented
+
+  - id: REQ06
+    rank: 6
+    title: "필요한 시점에 최신 위성영상 확보"
+    module: src/arcpy_pipeline/imagery_tasking.py
+    outputs:
+      - outputs/reports/imagery_availability.csv
+      - outputs/reports/tasking_request.md
+    status: partial
+    blocker: >
+      무료 아카이브(Sentinel-2, Planetary Computer STAC)는 자동 조회/수집이
+      되지만, 요청 시점 신규 촬영(tasking)은 SkyWatch 등 상용 계약이
+      있어야 한다. 이 모듈은 아카이브 조회를 실제로 수행하고, 상용
+      tasking은 요구사항 문서를 자동 생성하는 데까지 담당한다.
+
+  - id: REQ07
+    rank: 7
+    title: "과거 영상과 최신 영상을 비교해 검토 대상 자동 추출"
+    module: src/arcpy_pipeline/pipeline.py
+    outputs:
+      - outputs/reports/lh_traceability.md
+    status: implemented
+
+  - id: REQ08
+    rank: 8
+    title: "변화탐지 결과를 지적도·건축물 등 LH 업무데이터와 결합"
+    module: src/arcpy_pipeline/cadastre_link.py
+    outputs:
+      - outputs/arcgis/changneung.gdb/parcel_change_summary
+      - outputs/reports/parcel_change_summary.csv
+    status: implemented
+
+  - id: REQ09
+    rank: 9
+    title: "기존 드론·현장조사 자료가 없는 과거 시점의 기록 보완"
+    module: src/arcpy_pipeline/progress_monitor.py
+    outputs:
+      - outputs/reports/historical_baseline.csv
+    status: implemented
+    note: >
+      Sentinel-2 아카이브는 2015년부터 5일 주기로 존재하므로, 드론/현장조사
+      기록이 없는 과거 시점도 소급 복원이 가능하다. 이것이 아카이브 위성의
+      고유 가치다.
+
+  - id: REQ10
+    rank: 10
+    title: "Web Map 등을 통한 결과 공유와 보고서 작성 지원"
+    module: src/arcpy_pipeline/report_builder.py, src/arcpy_pipeline/webmap_publish.py
+    outputs:
+      - outputs/reports/changneung_field_report.pdf
+      - outputs/arcgis/changneung_poc.aprx
+    status: partial
+    blocker: >
+      PDF 레이아웃 자동생성(arcpy.mp)은 로컬에서 완결된다. Web Map 발행은
+      AGOL Publisher 계정이 필요해 .env 자격증명이 있을 때만 실행된다.
+
+  - id: REQ11
+    rank: 11
+    title: "후보지역을 대상으로 ArcGIS Reality 기반 3D 정밀검토"
+    module: src/arcpy_pipeline/reality_3d.py
+    outputs:
+      - outputs/arcgis/changneung.gdb/reality_review_aoi
+      - outputs/reports/reality_capture_plan.md
+    status: partial
+    blocker: >
+      ArcGIS Reality는 고해상 스테레오/드론 영상을 입력으로 요구한다.
+      Sentinel-2(10m)로는 3D 재구성이 불가능하다. 이 모듈은 3D 정밀검토
+      **대상 구역 선정**과 촬영계획 수립, 건물 층수 기반 임시 3D(Extrude)
+      생성까지 담당하고, 실제 Reality 처리는 영상 확보 후 수행한다.

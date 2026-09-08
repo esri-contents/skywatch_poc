@@ -82,7 +82,9 @@ changneung-change-poc/
 │   ├── buildings/           # Overlay, 분류, 행정정보 Validation
 │   ├── scoring/              # 현장조사 우선순위 산정
 │   ├── evaluation/           # 정확도 지표, 리포트
-│   └── utils/
+│   ├── publish/              # ArcGIS Online 발행 (Baseline 산출물용)
+│   ├── utils/
+│   └── arcpy_pipeline/       # LH 운영 경로 (arcpy) - config/lh_requirements.yaml 참고
 ├── notebooks/               # 분석/검증/시각화 전용 (핵심 로직은 src/에 위치)
 ├── outputs/                  # rasters, vectors, maps, figures, reports
 └── tests/
@@ -111,6 +113,30 @@ PROJ_LIB=".venv/Lib/site-packages/rasterio/proj_data" GDAL_DATA="" \
   python -m src.preprocessing.raster_preprocess
 ```
 
+**테스트 실행**: `pytest -q` (Baseline 64개, `.venv` 파이썬으로 실행). `arcpy`가
+없는 환경에서는 `tests_arcpy/`가 `conftest.py`의 `collect_ignore_glob`으로
+자동 제외되므로 별도 조치가 필요 없다.
+
+### Installation - LH 운영 경로 (arcpy)
+
+`src/arcpy_pipeline/`는 위 `.venv`가 아니라 **ArcGIS Pro가 설치한 파이썬
+환경**(`arcgispro-py3`, ArcGIS Pro 3.x 기준 Python 3.11+)에서 실행한다.
+Spatial Analyst/3D Analyst 라이선스가 필요하다.
+
+```bash
+"C:\Program Files\ArcGIS\Pro\bin\Python\envs\arcgispro-py3\python.exe" -c ^
+  "from src.arcpy_pipeline.pipeline import run_change_intelligence; ..."
+
+# 이 환경의 테스트만 실행:
+"C:\Program Files\ArcGIS\Pro\bin\Python\envs\arcgispro-py3\python.exe" -m pytest tests_arcpy -q
+```
+
+이 환경에는 numpy/scipy/pandas/arcgis가 이미 포함되어 있어 별도 설치가
+필요 없다 (geopandas/rasterio/scikit-image/OpenCV는 없음 - 그래서
+`src/arcpy_pipeline/change_detect.py`가 SSIM/Otsu/edge 검출을 arcpy.sa와
+numpy만으로 재구현했다). 요구사항별 반영 현황은
+[`config/lh_requirements.yaml`](config/lh_requirements.yaml) 참고.
+
 ## Execution
 
 ```bash
@@ -121,46 +147,63 @@ python -m src.pipeline \
   --aoi data/aoi/changneung_test_aoi.gpkg
 ```
 
-**현재까지 실제 데이터로 end-to-end 실행 완료** (STEP 1~14):
+**현재까지 실제 데이터로 end-to-end 실행 완료** (STEP 1~14, robust CVA +
+방향성 검증 반영 이후 최신 실행 기준 - 2026-09-02):
 - AOI, Sentinel-2 T1/T2, 건물 footprint 확보 (위 데이터 표 참고)
 - T1/T2 Raster 전처리: 재투영+AOI clip+밴드 스택, 두 시기 grid 완전 일치 확인
-- Baseline Change Detection (pixel diff + SSIM + edge/texture 앙상블) →
+- Change Detection (robust CVA + SSIM + edge/texture 앙상블) →
   후처리(형태학적 연산+최소면적) → Polygon화 → 건물 Overlay → 규칙기반 분류
   → Priority Scoring → GPKG/GeoJSON/CSV export
 
-**실행 결과 (2022-05-17 vs 2024-05-31, AOI 10.99km², 건축물대장 Validation 포함)**:
+**실행 결과 (2022-05-17 vs 2024-05-31, AOI 10.99km², 건축물대장 Validation 포함,
+`outputs/reports/building_change_summary.csv` 실측)**:
 
 ```text
-전체 건물 2,737개 -> Change Polygon 33개 -> 건물 연계 변화 57개
--> 건축물대장 매칭 67.7%(1,854건, PNU 1,771 + 도로명주소 보강 83)
-   그중 1건은 사용승인일이 T1~T2 사이로 "설명됨"(신축 확정)
--> 최종 변화 후보 76개 (NEW_BUILDING 20 / EXPANSION_OR_RECONSTRUCTION 37 /
-   OTHER_CHANGE 16 / DEMOLITION 3)
--> HIGH 32 / MEDIUM 43 / LOW 1
+전체 건물 2,737개 -> Change Polygon 69개(평균 면적 6,169m², robust CVA 적용)
+-> 건물 연계 변화 124개 + 건물 미교차 변화 35개 = 최종 변화 후보 159개
+   (NEW_BUILDING 41 / EXPANSION_OR_RECONSTRUCTION 66 / OTHER_CHANGE 48 / DEMOLITION 4)
+   그중 72건(45.3%)은 이번 최종 후보 중 건축물대장 매칭까지 확인됨
+-> HIGH 72 / MEDIUM 70 / LOW 17
 ```
 
 건축물대장이 매칭된 건물은 change_ratio 휴리스틱 대신 실제 사용승인일로
 신축/기존 여부를 확정한다 (`src/buildings/classify.py`). 자세한 내용은
-[`outputs/reports/poc_summary.md`](outputs/reports/poc_summary.md) 참고.
+[`outputs/reports/poc_summary.md`](outputs/reports/poc_summary.md) 참고
+(단, 그 문서의 수치는 robust CVA 도입 이전 실행 기준이라 위 실측치와
+다르다 - 방법론 설명과 한계 서술은 여전히 유효하다).
 
-**중요 - HIGH 32건을 육안 검수한 결과**: 실제로 겹치는 change_polygon
-(현장) 기준으로는 **11곳뿐**이다(2개 대형 현장이 21건/66%를 차지).
-"건물 수"와 "현장 수"는 다르다 - `building_change_results.gpkg`의
-`site_id` 컬럼(`src/buildings/overlay.py`에서 추가)으로 실제 현장 수를
-group-by해서 셀 수 있다. 전체 76건도 서로 다른 현장은 33곳이다.
-**현장조사 안내 시 건물 개수가 아니라 site_id 기준 현장 수로 말해야
-같은 공사장을 여러 번 방문시키는 일을 막을 수 있다.**
+**중요 - "건물 수"와 "현장 수"는 다르다**: `site_id`(`src/buildings/overlay.py`)로
+group-by하면 실제 현장 수를 셀 수 있다. HIGH 72건은 서로 다른 현장
+**29곳**, 전체 159건은 서로 다른 현장 **69곳**이다. 대형 공사장 하나가
+건물 footprint 여러 개에 걸쳐 중복 집계되기 때문이며, **현장조사 안내 시
+건물 개수가 아니라 site_id 기준 현장 수로 말해야 같은 공사장을 여러 번
+방문시키는 일을 막을 수 있다.**
 
 자세한 내용과 한계는 [`outputs/reports/poc_summary.md`](outputs/reports/poc_summary.md),
-SkyWatch 확장 근거는 [`outputs/reports/skywatch_requirements.md`](outputs/reports/skywatch_requirements.md) 참고.
+SkyWatch 확장 근거는 [`outputs/reports/skywatch_requirements.md`](outputs/reports/skywatch_requirements.md),
+방향성 검증(밝기 delta) 도입 경위는 [`outputs/reports/high_priority_visual_qa.md`](outputs/reports/high_priority_visual_qa.md) 참고.
 
 STEP 8(정합 오차 정량화, `src/preprocessing/alignment.py`) 실행 결과
 displacement=1.26m(0.126px), ecc_score=0.979로 정합 양호 확인.
 STEP 13(행정정보 Validation, `src/buildings/validation.py`)도 실제 건축물대장
 데이터로 실행 완료. STEP 23 Human Validation Sample도 실행됨
-(`outputs/reports/human_validation_sample.csv`, 66건).
+(`outputs/reports/human_validation_sample.csv`).
 
-ArcGIS Online 발행 스크립트(계정/Publisher 권한 필요)는 아직 미구현이다.
+Global Moran's I(공간 자기상관, `src/evaluation/spatial_statistics.py`)는
+I=0.287, p_sim=0.001(n=159, k=8)로 변화가 공간적으로 유의하게 군집됨을
+확인 - 산발적 노이즈가 아니라 구조화된 변화(공사현장)라는 통계적 근거다.
+
+### LH 업무 반영 운영 경로 (arcpy)
+
+위 Baseline(geopandas/rasterio)과 별도로, **LH가 제시한 11개 요구 기능**
+(토지·건축물 변화 확인, 불법·무허가 개발 의심지역 식별, 보상 기준일 전후
+비교, 개발 진행 모니터링, 현장조사 우선순위화, 위성영상 확보, 지적/건축물
+연계, Web Map/보고서 자동화, ArcGIS Reality 3D 정밀검토 등)를 반영한
+**arcpy 기반 운영 파이프라인**이 `src/arcpy_pipeline/`에 있다. ArcGIS Pro
+라이선스가 있는 환경에서 동작하며, 요구사항별 반영 현황은
+[`config/lh_requirements.yaml`](config/lh_requirements.yaml)에 추적 매트릭스로
+정리되어 있고 실행할 때마다 `outputs/reports/lh_traceability.md`로 갱신된다.
+자세한 설계는 [`src/arcpy_pipeline/__init__.py`](src/arcpy_pipeline/__init__.py) 참고.
 
 ## Outputs
 
@@ -178,16 +221,18 @@ outputs/maps/*.png
 
 ## Known Limitations
 
-- 건축물대장(연면적/사용승인일/주용도 등 상세 행정 속성)은 아직 미확보.
-  VWorld 건물 레이어(`lt_c_spbd`)에는 이 속성이 없어 별도 API로 PNU 기준
-  보강이 필요하다 (data.go.kr 15134735, 엔드포인트/승인 확인 대기 중).
+- 건축물대장(연면적/사용승인일/주용도 등 상세 행정 속성)은 확보 완료됐으나
+  (`data/raw/building_register/changneung_title_info.json`), VWorld 건물
+  footprint과의 조인은 PNU+도로명주소 이중 키로도 67.7%(1,854/2,737)까지만
+  커버된다 - 나머지는 신도시 조성 중 미등록이거나 표기 차이로 추정
+  (`src/buildings/validation.py` 참고).
 - VWorld WFS는 쿼리당 STARTINDEX 상한이 1000(최대 2000건/bbox)으로 실측
   확인되었다. `download_vworld_wfs_layer`는 이를 bbox 4분할 재귀로
   우회하지만, 매우 밀집된 지역에서는 재귀 깊이가 늘어나 호출 수가
   증가할 수 있다.
-- **Sentinel-2 10m 해상도가 실제로 병목임을 실측 확인**: 실행 결과 change
-  polygon 평균 면적이 7,351m²로, 개별 단독주택 단위 변화는 잡히지 않는다
-  (`outputs/reports/skywatch_requirements.md` 참고). 후처리 최소면적
+- **Sentinel-2 10m 해상도가 실제로 병목임을 실측 확인**: 최신 실행 기준
+  change polygon 평균 면적이 6,169m²로, 개별 단독주택 단위 변화는 잡히지
+  않는다 (`outputs/reports/skywatch_requirements.md` 참고). 후처리 최소면적
   threshold 10/25/50m²는 1픽셀(100m²)보다 작아 현재 해상도에서는 사실상
   무의미하다.
 - Microsoft Planetary Computer의 서명된 다운로드 URL(SAS 토큰)은 약

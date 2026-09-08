@@ -20,6 +20,7 @@ correlation)** 으로 구현한다 - ArcGIS Pro 파이썬 환경에 OpenCV가 �
 from __future__ import annotations
 
 import logging
+import warnings
 from pathlib import Path
 
 import arcpy
@@ -149,16 +150,27 @@ def read_stack(raster_path: str) -> tuple[np.ndarray, dict]:
     0을 유효값으로 두면 AOI 바깥이 "완전히 검은 픽셀"로 취급되어 변화
     통계를 왜곡한다(Baseline에서 valid_mask로 처리하던 것과 같은 문제).
 
+    **정수형 래스터 주의(실측 확인)**: `RasterToNumPyArray(nodata_to_value=np.nan)`은
+    Sentinel-2 같은 uint16 원본에 대해 "정수 유형은 NaN이나 무한 값을 지원하지
+    않습니다" ValueError를 던진다 - 합성 테스트 데이터를 전부 float32로 만들어
+    검증했을 때는 드러나지 않다가 실제 위성영상으로 처음 돌렸을 때 나온 문제다.
+    그래서 원본 dtype 그대로 읽어 float32로 변환한 뒤, NoData 치환은 numpy
+    비교로 그 다음에 한다(arcpy 쪽에 맡기지 않는다).
+
     Returns:
         (arr, meta) - meta는 lower_left(arcpy.Point), cell_w, cell_h,
         spatial_reference, band_count, shape 를 담는다.
     """
     desc = arcpy.Describe(raster_path)
     ras = arcpy.Raster(raster_path)
-    arr = arcpy.RasterToNumPyArray(raster_path, nodata_to_value=np.nan)
+    nodata = ras.noDataValue
+
+    arr = arcpy.RasterToNumPyArray(raster_path)
     if arr.ndim == 2:
         arr = arr[np.newaxis, ...]
     arr = arr.astype(np.float32)
+    if nodata is not None:
+        arr = np.where(arr == float(nodata), np.nan, arr)
 
     meta = {
         "lower_left": arcpy.Point(ras.extent.XMin, ras.extent.YMin),
@@ -199,10 +211,19 @@ def write_raster(
 
 
 def to_grayscale(stack: np.ndarray, band_order: list[str] = BAND_ORDER) -> np.ndarray:
-    """RGB 밴드 평균 그레이스케일 (Baseline `baseline.to_grayscale`과 동일 정의)."""
+    """RGB 밴드 평균 그레이스케일 (Baseline `baseline.to_grayscale`과 동일 정의).
+
+    AOI 경계 픽셀은 재투영 리샘플링 특성상 밴드마다 유효/NoData 여부가
+    미세하게 갈릴 수 있어, 세 밴드가 전부 NaN인 위치(np.nanmean 기준
+    "empty slice")가 실제 위성영상에서 실측 확인됐다. 그 결과 자체는
+    의도대로 NaN이 맞으므로(경계 밖은 여전히 무효 픽셀), RuntimeWarning만
+    조용히 억제한다 - 매 실행마다 콘솔에 뜨면 실제 문제로 오인하기 쉽다.
+    """
     idx = {b: i for i, b in enumerate(band_order)}
     rgb = stack[[idx["B04"], idx["B03"], idx["B02"]]]
-    return np.nanmean(rgb, axis=0)
+    with np.errstate(invalid="ignore"), warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=RuntimeWarning)
+        return np.nanmean(rgb, axis=0)
 
 
 def verify_alignment(

@@ -79,6 +79,13 @@ def download_sentinel2_bands(
 
     Returns:
         저장된 파일 경로 목록.
+
+    주의(실측 확인): 전체타일 COG는 밴드당 200MB를 넘고, 다운로드 도중
+    `ConnectionResetError`로 스트림이 끊기는 일이 실제로 발생한다. 그때
+    `out_path`에 직접 쓰고 있었다면 잘린 파일이 남아, 재실행 시 위의
+    "이미 존재, 건너뜀"에 걸려 손상된 밴드를 그대로 쓰게 된다. 그래서
+    `.part` 임시파일에 스트리밍하고 전체가 끝난 뒤에만 최종 경로로
+    원자적 rename한다 - "파일 존재 = 완전히 받음"을 항상 참으로 유지한다.
     """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -97,12 +104,18 @@ def download_sentinel2_bands(
         if signed_asset is None:
             raise KeyError(f"[DATA] '{band}' 밴드가 이 item에 없습니다: {item_id}")
         href = signed_asset["href"]
+        tmp_path = out_path.with_suffix(out_path.suffix + ".part")
         logger.info("[DATA] 다운로드: %s -> %s", band, out_path)
-        resp = requests.get(href, stream=True, timeout=120)
-        resp.raise_for_status()
-        with open(out_path, "wb") as f:
-            for chunk in resp.iter_content(chunk_size=1024 * 1024):
-                f.write(chunk)
+        try:
+            resp = requests.get(href, stream=True, timeout=120)
+            resp.raise_for_status()
+            with open(tmp_path, "wb") as f:
+                for chunk in resp.iter_content(chunk_size=1024 * 1024):
+                    f.write(chunk)
+            tmp_path.replace(out_path)
+        except Exception:
+            tmp_path.unlink(missing_ok=True)
+            raise
         saved.append(out_path)
 
     logger.info("[DATA] Sentinel-2 item %s 다운로드 완료 (%d개 밴드)", item_id, len(saved))

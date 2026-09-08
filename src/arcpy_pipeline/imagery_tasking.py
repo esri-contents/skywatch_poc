@@ -138,7 +138,14 @@ def download_bands(
 ) -> list[Path]:
     """장면의 지정 밴드를 내려받는다 (이미 받은 파일은 건너뜀).
 
-    이어받기 가능하도록 밴드 단위로 서명·저장한다.
+    이어받기 가능하도록 밴드 단위로 서명·저장한다. 각 파일은 먼저
+    `<band>.tif.part`에 스트리밍하고, 전체가 성공적으로 끝난 뒤에만
+    최종 파일명으로 원자적 rename한다 - 스트리밍 도중 연결이 끊기면(실측
+    확인: 큰 전체타일 COG 다운로드 중 `ConnectionResetError`가 실제로
+    발생했다) `.part` 파일만 잘린 채로 남고 최종 경로는 만들어지지 않으므로,
+    "파일 존재 = 완전히 받음"이라는 스킵 조건이 항상 참으로 유지된다.
+    이 보장이 없으면 재실행 시 잘린 파일을 "이미 있음"으로 건너뛰어
+    손상된 밴드로 조용히 스택을 만들게 된다.
     """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -152,12 +159,18 @@ def download_bands(
             logger.info("[IMAGERY] 이미 존재, 건너뜀: %s", out_path.name)
             saved.append(out_path)
             continue
+        tmp_path = out_path.with_suffix(out_path.suffix + ".part")
         logger.info("[IMAGERY] 다운로드: %s %s", scene["id"], band)
-        with requests.get(sign_href(href), stream=True, timeout=timeout) as resp:
-            resp.raise_for_status()
-            with open(out_path, "wb") as f:
-                for chunk in resp.iter_content(chunk_size=1 << 20):
-                    f.write(chunk)
+        try:
+            with requests.get(sign_href(href), stream=True, timeout=timeout) as resp:
+                resp.raise_for_status()
+                with open(tmp_path, "wb") as f:
+                    for chunk in resp.iter_content(chunk_size=1 << 20):
+                        f.write(chunk)
+            tmp_path.replace(out_path)
+        except Exception:
+            tmp_path.unlink(missing_ok=True)
+            raise
         saved.append(out_path)
     return saved
 

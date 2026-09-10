@@ -130,7 +130,7 @@ def _html(cfg: dict, summary: dict, briefing: bool = False) -> str:
 <section><h2>분석 범위와 관측 시점</h2><p>공식 위치: {cfg['project']['location']} · 사업시행자: {cfg['project']['operator']}. 공식 AOI는 VWorld 국가공간정보 WFS의 <code>lt_c_lhzone</code> 지구코드 <code>{cfg['aoi']['zonecode']}</code>를 사용했다. 저장 경계의 계산면적은 4,525,462㎡로 고시면적과 71㎡(0.0016%) 차이다.</p><p>영상은 계절 차이를 15일 이내로 맞춘 2020-08-25, 2023-09-09, 2026-09-08을 선택했다.</p></section>
 <section><h2>실행 결과</h2><table><thead><tr><th>비교</th><th>후보</th><th>현장</th><th>대장 매칭 후보</th><th>정합 변위</th></tr></thead><tbody>{periods}</tbody></table><p>AOI 내 건물 footprint {buildings:,}동, 수집 건축물대장 {len(register):,}건. 후보 매칭률은 장기 비교 기준 {matched / max(total['candidate_count'],1)*100:.1f}%이며 전체 footprint 매칭률과 혼동하지 않는다.</p></section>
 <section><img src="{image}" alt="2020년과 2026년 변화탐지 비교 지도"><p>Sentinel-2의 10m 공간해상도 때문에 소규모 증축, 경계부 혼합화소, 수목·토양 계절 변화는 재확인이 필요하다.</p></section>
-<section class="warn"><h2>기준일 해석</h2><p>2021-08-30 신규 공공택지 발표일을 업무상 미확정 후보 기준일로 설정했다. 2024-02-07 지구지정일, 주민공람 관련 날짜, 향후 보상계획 공고일은 의미가 다르다. 보상계획 공고는 확인되지 않았으므로 기준일 전후 비교를 보상 판정으로 표현하지 않는다.</p></section>
+<section class="warn"><h2>기준일 해석</h2><p>{cfg['compensation']['baseline_date']} ({cfg['compensation']['baseline_type']})을 업무상 미확정 후보 기준일로 설정했다. 2024-02-07 지구지정일, 향후 보상계획 공고일은 의미가 다르다. 보상계획 공고는 확인되지 않았으므로 기준일 전후 비교를 보상 판정으로 표현하지 않는다.</p></section>
 <section><h2>근거와 한계</h2><p><a href="{cfg['aoi']['designation_notice_url']}">국토교통부 고시 제2024-81호</a> · <a href="{cfg['aoi']['parcel_correction_notice_url']}">필지조서 정정 고시 제2024-152호</a>. 임계값 0.5는 사람 정답 라벨이 없는 상태의 임시 운영값이며 별도 민감도표와 수동 검수표를 제공한다. 3D는 대상지 및 촬영계획까지만 산출하며 적합 고해상 중복영상이 없어 실제 재구성은 수행하지 않는다.</p></section></main></body></html>'''
 
 

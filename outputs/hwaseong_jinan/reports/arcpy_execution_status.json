@@ -23,10 +23,11 @@
   },
   "REQ03": {
     "status": "ok",
-    "baseline_date": "2021-08-30",
+    "baseline_date": "2022-02-21",
     "STRADDLES_BASELINE": 252,
-    "PRE_BASELINE": 21,
-    "POST_BASELINE_PERMITTED": 13
+    "PRE_BASELINE": 24,
+    "POST_BASELINE_PERMITTED": 10,
+    "note": "2026-09-10 재계산 (기존 2021-08-30 폐기, compensation_baseline_review.md 참고). [미확정 잠정값] business_confirmed=false"
   },
   "REQ02": {
     "status": "ok",
@@ -947,7 +948,8 @@
         "private": true
       }
     },
-    "status": "ok"
+    "status": "ok",
+    "stale_note": "2026-09-10 REQ03 baseline_date 재계산(2021-08-30 -> 2022-02-21) 이후 이 포털 항목(item_id 목록)은 재발행하지 않았다 - building_change_results/parcel_change_summary/survey_sites 호스팅 레이어는 옛 compensation_status 값을 그대로 갖고 있다. 로컬 결과(gdb/zip)만 갱신됨."
   },
   "REQ07": {
     "status": "ok",

@@ -1,0 +1,130 @@
+project:
+  id: hwaseong_jinan
+  name: 화성진안 공공주택지구 위성영상 기반 변화탐지 PoC
+  short_name: 화성진안
+  official_name: 화성진안 공공주택지구
+  location: 경기도 화성시 진안동·반정동·반월동·기산동·병점동 일원
+  official_area_m2: 4525533
+  operator: 한국토지주택공사
+  analysis_crs: EPSG:5186
+satellite:
+  provider: planetary-computer
+  collection: sentinel-2-l2a
+  bands:
+  - B02
+  - B03
+  - B04
+  - B08
+  max_cloud_cover_pct: 20
+  t1_date_range: 2022-01-01/2022-12-31
+  t2_date_range: 2024-01-01/2024-12-31
+  search_bbox_wgs84:
+  - 127.02347137365037
+  - 37.21444807029848
+  - 127.06859822548945
+  - 37.23789762693958
+  known_limitation: '10m 해상도로 개별 단독주택 단위 신축/증축 탐지는 어려움. 대형 아파트단지/ 대규모 토지조성 등 큰 변화
+    위주로 검증 후 SkyWatch Benchmark에서 고해상 상용영상과 비교한다.
+
+    '
+crs:
+  source_crs: EPSG:4326
+  analysis_crs: EPSG:5186
+  decision_note: 'EPSG:5186 (Korea 2000 / Central Belt 2010, 중부원점, 중앙자오선 127E)을 선택.
+    창릉 AOI 경도범위(126.87~126.91E)가 중부원점 적용범위(125.5~128.5E)에 들어가며, 국내 서울/경기 지역 공공 GIS
+    데이터에서 가장 널리 쓰이는 표준 투영좌표계이기 때문. Sentinel-2 실측 확인: EPSG:32652 (WGS 84 / UTM zone
+    52N), 10m, uint16, nodata=0. Raster Preprocessing 단계에서 EPSG:5186으로 재투영한다. NGII
+    정사영상은 확보 후 별도로 원본 CRS를 확인한다.
+
+    '
+alignment:
+  method: ECC
+  max_allowed_rmse_m: 10.0
+change_detection:
+  methods:
+  - robust_cva
+  - ssim
+  - edge_texture
+  - ensemble
+  min_area_thresholds_m2:
+  - 10
+  - 25
+  - 50
+  - 100
+  threshold_method: fixed
+  mask_threshold: 0.5
+postprocess:
+  morphology:
+    opening_kernel: 3
+    closing_kernel: 3
+  min_component_area_m2: 25
+spatial_statistics:
+  k: 8
+  permutations: 999
+random_seed: 42
+classification:
+  buffer_distances_m:
+  - 3
+  - 5
+  change_ratio_new_building_min: 0.5
+priority_scoring:
+  weights:
+    change_confidence: 0.4
+    change_ratio: 0.3
+    administrative_uncertainty: 0.2
+    building_relevance: 0.1
+  thresholds:
+    high: 0.7
+    medium: 0.4
+validation_sample:
+  high_n: 50
+  medium_n: 30
+  low_n: 20
+compensation:
+  baseline_date: '2021-08-30'
+  baseline_type: 신규 공공택지 발표일/주민공람 기준일 후보
+  source_url: https://www.molit.go.kr/2021newcity/index.jsp
+  business_confirmed: false
+  note: '2021-08-30은 국토교통부의 제3차 신규 공공택지 발표일로 확인되나, 토지보상 실무상 적용할 주민의견청취 공고일과 동일한지는
+    사업부서 확인이 필요하다. 2022-02-21은 전략환경영향평가 초안 공람일, 2024-02-07은 지구지정일이므로 서로 혼동하지 않는다.
+    보상계획 공고는 2026-09-08 확인 기준 아직 확인되지 않았다.
+
+    '
+illegal_screening:
+  tolerance_ratio: 1.3
+  strong_change_ratio: 0.5
+  strong_confidence: 0.6
+progress_monitor:
+  grid_cell_size_m: 250.0
+  site_persistence_distance_m: 30.0
+imagery_tasking:
+  recent_days_window: 90
+  season_months:
+  - 4
+  - 6
+field_survey:
+  buffer_m_for_near_change: 3.0
+reality_3d:
+  review_buffer_m: 20.0
+  floor_height_m: 3.0
+  target_gsd_cm: 3.0
+  overlap_pct: 75
+arcgis_pro:
+  output_gdb: outputs/hwaseong_jinan/arcgis/hwaseong_jinan.gdb
+  template_aprx: outputs/arcgis/templates/blank_template.aprx
+paths:
+  data_root: data/projects/hwaseong_jinan
+  output_root: outputs/hwaseong_jinan
+  aoi: data/projects/hwaseong_jinan/aoi/hwaseong_jinan_official.gpkg
+  buildings: data/projects/hwaseong_jinan/processed/buildings.gpkg
+  cadastre: data/projects/hwaseong_jinan/processed/cadastre.gpkg
+  building_register: data/projects/hwaseong_jinan/raw/building_register/title_info.json
+  building_permits: data/projects/hwaseong_jinan/raw/building_permits/basic_outline.json
+  output_gdb: outputs/hwaseong_jinan/arcgis/hwaseong_jinan.gdb
+  output_aprx: outputs/hwaseong_jinan/arcgis/hwaseong_jinan.aprx
+  reports: outputs/hwaseong_jinan/reports
+publishing:
+  folder: skywatch_poc_hwaseong_jinan
+  web_map_title: 화성진안 Building Change Intelligence - LH 업무 통합
+  sharing: private
+  overwrite_existing: false

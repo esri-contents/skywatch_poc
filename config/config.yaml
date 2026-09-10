@@ -69,7 +69,11 @@ random_seed: 42   # 공간통계 permutation 등 확률적 단계의 재현성�
 
 classification:
   buffer_distances_m: [3, 5]
-  change_ratio_new_building_min: 0.5   # TBD - 실데이터로 캘리브레이션 필요
+  # 2022-2024 실데이터 민감도 분석에서 0.4~0.7 구간의 분류 결과가 동일했다.
+  # 안정 구간의 중앙값 0.5를 운영 임계값으로 확정한다. 다만 건축물대장
+  # 미매칭 건에만 적용되는 휴리스틱이며, 정답 라벨 확보 후 재보정한다.
+  # 근거: outputs/reports/classification_threshold_calibration.md
+  change_ratio_new_building_min: 0.5
 
 priority_scoring:
   weights:
@@ -92,9 +96,12 @@ validation_sample:
 compensation:
   # 보상 기준일(통상 공람공고일). 반드시 사업부서가 확정한 실제 날짜로
   # 채워야 한다 - 이 값이 틀리면 compensation_status 전체가 무효가 된다.
-  # PoC 단계에서는 예시로 비워둔다: null이면 pipeline.py가 보상기준일 판정
-  # 단계(REQ03)를 건너뛰고 그 사실을 lh_traceability.md에 기록한다.
-  baseline_date: null   # 예: "2023-06-01"
+  # null이면 pipeline.py가 보상기준일 판정 단계(REQ03)를 건너뛰고 그 사실을
+  # lh_traceability.md에 기록한다.
+  # 고양창릉 사업인정 관련 주민공람 시작일. 3기 신도시 공식 추진경위에
+  # 2019-05-07~2019-05-21로 기재되어 있다.
+  # https://www.3기신도시.kr/kor/CMS/Contents/Contents.do?mCode=MN074
+  baseline_date: "2019-05-07"
 
 illegal_screening:
   # 실제 footprint / 대장 건축면적 이 값을 넘으면 면적초과 신호로 본다.

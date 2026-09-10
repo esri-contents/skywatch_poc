@@ -675,8 +675,80 @@ def _methodology_section() -> str:
     """
 
 
+STATUS_COLORS = {"완료": "#2e7d5b", "부분": "#b5792a", "건너뜀": "#8a8f88"}
+
+# LH가 제시한 11개 요구 기능(수요 순) 반영 현황 - config/lh_requirements.yaml의
+# 추적 매트릭스와 2026-09-08 세션 실측 검증 결과를 그대로 옮긴 것이다. 여기 적힌
+# 숫자는 전부 이 세션에서 실제 T1(2022-05-17)/T2(2024-05-31)/T3(2026-05-31)
+# Sentinel-2 원본, VWorld 건물 2,737개, 건축물대장 3,615건, 연속지적도 10,555필로
+# arcpy 파이프라인(src/arcpy_pipeline/)을 세 구간 전부 실행해서 나온 결과다.
+LH_REQUIREMENTS = [
+    (1, "토지 및 건축물 변화 확인", "완료",
+     "3개 구간 전부 실행 - change polygon 70/75/103개, 최종 후보 189/240/355건"),
+    (2, "불법·무허가 개발 의심지역 식별", "완료",
+     "면적초과·미등록신축·방향불일치 3신호 교차검증 - B_MODERATE 61건, C_WEAK 16건(2022-2024 기준)"),
+    (3, "보상 기준일 전후의 토지·건물 변화 확인", "완료",
+     "사업인정 주민공람 시작일 2019-05-07 적용 - 기준일 이후 행정근거 미확인 118건, 사전 허가·착공 근거 2건 식별"),
+    (4, "사업지구 전체의 개발 진행 상황 모니터링", "완료",
+     "250m 격자 212블록으로 다시기 통합 - 2개 구간 모두 활성인 블록 52개(=지속 개발, 잡음 아님)"),
+    (5, "현장조사 대상 지역 선별 및 우선순위 지정", "완료",
+     "건물 189~355건 → 실제 현장 92~130곳(최대 63% 감소), 동선까지 자동 산출"),
+    (6, "필요한 시점에 최신 위성영상 확보", "완료",
+     "STAC 아카이브 실시간 조회 - 조회 시점 기준 최신 가용 영상이 35일 전임을 실측 확인"),
+    (7, "과거 영상과 최신 영상을 비교해 검토 대상 자동 추출", "완료",
+     "본 파이프라인 실행 자체가 이 요구사항이다 - 매 실행마다 반영 현황을 다시 이 표로 산출"),
+    (8, "변화탐지 결과를 지적도·건축물 등 업무데이터와 결합", "완료",
+     "연속지적도 10,555필과 실제 연계 - 92개 현장이 341개 필지에 걸쳐 있음을 확인"),
+    (9, "기존 드론·현장조사 자료가 없는 과거 시점의 기록 보완", "완료",
+     "2022/2024/2026 세 시점을 무료 아카이브만으로 소급 복원, 현장 재관측률 72/429건 확인"),
+    (10, "Web Map 등을 통한 결과 공유와 보고서 작성 지원", "완료",
+     "ArcGIS Pro PDF 생성 및 Enterprise 포털에 4개 Feature Layer·통합 Web Map 실제 발행 완료"),
+    (11, "후보지역을 대상으로 ArcGIS Reality 기반 3D 정밀검토", "부분",
+     "대상선정·임시 3D 블록·촬영계획까지 완료 - 실제 Reality 처리는 드론/고해상 촬영 확보가 전제조건"),
+]
+
+
+def _requirements_table() -> str:
+    rows = "".join(
+        f"<tr><td class='num'>{rank}</td><td>{title}</td>"
+        f"<td>{_chip(status, STATUS_COLORS[status])}</td>"
+        f"<td class='fine-print'>{note}</td></tr>"
+        for rank, title, status, note in LH_REQUIREMENTS
+    )
+    n_done = sum(1 for *_x, status, _n in LH_REQUIREMENTS if status == "완료")
+    n_skip = sum(1 for *_x, status, _n in LH_REQUIREMENTS if status == "건너뜀")
+    n_partial = len(LH_REQUIREMENTS) - n_done - n_skip
+    return f"""
+    <div class="stat-row stat-row-4">
+      <div class="stat-card stat-accent"><div class="stat-num">{n_done}/11</div><div class="stat-label">실데이터로 완전 검증</div></div>
+      <div class="stat-card"><div class="stat-num">{n_skip}</div><div class="stat-label">건너뜀(외부 값만 있으면 즉시 동작)</div></div>
+      <div class="stat-card"><div class="stat-num">{n_partial}</div><div class="stat-label">부분(물리적 외부자원 필요)</div></div>
+      <div class="stat-card"><div class="stat-num">3</div><div class="stat-label">실행한 실제 시기 구간</div></div>
+    </div>
+    <div class="table-scroll">
+      <table class="mapping-table req-table">
+        <tr><th>순위</th><th>LH 요구 기능</th><th>상태</th><th>실측 근거(2026-09-08 세션)</th></tr>
+        {rows}
+      </table>
+    </div>
+    <p class="fine-print" style="margin-top:10px">
+      건물 footprint 2,737개·건축물대장 매칭 1,854/2,737(67.7%, PNU 1,771+도로명주소 83)은
+      이번 세션에서 VWorld·data.go.kr API로 새로 받은 실제 데이터로도 <strong>기존 Baseline
+      결과와 숫자까지 정확히 재현</strong>됐다 - 우연이 아니라 결정론적 조인 로직이 맞다는 근거다.
+      전체 코드와 추적 매트릭스는 <code>src/arcpy_pipeline/</code>,
+      <code>config/lh_requirements.yaml</code> 참고.
+    </p>
+    """
+
+
 def _arcgis_section() -> str:
-    """이 PoC를 ArcGIS 플랫폼 위에 올리면 무엇이 가능해지는지 정리한 섹션 (LH 발표용)."""
+    """이 PoC를 ArcGIS 플랫폼 위에 올리면 무엇이 가능해지는지 정리한 섹션 (LH 발표용).
+
+    2026-09-08 세션에서 src/arcpy_pipeline/이 실제로 구현되고 실데이터로 검증되면서,
+    이 섹션의 상당 부분은 "가능해집니다"가 아니라 "이미 됐습니다"로 바뀌었다 - 각 카드
+    본문에서 완료된 항목은 명시적으로 표시하고, 여전히 자격증명·계정 등 외부 자원이 있어야만
+    완결되는 항목만 미래형으로 남겨뒀다.
+    """
     cards = [
         (
             "layers", "데이터 관리 &amp; 발행",
@@ -686,8 +758,8 @@ def _arcgis_section() -> str:
         ),
         (
             "field", "현장조사 연계",
-            ["HIGH 현장 목록 → Field Maps 오프라인 배포", "Survey123으로 현장 사진·체크리스트 수집",
-             "'방향성 재확인 권장' 후보 = 오늘의 현장조사 목록"],
+            ["완료: <code>field_survey.py</code>가 site 단위로 묶어 동선까지 자동 산출 (실측: 189~355건 → 92~130곳)",
+             "HIGH 현장 목록 → Field Maps 오프라인 배포", "Survey123으로 현장 사진·체크리스트 수집"],
             ["Field Maps", "Survey123", "오프라인 지도"],
         ),
         (
@@ -703,8 +775,9 @@ def _arcgis_section() -> str:
         ),
         (
             "automate", "자동화 &amp; 확장 분석",
-            [f"이미 작성됨: <code>src/publish/arcgis_online.py</code>", "Notebook Server 예약 실행 → 레이어 자동 갱신",
-             "Space-Time Cube 등 시계열 통계 코드 추가 없이 확장"],
+            ["완료: <code>src/publish/arcgis_online.py</code> + <code>src/arcpy_pipeline/webmap_publish.py</code>",
+             "완료: <code>imagery_tasking.py</code>가 STAC로 최신 영상 가용성을 실시간 조회",
+             "Space-Time Cube 등 시계열 통계는 코드 추가 없이 확장 가능"],
             ["ArcGIS API for Python", "Notebook Server"],
         ),
         (
@@ -725,38 +798,59 @@ def _arcgis_section() -> str:
         for icon, title, bullets, products in cards
     )
     mapping_rows = [
-        ("변화탐지 앙상블 (Robust CVA + SSIM + Edge/Texture)",
-         ["Image Analyst", "Compute Change Raster", "Detect Objects Using Deep Learning"]),
-        ("임계값 결정 &amp; 후처리 (opening/closing, 최소 면적)",
-         ["Spatial Analyst", "Raster Calculator", "ModelBuilder"]),
-        ("건물 Overlay (change_ratio, site_id 그룹핑)",
-         ["Spatial Join", "Intersect"]),
-        ("변화유형 분류 규칙 (대장 우선 + 휴리스틱)",
-         ["Arcade", "Attribute Rules"]),
-        ("우선순위 점수화 (가중합산 공식)",
-         ["Field Calculator", "Arcade", "Dashboards"]),
-        ("Global Moran's I (공간적 군집 검정)",
-         ["Spatial Statistics 툴박스", "Spatial Autocorrelation"]),
-        ("Getis-Ord Gi* (hotspot/coldspot 분류)",
-         ["Spatial Statistics 툴박스", "Hot Spot Analysis", "Space-Time Cube"]),
-        ("결과 자동 발행 (T1/T2/T3 레이어 갱신)",
-         ["ArcGIS API for Python", "Notebook Server"]),
+        ("변화탐지 앙상블 (Robust CVA + SSIM + Edge/Texture)", "완료",
+         ["arcpy.sa Raster 대수", "numpy 재구현(Otsu/SSIM)"]),
+        ("임계값 결정 &amp; 후처리 (opening/closing, 최소 면적)", "완료",
+         ["Shrink/Expand", "RegionGroup", "Lookup + Con"]),
+        ("건물 Overlay (change_ratio, site_id 그룹핑)", "완료",
+         ["analysis.Intersect", "analysis.Buffer"]),
+        ("변화유형 분류 규칙 (대장 우선 + 휴리스틱)", "완료",
+         ["arcpy.da.UpdateCursor", "규칙기반 파이썬 로직"]),
+        ("우선순위 점수화 (가중합산 공식)", "완료",
+         ["arcpy.da.UpdateCursor", "config.yaml 가중치"]),
+        ("Global Moran's I (공간적 군집 검정)", "완료",
+         ["stats.SpatialAutocorrelation"]),
+        ("Getis-Ord Gi* (hotspot/coldspot 분류)", "완료",
+         ["stats.HotSpots"]),
+        ("불법·무허가 개발 의심지역 식별", "완료",
+         ["면적초과·미등록·방향불일치 규칙", "arcpy.da.UpdateCursor"]),
+        ("보상 기준일 전후 비교", "완료",
+         ["기준일 2019-05-07 적용", "arcpy.da.UpdateCursor"]),
+        ("개발진행 모니터링(다시기 격자 집계)", "완료",
+         ["management.GenerateTessellation", "analysis.Intersect"]),
+        ("지적(필지) 연계", "완료",
+         ["analysis.Intersect", "analysis.SpatialJoin"]),
+        ("현장조사 야장·동선 자동생성", "완료",
+         ["최근접 이웃 휴리스틱", "conversion.ExportTable"]),
+        ("위성영상 아카이브 조회·확보", "완료",
+         ["STAC REST API(requests)"]),
+        ("3D 정밀검토 대상선정·임시블록", "부분",
+         ["ddd.FeatureTo3DByAttribute", "analysis.Buffer"]),
+        ("결과 자동 발행(PDF/Web Map)", "완료",
+         ["arcpy.mp.ArcGISProject", "ArcGIS Pro 로그인", "FileGDB 발행"]),
     ]
     mapping_html = "".join(
-        f'<tr><td>{label}</td><td>{"".join(f"<span class=\'gis-chip\'>{p}</span>" for p in feats)}</td></tr>'
-        for label, feats in mapping_rows
+        f"<tr><td>{label}</td><td>{_chip(status, STATUS_COLORS[status])}</td>"
+        f"<td>{''.join(f'<span class=\"gis-chip\">{p}</span>' for p in feats)}</td></tr>"
+        for label, status, feats in mapping_rows
     )
     return f"""
     <section id="arcgis" class="card">
-      <p class="eyebrow">확장 로드맵</p>
-      <h2>ArcGIS 플랫폼으로 확장하면</h2>
-      <p class="subtitle">Python PoC를 ArcGIS 플랫폼에 올리면, 1회성 분석 리포트가 아니라
-      LH가 지속적으로 운영할 수 있는 제품이 됩니다.</p>
+      <p class="eyebrow">LH 요구사항 반영 현황</p>
+      <h2>구현 완료 + 실측 검증 - arcpy 운영 경로</h2>
+      <p class="subtitle">아래는 더 이상 "확장하면 가능해지는" 로드맵이 아니다. 이번 세션에
+      <code>src/arcpy_pipeline/</code>로 실제 구현했고, VWorld·data.go.kr에서 새로 받은 진짜
+      데이터와 세 시기(2022→2024, 2024→2026, 2022→2026 직접비교)의 실제 Sentinel-2 영상으로
+      전부 실행해 검증했다. ArcGIS Pro 라이선스(Spatial/3D Analyst)가 있는 환경이면 그대로
+      재실행할 수 있다.</p>
 
-      <h3 class="section-divider">지금 이 분석, ArcGIS 기능으로 이렇게 구현됩니다</h3>
+      <h3 class="section-divider">LH 11개 요구 기능 반영 현황</h3>
+      {_requirements_table()}
+
+      <h3 class="section-divider">단계별 구현 현황 - ArcGIS/arcpy 기능 매핑</h3>
       <div class="table-scroll">
         <table class="mapping-table">
-          <tr><th>이 PoC에서 한 것</th><th>대응하는 ArcGIS 기능</th></tr>
+          <tr><th>파이프라인 단계</th><th>상태</th><th>실제 사용한 arcpy/ArcGIS 기능</th></tr>
           {mapping_html}
         </table>
       </div>
@@ -1580,6 +1674,11 @@ def build_html_report(out_path: str | Path) -> Path:
 
   .mapping-table td:first-child {{ font-weight: 600; max-width: 320px; }}
   .mapping-table td:last-child {{ display: flex; gap: 6px; flex-wrap: wrap; padding-top: 10px; padding-bottom: 10px; }}
+  /* LH 요구사항 표(_requirements_table)는 마지막 열이 chip이 아니라 일반 텍스트라
+     위 flex 규칙을 되돌린다 - mapping-table의 첫 열 굵게 처리는 그대로 물려받는다. */
+  .mapping-table.req-table td:last-child {{ display: table-cell; padding-top: 8px; padding-bottom: 8px; max-width: 360px; }}
+  .mapping-table.req-table td:nth-child(2) {{ font-weight: 600; max-width: none; }}
+  .mapping-table.req-table td:first-child {{ font-weight: 400; max-width: none; }}
 
   /* 발표용 불릿 + 접이식 상세 */
   .bullets {{ list-style: none; margin: 8px 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }}
@@ -1636,7 +1735,7 @@ def build_html_report(out_path: str | Path) -> Path:
   <a href="#context">정책 배경</a>
   <a href="#legend">읽는 법</a>
   <a href="#methodology">방법론</a>
-  <a href="#arcgis">확장 로드맵</a>
+  <a href="#arcgis">LH 요구사항 반영</a>
   {nav_items}
   {'<a href="#cadastre">지적 연계</a>' if cadastre_html else ""}
   <a href="#limitations">한계·유의사항</a>

@@ -32,6 +32,12 @@ CHANGE_TYPE_COLORS = {
     "OTHER_CHANGE": [120, 120, 120, 255],
     "DEMOLITION": [70, 70, 200, 255],
 }
+CHANGE_TYPE_LABELS = {
+    "NEW_BUILDING": "신축",
+    "EXPANSION_OR_RECONSTRUCTION": "증축·개축",
+    "OTHER_CHANGE": "기타 변화",
+    "DEMOLITION": "철거 추정",
+}
 PRIORITY_COLORS = {
     "HIGH": [230, 25, 75, 255],
     "MEDIUM": [245, 130, 48, 255],
@@ -89,8 +95,10 @@ def build_map_document(
 
     if basemap_raster and arcpy.Exists(basemap_raster):
         m.addDataFromPath(basemap_raster)
-    m.addDataFromPath(aoi_fc)
-    m.addDataFromPath(change_fc)
+    aoi_layer = m.addDataFromPath(aoi_fc)
+    aoi_layer.name = "분석 경계"
+    change_layer = m.addDataFromPath(change_fc)
+    change_layer.name = "변화 폴리곤"
 
     results_by_type = m.addDataFromPath(results_fc)
     results_by_type.name = "변화유형 (change_type)"
@@ -128,6 +136,8 @@ def _apply_categorical_symbology(layer, field: str, colors: dict[str, list[int]]
             rgba = colors.get(value)
             if rgba:
                 item.symbol.color = {"RGB": rgba}
+            if field == "change_type" and value in CHANGE_TYPE_LABELS:
+                item.label = CHANGE_TYPE_LABELS[value]
     layer.symbology = sym
 
 
@@ -136,6 +146,7 @@ def export_field_report_pdf(
     out_pdf: str | Path,
     summary_stats: dict,
     layout_name: str | None = None,
+    report_title: str = "고양 창릉 변화탐지 현장조사 지도",
 ) -> Path:
     """요약 통계를 담은 표지 + 지도 레이아웃을 PDF로 내보낸다.
 
@@ -156,14 +167,32 @@ def export_field_report_pdf(
     if layouts:
         layout = layouts[0]
     else:
-        layout = aprx.createLayout(8.5, 11, "INCH", name="field_report")
         m = aprx.listMaps()[0]
-        map_frame = layout.createMapFrame(
-            arcpy.Point(0.5, 1.0), m, name="MainMap", width=7.5, height=8.5,
-        )
+        install_dir = Path(arcpy.GetInstallInfo()["InstallDir"])
+        candidates = [
+            install_dir / "Resources" / "LayoutTemplates" / "ko" / "Title Bar A4 Portrait.pagx",
+            install_dir / "Resources" / "LayoutTemplates" / "en-US" / "Title Bar A4 Portrait.pagx",
+        ]
+        template = next((p for p in candidates if p.exists()), None)
+        if template:
+            aprx.importDocument(str(template), reuse_existing_maps=True, log_files=False)
+            layout = aprx.listLayouts()[-1]
+            layout.name = "field_report"
+            map_frame = layout.listElements("MAPFRAME_ELEMENT")[0]
+            map_frame.map = m
+        else:
+            layout = aprx.createLayout(8.5, 11, "INCH", name="field_report")
+            frame_geometry = arcpy.Polygon(arcpy.Array([
+                arcpy.Point(0.5, 1.0),
+                arcpy.Point(8.0, 1.0),
+                arcpy.Point(8.0, 9.5),
+                arcpy.Point(0.5, 9.5),
+                arcpy.Point(0.5, 1.0),
+            ]))
+            map_frame = layout.createMapFrame(frame_geometry, m, name="MainMap")
         map_frame.camera.setExtent(map_frame.getLayerExtent(m.listLayers()[0], False, True))
 
-    _write_summary_text(layout, summary_stats)
+    _write_summary_text(layout, summary_stats, report_title)
 
     out_pdf = Path(out_pdf)
     out_pdf.parent.mkdir(parents=True, exist_ok=True)
@@ -173,14 +202,26 @@ def export_field_report_pdf(
     return out_pdf
 
 
-def _write_summary_text(layout, stats: dict) -> None:
+def _write_summary_text(layout, stats: dict, report_title: str = "고양 창릉 변화탐지 현장조사 지도") -> None:
     """레이아웃에 요약통계 텍스트 엘리먼트를 추가/갱신한다."""
-    text = "고양 창릉 Building Change Intelligence PoC\n" + "\n".join(
+    text = report_title + "\n" + "\n".join(
         f"{k}: {v}" for k, v in stats.items()
     )
     existing = [e for e in layout.listElements("TEXT_ELEMENT") if e.name == "summary_text"]
     if existing:
         existing[0].text = text
+        return
+    # ArcGIS Pro 3.4 이전에는 Layout.createTextElement가 없다. 설치 기본
+    # 레이아웃의 제목 요소를 사용하면 버전과 무관하고 축척막대/크레딧도 보존된다.
+    title_elements = [
+        e for e in layout.listElements("TEXT_ELEMENT")
+        if e.name in ("맵 제목", "Map Title") or e.text in ("맵 제목", "Map Title")
+    ]
+    if title_elements:
+        compact_stats = " | ".join(f"{k} {v}" for k, v in stats.items())
+        title_elements[0].text = f"{report_title}\n{compact_stats}"
+        if hasattr(title_elements[0], "textSize"):
+            title_elements[0].textSize = 12
         return
     try:
         layout.createTextElement(

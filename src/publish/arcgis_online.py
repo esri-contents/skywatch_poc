@@ -5,7 +5,10 @@ ArcGIS Online에 업로드해 Hosted Feature Layer / Tile Layer로 발행하고,
 심볼로지(change_type 카테고리, inspection_priority 3단계)를 적용한 뒤 Web Map으로
 묶는다. `outputs/reports/handoff.md` 9번 섹션의 수동 절차를 그대로 자동화한 것이다.
 
-인증은 `.env`의 AGOL_USERNAME / AGOL_PASSWORD (필요 시 AGOL_PORTAL_URL)를 사용한다.
+인증은 다음 순서로 처리한다.
+1. `.env`의 AGOL_USERNAME / AGOL_PASSWORD (필요 시 AGOL_PORTAL_URL)
+2. 자격증명이 없으면 ArcGIS Pro의 현재 로그인(`GIS("pro")`)
+
 Key/비밀번호를 코드에 하드코딩하지 않는다 (src/data/download.py와 동일한 원칙).
 
 사전 준비:
@@ -71,21 +74,36 @@ POPUP_FIELDS = [
 
 
 def connect_gis() -> Any:
-    """AGOL_USERNAME/PASSWORD로 GIS에 연결한다.
+    """명시 자격증명 또는 ArcGIS Pro 현재 로그인으로 GIS에 연결한다.
 
     Returns:
         arcgis.gis.GIS 인스턴스.
     """
     from arcgis.gis import GIS
 
-    if not AGOL_USERNAME or not AGOL_PASSWORD:
-        raise MissingCredentialsError(
-            "[PUBLISH] AGOL_USERNAME / AGOL_PASSWORD가 설정되어 있지 않습니다. "
-            ".env 파일에 두 값을 추가한 뒤 다시 실행하세요 (.env.example 참고)."
+    if AGOL_USERNAME and AGOL_PASSWORD:
+        gis = GIS(AGOL_PORTAL_URL, AGOL_USERNAME, AGOL_PASSWORD)
+        logger.info(
+            "[PUBLISH] 명시 자격증명으로 연결 완료: %s (사용자=%s)",
+            AGOL_PORTAL_URL, gis.users.me.username,
         )
-    gis = GIS(AGOL_PORTAL_URL, AGOL_USERNAME, AGOL_PASSWORD)
-    logger.info("[PUBLISH] 연결 완료: %s (사용자=%s)", AGOL_PORTAL_URL, gis.users.me.username)
-    return gis
+        return gis
+
+    try:
+        gis = GIS("pro")
+        if gis.users.me is None:
+            raise RuntimeError("ArcGIS Pro에 로그인된 사용자가 없습니다")
+        logger.info(
+            "[PUBLISH] ArcGIS Pro 현재 로그인으로 연결 완료: %s (사용자=%s)",
+            gis.url, gis.users.me.username,
+        )
+        return gis
+    except Exception as exc:
+        raise MissingCredentialsError(
+            "[PUBLISH] .env의 AGOL_USERNAME / AGOL_PASSWORD가 없고 ArcGIS Pro "
+            "현재 로그인도 사용할 수 없습니다. ArcGIS Pro에서 포털에 로그인하거나 "
+            ".env에 자격증명을 설정하세요."
+        ) from exc
 
 
 def _find_existing_item(gis: Any, title: str, item_type: str) -> Any | None:
@@ -137,6 +155,12 @@ def publish_geojson_layer(
             "outputs/vectors/*.geojson을 생성하세요 (handoff.md 3번 섹션 참고)."
         )
 
+    if not overwrite:
+        existing = _find_existing_item(gis, title, "Feature Service")
+        if existing is not None:
+            logger.info("[PUBLISH] 기존 Feature Service 재사용: %s", title)
+            return existing
+
     if overwrite:
         for item_type in ("GeoJson", "Feature Service"):
             existing = _find_existing_item(gis, title, item_type)
@@ -150,6 +174,49 @@ def publish_geojson_layer(
     source_item = job.result()
     logger.info("[PUBLISH] 업로드 완료: %s (item_id=%s)", title, source_item.id)
 
+    published_item = source_item.publish()
+    logger.info("[PUBLISH] 발행 완료: %s -> %s", title, published_item.homepage)
+    return published_item
+
+
+def publish_file_geodatabase_layer(
+    gis: Any,
+    file_path: str | Path,
+    title: str,
+    folder: str | None = None,
+    overwrite: bool = True,
+) -> Any:
+    """압축 FileGDB를 Hosted Feature Layer로 발행한다.
+
+    ArcGIS Enterprise의 ``analyze`` API는 GeoJSON을 지원하지 않아 복잡한
+    속성 스키마의 GeoJSON 발행 작업이 실패할 수 있다. ArcPy 운영 경로는
+    필드 타입과 길이를 보존하는 zipped FileGDB를 사용한다.
+    """
+    file_path = Path(file_path)
+    if not file_path.exists():
+        raise FileNotFoundError(f"[PUBLISH] {file_path} 가 없습니다.")
+
+    if not overwrite:
+        existing = _find_existing_item(gis, title, "Feature Service")
+        if existing is not None:
+            logger.info("[PUBLISH] 기존 Feature Service 재사용: %s", title)
+            return existing
+
+    if overwrite:
+        for item_type in ("GeoJson", "File Geodatabase", "Feature Service"):
+            existing = _find_existing_item(gis, title, item_type)
+            if existing is not None:
+                logger.info("[PUBLISH] 기존 항목 삭제: %s (%s)", title, item_type)
+                existing.delete(permanent=True)
+
+    item_properties = {
+        "title": title,
+        "type": "File Geodatabase",
+        "tags": "skywatch_poc,changneung,lh",
+    }
+    folder_obj = _get_folder(gis, folder)
+    source_item = folder_obj.add(item_properties, file=str(file_path)).result()
+    logger.info("[PUBLISH] FileGDB 업로드 완료: %s (item_id=%s)", title, source_item.id)
     published_item = source_item.publish()
     logger.info("[PUBLISH] 발행 완료: %s -> %s", title, published_item.homepage)
     return published_item

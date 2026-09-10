@@ -226,7 +226,7 @@ HIGH 32건의 T1/T2 이미지 chip을 전부 직접 열어봤다. 10m 해상도�
 |---|---|
 | 정식 지구계 완전 추출 | 398페이지 필지 목록 파싱 + VWorld 지적도 조회 + union (별도 세션 권장) |
 | NGII 고해상 정사영상 | map.ngii.go.kr 수동 로그인 및 다운로드 (사용자 액션) |
-| ArcGIS Online 발행 자동화 | ArcGIS API for Python 스크립트는 미작성 — AGOL 계정/Publisher 권한 확인되면 진행 가능 |
+| ArcGIS Online 발행 자동화 | **완료** — ArcGIS Pro 현재 로그인 연동, FileGDB 기반 4개 레이어 및 통합 Web Map 발행 검증 |
 | Human Validation Sample 실제 검수 | 준비된 63건 CSV를 사람이 열어서 manual_class/is_correct 채우기 |
 
 ---

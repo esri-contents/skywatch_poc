@@ -1,0 +1,100 @@
+{
+  "aoi": {
+    "feature_count": 1,
+    "area_m2": 4525462.2,
+    "bounds_wgs84": [
+      127.0234762,
+      37.2144578,
+      127.068591,
+      37.2378933
+    ]
+  },
+  "vectors": {
+    "buildings": 2314,
+    "cadastre": 8279,
+    "bbox": [
+      127.02147620000002,
+      37.21245776000001,
+      127.07059102999999,
+      37.23989327
+    ]
+  },
+  "building_register": {
+    "legal_dong_codes": [
+      "4159510100",
+      "4159510200",
+      "4159510400",
+      "4159510500",
+      "4159510600"
+    ],
+    "records": 4441,
+    "errors": {
+      "4159510600": "Expecting value: line 1 column 1 (char 0)"
+    }
+  },
+  "imagery": [
+    {
+      "id": "t0",
+      "date": "2020-08-25",
+      "item_id": "S2A_T52SCG_20200825T021608_L2A",
+      "role": "주민공람 기준일 후보 이전",
+      "scene_cloud_pct": 20.251781,
+      "aoi_valid_pixel_pct": 100.0,
+      "aoi_cloud_pixel_pct": 5.7555,
+      "source_checksums": {
+        "B02": "12202b464a768e28438d98eecaafde5546be978b8bf8ac6510f1135f31f46f67e4f6",
+        "B03": "12201d7da4754d5920926813e91efc7a18a12aee51c6f16461abeb42eec5371ecb36",
+        "B04": "1220646e3919db4baa3d91d37b038a206bae6bc71acbcde32d8e63d3ea848186b1f0",
+        "B08": "12207d08a885eca5e7620aaa23063711bd323e091b145b20afb3590d7378955a0a05"
+      },
+      "assets": {
+        "B02": "data\\projects\\hwaseong_jinan\\raw\\imagery\\t0\\S2A_T52SCG_20200825T021608_L2A_B02.tif",
+        "B03": "data\\projects\\hwaseong_jinan\\raw\\imagery\\t0\\S2A_T52SCG_20200825T021608_L2A_B03.tif",
+        "B04": "data\\projects\\hwaseong_jinan\\raw\\imagery\\t0\\S2A_T52SCG_20200825T021608_L2A_B04.tif",
+        "B08": "data\\projects\\hwaseong_jinan\\raw\\imagery\\t0\\S2A_T52SCG_20200825T021608_L2A_B08.tif"
+      }
+    },
+    {
+      "id": "t1",
+      "date": "2023-09-09",
+      "item_id": "S2A_T52SCG_20230909T022102_L2A",
+      "role": "주민공람 후보일 이후·지구지정 이전 중간",
+      "scene_cloud_pct": 1.659643,
+      "aoi_valid_pixel_pct": 100.0,
+      "aoi_cloud_pixel_pct": 0.0,
+      "source_checksums": {
+        "B02": "1220456710e69a768640cc8e053e1316061f1fe0ceec0214f0a83816d75d93dbca23",
+        "B03": "1220b4dda2155b33221d609dc39eebdcffb1c38126740d8a106552af728faf2c3697",
+        "B04": "12200415827270c50dff5938b80e68d7407331b9aa7b31c58d85fcb6ff882e863bba",
+        "B08": "12209e1937f3a6e57982fc90c6904c5b4ce346a2381fa42c3174fd65aaf359a4075c"
+      },
+      "assets": {
+        "B02": "data\\projects\\hwaseong_jinan\\raw\\imagery\\t1\\S2A_T52SCG_20230909T022102_L2A_B02.tif",
+        "B03": "data\\projects\\hwaseong_jinan\\raw\\imagery\\t1\\S2A_T52SCG_20230909T022102_L2A_B03.tif",
+        "B04": "data\\projects\\hwaseong_jinan\\raw\\imagery\\t1\\S2A_T52SCG_20230909T022102_L2A_B04.tif",
+        "B08": "data\\projects\\hwaseong_jinan\\raw\\imagery\\t1\\S2A_T52SCG_20230909T022102_L2A_B08.tif"
+      }
+    },
+    {
+      "id": "t2",
+      "date": "2026-09-08",
+      "item_id": "S2B_T52SCG_20260908T022010_L2A",
+      "role": "최신 계절 일치",
+      "scene_cloud_pct": 15.670197,
+      "aoi_valid_pixel_pct": 100.0,
+      "aoi_cloud_pixel_pct": 0.0,
+      "source_checksums": {
+        "B02": "1220cda76430a8a94883817b08f8a53c535f19f2c2f1b8bcea760f62fc88dd6d86b2",
+        "B03": "122055d2c3da51308de6fa89db492d9dd19aebcad34aa93ba815c015f9bd31ab55ba",
+        "B04": "1220caf59572b8db486e28de0602dc21336624121ed4560c0a6fd7bf8ae9644bea85",
+        "B08": "1220fbfa49ea9a2de53e13a910e0d714412c94b761827c6e14f9cc847cfce290b814"
+      },
+      "assets": {
+        "B02": "data\\projects\\hwaseong_jinan\\raw\\imagery\\t2\\S2B_T52SCG_20260908T022010_L2A_B02.tif",
+        "B03": "data\\projects\\hwaseong_jinan\\raw\\imagery\\t2\\S2B_T52SCG_20260908T022010_L2A_B03.tif",
+        "B04": "data\\projects\\hwaseong_jinan\\raw\\imagery\\t2\\S2B_T52SCG_20260908T022010_L2A_B04.tif",
+        "B08": "data\\projects\\hwaseong_jinan\\raw\\imagery\\t2\\S2B_T52SCG_20260908T022010_L2A_B08.tif"
+      }
+    }
+  ]
+}

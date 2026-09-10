@@ -1,0 +1,169 @@
+project:
+  id: hwaseong_jinan
+  name: "화성진안 공공주택지구 위성영상 기반 변화탐지 PoC"
+  short_name: "화성진안"
+  official_name: "화성진안 공공주택지구"
+  location: "경기도 화성시 진안동·반정동·반월동·기산동·병점동 일원"
+  official_area_m2: 4525533
+  operator: "한국토지주택공사"
+  analysis_crs: "EPSG:5186"
+
+paths:
+  data_root: "data/projects/hwaseong_jinan"
+  output_root: "outputs/hwaseong_jinan"
+  aoi: "data/projects/hwaseong_jinan/aoi/hwaseong_jinan_official.gpkg"
+  buildings: "data/projects/hwaseong_jinan/processed/buildings.gpkg"
+  cadastre: "data/projects/hwaseong_jinan/processed/cadastre.gpkg"
+  building_register: "data/projects/hwaseong_jinan/raw/building_register/title_info.json"
+  building_permits: "data/projects/hwaseong_jinan/raw/building_permits/basic_outline.json"
+  output_gdb: "outputs/hwaseong_jinan/arcgis/hwaseong_jinan.gdb"
+  output_aprx: "outputs/hwaseong_jinan/arcgis/hwaseong_jinan.aprx"
+  reports: "outputs/hwaseong_jinan/reports"
+
+aoi:
+  status: official
+  provider: "VWorld WFS"
+  layer: "lt_c_lhzone"
+  zonecode: "41590LH2024001"
+  zonename: "화성진안 공공주택지구"
+  source_url: "https://api.vworld.kr/req/wfs"
+  designation_notice_url: "https://www.eum.go.kr/web/gs/gv/gvGosiDet.jsp?seq=582667"
+  designation_notice_number: "국토교통부 고시 제2024-81호"
+  designation_notice_date: "2024-02-07"
+  parcel_correction_notice_url: "https://www.eum.go.kr/web/gs/gv/gvGosiDet.jsp?seq=584925"
+  parcel_correction_notice_number: "국토교통부 고시 제2024-152호"
+  parcel_correction_notice_date: "2024-03-20"
+
+imagery:
+  provider: "Element 84 Earth Search (AWS Open Data)"
+  stac_api: "https://earth-search.aws.element84.com/v1"
+  collection: "sentinel-2-c1-l2a"
+  bands: ["B02", "B03", "B04", "B08"]
+  asset_aliases: {B02: blue, B03: green, B04: red, B08: nir, SCL: scl}
+  epochs:
+    - id: t0
+      date: "2020-08-25"
+      item_id: "S2A_T52SCG_20200825T021608_L2A"
+      role: "주민공람 기준일 후보 이전"
+    - id: t1
+      date: "2023-09-09"
+      item_id: "S2A_T52SCG_20230909T022102_L2A"
+      role: "주민공람 후보일 이후·지구지정 이전 중간"
+    - id: t2
+      date: "2026-09-08"
+      item_id: "S2B_T52SCG_20260908T022010_L2A"
+      role: "최신 계절 일치"
+  selection_note: >
+    세 장면의 촬영일 차이는 15일 이내로 계절을 맞췄다. 2020-08-25는 기준일 후보 이전,
+    2023-09-09는 지구지정 전 중간, 2026-09-08은 확인일 당일 최신 시점이다. 장면 전체 구름률뿐
+    아니라 공식 AOI 내부 SCL 구름률과 유효 픽셀률을 실행 시 다시 계산해 기록한다.
+
+compensation:
+  baseline_date: "2021-08-30"
+  baseline_type: "신규 공공택지 발표일/주민공람 기준일 후보 (미확정 - 아래 web_review 참고)"
+  source_url: "https://www.molit.go.kr/2021newcity/index.jsp"
+  business_confirmed: false
+  interim_use_approved: true
+  interim_use_note: >
+    2026-09-08, 사업부서 확정 전 임시값으로 2021-08-30을 그대로 사용하기로 결정.
+    근거: (1) 세 후보 중 가장 이른 날짜라 REQ03이 과소플래그(놓침)보다 과다플래그
+    (과잉 검토 대상)를 만드는 쪽으로 치우친다 - 이 모듈은 보상 여부를 결정하지 않고
+    "우선 확인 대상"만 골라내므로 안전한 방향이다. (2) 실제 법정 보상계획 공고
+    (2027-12 예정, web_review 참고)가 아직 나오지 않아 더 나은 확정값 자체가
+    존재하지 않는다. pipeline.py는 business_confirmed가 false인 동안 REQ03 결과에
+    "[미확정 잠정값]" 표시를 자동으로 남겨 이번 실행 결과가 최종 보상 판정 근거가
+    아님을 모든 산출물(traceability report 등)에서 드러낸다. 사업부서 확정이
+    나오면 baseline_date를 교체하고 business_confirmed를 true로 바꿀 것.
+  note: >
+    2021-08-30은 국토교통부의 제3차 신규 공공택지 발표일로 확인되나, 토지보상 실무상
+    적용할 주민의견청취 공고일과 동일한지는 사업부서 확인이 필요하다. 2022-02-21은
+    전략환경영향평가 초안 공람일, 2024-02-07은 지구지정일이므로 서로 혼동하지 않는다.
+    보상계획 공고는 2026-09-08 확인 기준 아직 확인되지 않았다.
+  web_review:
+    reviewed_at: "2026-09-08"
+    conclusion: >
+      웹 공개자료로는 2021-08-30을 법적 보상/이주대책 기준일로 볼 근거를 찾지 못했다.
+      2021-08-30은 국토교통부의 '정책 발표일'이고, 대법원 판례상 이주대책기준일은
+      원칙적으로 '(지구지정을 위한) 주민공람공고일'이다 - 후보지 발표일이 아니다.
+      화성진안에 대해 별도로 권리산정기준일/이주대책기준일을 고시한 자료는 검색되지
+      않았다. business_confirmed는 false로 유지하며, baseline_date를 코드에서
+      바꾸지 않았다 - 아래 open_questions를 사업부서(LH 경기남부지역본부)에 전달해
+      실제 고시 문서로 확정받아야 한다.
+    supporting_facts:
+      - date: "2021-08-30"
+        event: "국토교통부 '제3차 신규 공공택지 추진계획' 발표 (화성진안 최초 공개)"
+        note: >
+          투기방지 조치는 '토지거래허가구역 지정'과 '2018년~발표일 실거래 조사'이며,
+          권리산정기준일·이주대책기준일을 이 날짜로 고시한다는 내용은 보도자료에 없음.
+        source: "https://www.korea.kr/news/policyBriefingView.do?newsId=156468392"
+      - date: "2021-08 ~ 2023"
+        event: "주민 열람·공고 및 전략환경영향평가 등 지구지정 행정절차 진행, 농림수산식품부 등과
+          이견으로 약 2년간 답보"
+        source: "https://www.hsj.co.kr/news/articleView.html?idxno=28139"
+      - date: "2024-02-07"
+        event: "지구지정 고시 (국토교통부 고시 제2024-81호) - 발표 후 2년 6개월 만에 지정 완료"
+        source: "http://www.ihknews.com/news/articleView.html?idxno=6410"
+      - date: "2025-09-29"
+        event: "환경영향평가서(초안) 공람 - 조성사업 단계, 지구지정과는 별개 절차"
+        source: "https://www.suwon.go.kr/common-upload/upload/board/2025/9/29/4de4f9a7-ccca-4f95-a0d1-8712e1713226.pdf"
+      - date: "2026-07-01 ~ 07-02"
+        event: "LH 경기남부지역본부 화성진안 보상설명회 개최"
+        source: "https://www.newsis.com/view/NISX20260630_0003689360"
+      - date: "예정: 2027-06 조서작성 / 2027-12 보상계획 공고·열람 / 2028-02 감정평가사 선정
+          / 2028-04 감정평가 / 2028-12 협의·계약"
+        event: "LH 발표 보상 일정 - 공식 보상계획 공고·열람은 2027-12로 아직 미도래, 즉
+          법정 보상 기준일이 별도 고시로 확정될 시점도 아직 오지 않았다"
+        source: "https://www.kyeongin.com/article/1766580"
+      - date: "판례"
+        event: "이주대책기준일은 원칙적으로 '(구역/지구지정에 관한) 주민공람 공고일'이며
+          사업계획·후보지 발표일이 아니라는 대법원 취지 - 신통기획 사례에서도 '후보지
+          발표일이 아닌 공모/지정 관련 공식 절차일'을 기준일로 삼은 전례와 일치"
+        source: "https://www.fnnews.com/news/202201161808476160"
+    open_questions_for_business_team:
+      - "화성진안에 대해 국토교통부/화성시/LH가 별도로 '권리산정기준일' 또는
+        '이주대책기준일'을 고시한 적이 있는가? (있다면 고시번호·날짜 확인)"
+      - "2022-02-21 전략환경영향평가 초안 공람일이 지구지정을 위한 주민공람공고일과
+        동일한 절차인가, 아니면 별개인가?"
+      - "별도 고시가 없다면 2024-02-07 지구지정고시일을 보상 기준일로 대체 적용해야
+        하는가, 아니면 2027-12 보상계획 공고·열람일까지 REQ03 판정을 보류해야 하는가?"
+    not_a_substitute_for: >
+      이 web_review는 뉴스·정책브리핑 등 2차 자료 조사이며 관보·고시 원문을 직접
+      확인한 것이 아니다. business_confirmed를 true로 바꾸려면 사업부서가 실제
+      고시 문서(관보/공보)를 근거로 제시해야 한다.
+
+analysis:
+  base_config: "config/config.yaml"
+  change_ratio_new_building_min: 0.5
+  threshold_candidates: [0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
+  comparison_pairs:
+    - [t0, t1]
+    - [t1, t2]
+    - [t0, t2]
+
+publishing:
+  folder: "skywatch_poc_hwaseong_jinan"
+  web_map_title: "화성진안 Building Change Intelligence - LH 업무 통합"
+  sharing: private
+  overwrite_existing: false
+
+sources_checked_at: "2026-09-08"
+
+official_sources:
+  - title: "화성진안 공공주택지구 지정 및 지형도면 고시"
+    agency: "국토교통부"
+    notice_number: "국토교통부 고시 제2024-81호"
+    notice_date: "2024-02-07"
+    url: "https://www.eum.go.kr/web/gs/gv/gvGosiDet.jsp?seq=582667"
+    confirms: "사업명·위치·면적·사업시행자·지구지정"
+  - title: "화성진안 공공주택지구 지정 고시 중 토지세목조서 정정"
+    agency: "국토교통부"
+    notice_number: "국토교통부 고시 제2024-152호"
+    notice_date: "2024-03-20"
+    url: "https://www.eum.go.kr/web/gs/gv/gvGosiDet.jsp?seq=584925"
+    confirms: "필지조서 정정"
+  - title: "화성진안 공공주택지구 조성사업 환경영향평가서 초안 공람"
+    agency: "화성특례시·한국토지주택공사"
+    notice_number: "공람 공고(환경영향평가 초안)"
+    notice_date: "2025-09-29"
+    url: "https://www.suwon.go.kr/web/board/BD_board.view.do?bbsCd=1042&seq=20250929162435735"
+    confirms: "2025-02-25 지구계획 승인신청, 사업기간 2024–2032, 환경영향평가 단계"

@@ -55,6 +55,29 @@ PNU_CANDIDATES = ("pnu", "PNU", "pnu_cd", "A1")
 JIBUN_CANDIDATES = ("jibun", "JIBUN", "addr", "bon_bun", "ADDR")
 
 
+def _prepared_parcels(parcel_fc: str, name: str) -> tuple[str, str, str | None]:
+    """Copy/repair parcels and use collision-proof field names for overlays."""
+    source_pnu = _pick_field(parcel_fc, PNU_CANDIDATES)
+    source_jibun = _pick_field(parcel_fc, JIBUN_CANDIDATES)
+    if source_pnu is None:
+        raise ValueError(f"[CADASTRE] PNU field not found: {parcel_fc}")
+    prepared = os.path.join(arcpy.env.scratchGDB, name)
+    delete_if_exists(prepared)
+    arcpy.management.CopyFeatures(parcel_fc, prepared)
+    arcpy.management.RepairGeometry(prepared, "DELETE_NULL")
+    add_field_if_missing(prepared, "cad_pnu", "TEXT", field_length=20)
+    if source_jibun:
+        add_field_if_missing(prepared, "cad_jibun", "TEXT", field_length=80)
+    fields = [source_pnu] + ([source_jibun] if source_jibun else []) + ["cad_pnu"] + (["cad_jibun"] if source_jibun else [])
+    with arcpy.da.UpdateCursor(prepared, fields) as cursor:
+        for row in cursor:
+            row[-2 if source_jibun else -1] = row[0]
+            if source_jibun:
+                row[-1] = row[1]
+            cursor.updateRow(row)
+    return prepared, "cad_pnu", "cad_jibun" if source_jibun else None
+
+
 def _pick_field(fc: str, candidates: tuple[str, ...]) -> str | None:
     names = {f.name.lower(): f.name for f in arcpy.ListFields(fc)}
     for c in candidates:
@@ -80,14 +103,7 @@ def link_results_to_parcels(
     Returns:
         PARCEL_FIELDS가 채워진 out_fc.
     """
-    pnu_field = _pick_field(parcel_fc, PNU_CANDIDATES)
-    jibun_field = _pick_field(parcel_fc, JIBUN_CANDIDATES)
-    if pnu_field is None:
-        raise ValueError(
-            f"[CADASTRE] 지적 레이어에서 PNU 필드를 찾지 못했습니다. "
-            f"확인한 후보: {PNU_CANDIDATES}, 실제 필드: "
-            f"{[f.name for f in arcpy.ListFields(parcel_fc)][:20]}"
-        )
+    parcel_fc, pnu_field, jibun_field = _prepared_parcels(parcel_fc, "_cadastre_link_prepared")
 
     inter = os.path.join(arcpy.env.scratchGDB, "_parcel_results_intersect")
     delete_if_exists(inter, out_fc)
@@ -227,9 +243,7 @@ def attach_parcel_id_to_results(results_fc: str, parcel_fc: str) -> int:
     Returns:
         PNU가 채워진 후보 수.
     """
-    pnu_field = _pick_field(parcel_fc, PNU_CANDIDATES)
-    if pnu_field is None:
-        raise ValueError("[CADASTRE] 지적 레이어에서 PNU 필드를 찾지 못했습니다")
+    parcel_fc, pnu_field, _ = _prepared_parcels(parcel_fc, "_cadastre_attach_prepared")
 
     add_field_if_missing(results_fc, "parcel_pnu", "TEXT", field_length=20)
     joined = os.path.join(arcpy.env.scratchGDB, "_results_parcel_sj")

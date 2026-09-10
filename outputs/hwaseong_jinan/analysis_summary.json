@@ -1,0 +1,77 @@
+{
+  "t0_t1": {
+    "out_dir": "outputs\\hwaseong_jinan\\comparisons\\t0_t1",
+    "candidate_count": 142,
+    "site_count": 59,
+    "priority": {
+      "HIGH": 72,
+      "MEDIUM": 55,
+      "LOW": 15
+    },
+    "change_type": {
+      "EXPANSION_OR_RECONSTRUCTION": 79,
+      "OTHER_CHANGE": 48,
+      "NEW_BUILDING": 13,
+      "DEMOLITION": 2
+    },
+    "register_match_count": 91,
+    "alignment": {
+      "dx_px": -0.0070778545923531055,
+      "dy_px": -0.046563565731048584,
+      "displacement_px": 0.04709842544310983,
+      "displacement_m": 0.47099841598304776,
+      "ecc_score": 0.984627052854384,
+      "converged": true
+    }
+  },
+  "t1_t2": {
+    "out_dir": "outputs\\hwaseong_jinan\\comparisons\\t1_t2",
+    "candidate_count": 67,
+    "site_count": 57,
+    "priority": {
+      "MEDIUM": 50,
+      "HIGH": 12,
+      "LOW": 5
+    },
+    "change_type": {
+      "OTHER_CHANGE": 29,
+      "DEMOLITION": 16,
+      "NEW_BUILDING": 11,
+      "EXPANSION_OR_RECONSTRUCTION": 11
+    },
+    "register_match_count": 11,
+    "alignment": {
+      "dx_px": 0.021234238520264626,
+      "dy_px": 0.036606933921575546,
+      "displacement_px": 0.04231974121700283,
+      "displacement_m": 0.4232101368674698,
+      "ecc_score": 0.9944171304227024,
+      "converged": true
+    }
+  },
+  "t0_t2": {
+    "out_dir": "outputs\\hwaseong_jinan\\comparisons\\t0_t2",
+    "candidate_count": 103,
+    "site_count": 43,
+    "priority": {
+      "HIGH": 54,
+      "MEDIUM": 39,
+      "LOW": 10
+    },
+    "change_type": {
+      "EXPANSION_OR_RECONSTRUCTION": 67,
+      "OTHER_CHANGE": 28,
+      "NEW_BUILDING": 4,
+      "DEMOLITION": 4
+    },
+    "register_match_count": 77,
+    "alignment": {
+      "dx_px": 0.014603864401578903,
+      "dy_px": -0.005676919128745794,
+      "displacement_px": 0.015668448112497402,
+      "displacement_m": 0.1566891923130833,
+      "ecc_score": 0.9831234783385328,
+      "converged": true
+    }
+  }
+}

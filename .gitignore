@@ -4,6 +4,7 @@ __pycache__/
 .venv/
 venv/
 .env
+tmp/
 
 # Data / outputs: never commit raw/derived geospatial data or large rasters.
 # Directory structure is kept via .gitkeep; only actual data file types are ignored
@@ -43,6 +44,18 @@ outputs_*/vectors/**/*.shp
 outputs_*/maps/**/*.png
 outputs_*/maps/**/*.pdf
 outputs_*/figures/**/*.png
+
+# 프로젝트별 디렉토리(data/projects/<id>/..., outputs/<id>/...)도 동일 정책 적용.
+# raw/processed/source_docs/arcgis 스크래치는 원본·파생 지리정보라 커밋하지 않는다.
+data/projects/*/raw/
+data/projects/*/processed/
+data/projects/*/source_docs/
+data/projects/*/aoi/
+outputs/arcgis/
+outputs/*/arcgis/
+outputs/*/comparisons/*/rasters/
+outputs/*/comparisons/*/vectors/
+outputs/*/comparisons/*/figures/
 
 # Jupyter
 .ipynb_checkpoints/

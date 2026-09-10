@@ -1,0 +1,64 @@
+{
+  "timestamp_utc": "2026-09-08T07:57:08.085873+00:00",
+  "seed": 42,
+  "git_commit": "cb2375838f861ac35048828da9fa1d24507b4ac8",
+  "inputs": {
+    "t1": {
+      "path": "data\\projects\\hwaseong_jinan\\processed\\imagery\\t1_stack.tif",
+      "sha256": "db162b0b88c13b5404536390c0aa4606d75f090c8f5f068d4ab4db7b7a56493a"
+    },
+    "t2": {
+      "path": "data\\projects\\hwaseong_jinan\\processed\\imagery\\t2_stack.tif",
+      "sha256": "b03e2a13ec4216b5b323ec15733c8db7bbd2e4db02a78f2d042361d46d427060"
+    },
+    "aoi": {
+      "path": "data\\projects\\hwaseong_jinan\\aoi\\hwaseong_jinan_official.gpkg",
+      "sha256": "957fd8e551edb0db09eb0479f30331643529ee8fe01dc5cf1f34d511f67937e0"
+    },
+    "buildings": {
+      "path": "data\\projects\\hwaseong_jinan\\processed\\buildings.gpkg",
+      "sha256": "ca81e299469a06f3f665f2e60a468806b782a42ed6eb2099343dd75725786418"
+    },
+    "building_register": {
+      "path": "data\\projects\\hwaseong_jinan\\raw\\building_register\\title_info.json",
+      "sha256": "65446b7c9f8b5586e1b0aec2ca2c9582c912fe47a40f50462174c4bd8ef9ff46"
+    }
+  },
+  "params": {
+    "threshold_method": "fixed",
+    "used_threshold": 0.5,
+    "min_component_area_m2": 25,
+    "buffer_m": 3,
+    "priority_scoring_weights": {
+      "change_confidence": 0.4,
+      "change_ratio": 0.3,
+      "administrative_uncertainty": 0.2,
+      "building_relevance": 0.1
+    },
+    "spatial_statistics": {
+      "k": 8,
+      "permutations": 999
+    },
+    "global_moran": {
+      "I": 0.09689304730099388,
+      "p_sim": 0.033,
+      "z_sim": 2.1508922175638796,
+      "n": 67,
+      "k": 8
+    }
+  },
+  "package_versions": {
+    "rasterio": "1.4.3",
+    "geopandas": "1.1.4",
+    "shapely": "2.1.2",
+    "pyproj": "3.8.0",
+    "fiona": "1.10.1",
+    "numpy": "2.5.3",
+    "pandas": "3.0.5",
+    "opencv-python": "5.0.0.93",
+    "scikit-image": "0.26.0",
+    "scikit-learn": "1.9.0",
+    "libpysal": "4.15.0",
+    "esda": "2.10.0"
+  }
+}

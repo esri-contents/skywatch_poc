@@ -1,0 +1,46 @@
+{
+  "project_id": "hwaseong_jinan",
+  "generated_at": "2026-09-08T16:57:30+09:00",
+  "project_config": "config/projects/hwaseong_jinan.yaml",
+  "selected_imagery": [
+    {
+      "id": "t0",
+      "date": "2020-08-25",
+      "item_id": "S2A_T52SCG_20200825T021608_L2A",
+      "role": "주민공람 기준일 후보 이전"
+    },
+    {
+      "id": "t1",
+      "date": "2023-09-09",
+      "item_id": "S2A_T52SCG_20230909T022102_L2A",
+      "role": "주민공람 후보일 이후·지구지정 이전 중간"
+    },
+    {
+      "id": "t2",
+      "date": "2026-09-08",
+      "item_id": "S2B_T52SCG_20260908T022010_L2A",
+      "role": "최신 계절 일치"
+    }
+  ],
+  "aoi": {
+    "status": "official",
+    "provider": "VWorld WFS",
+    "layer": "lt_c_lhzone",
+    "zonecode": "41590LH2024001",
+    "zonename": "화성진안 공공주택지구",
+    "source_url": "https://api.vworld.kr/req/wfs",
+    "designation_notice_url": "https://www.eum.go.kr/web/gs/gv/gvGosiDet.jsp?seq=582667",
+    "designation_notice_number": "국토교통부 고시 제2024-81호",
+    "designation_notice_date": "2024-02-07",
+    "parcel_correction_notice_url": "https://www.eum.go.kr/web/gs/gv/gvGosiDet.jsp?seq=584925",
+    "parcel_correction_notice_number": "국토교통부 고시 제2024-152호",
+    "parcel_correction_notice_date": "2024-03-20"
+  },
+  "compensation_baseline": {
+    "baseline_date": "2021-08-30",
+    "baseline_type": "신규 공공택지 발표일/주민공람 기준일 후보",
+    "source_url": "https://www.molit.go.kr/2021newcity/index.jsp",
+    "business_confirmed": false,
+    "note": "2021-08-30은 국토교통부의 제3차 신규 공공택지 발표일로 확인되나, 토지보상 실무상 적용할 주민의견청취 공고일과 동일한지는 사업부서 확인이 필요하다. 2022-02-21은 전략환경영향평가 초안 공람일, 2024-02-07은 지구지정일이므로 서로 혼동하지 않는다. 보상계획 공고는 2026-09-08 확인 기준 아직 확인되지 않았다.\n"
+  }
+}

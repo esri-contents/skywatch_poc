@@ -5,6 +5,7 @@ from src.publish.arcgis_online import (
     PRIORITY_COLORS,
     _operational_layer,
     build_web_map,
+    connect_gis,
 )
 
 # src.buildings.classify defines these same four values, but importing that module
@@ -26,6 +27,28 @@ def test_change_type_colors_cover_all_classify_categories():
 
 def test_priority_colors_cover_all_three_tiers():
     assert set(PRIORITY_COLORS) == {"HIGH", "MEDIUM", "LOW"}
+
+
+def test_connect_gis_falls_back_to_arcgis_pro_login(monkeypatch):
+    import arcgis.gis
+    import src.publish.arcgis_online as module
+
+    expected = SimpleNamespace(
+        url="https://portal.example.com/portal/",
+        users=SimpleNamespace(me=SimpleNamespace(username="pro-user")),
+    )
+    calls = []
+
+    def fake_gis(profile):
+        calls.append(profile)
+        return expected
+
+    monkeypatch.setattr(module, "AGOL_USERNAME", None)
+    monkeypatch.setattr(module, "AGOL_PASSWORD", None)
+    monkeypatch.setattr(arcgis.gis, "GIS", fake_gis)
+
+    assert connect_gis() is expected
+    assert calls == ["pro"]
 
 
 def test_operational_layer_without_renderer_has_no_layer_definition():

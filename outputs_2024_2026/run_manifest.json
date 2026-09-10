@@ -1,27 +1,27 @@
 {
-  "timestamp_utc": "2026-09-02T00:20:03.745360+00:00",
+  "timestamp_utc": "2026-09-08T05:41:12.090750+00:00",
   "seed": 42,
-  "git_commit": "c43e7d85c7f6a57a9150ca2af1767f75eddb5b2d",
+  "git_commit": "be9bf9b6903e280b7a3d20a430bd400c4d6e5061",
   "inputs": {
     "t1": {
-      "path": "data\\processed\\imagery\\2024_stack.tif",
+      "path": "c:\\Users\\User\\skywatch_poc\\data\\processed\\imagery\\2024_stack.tif",
       "sha256": "d59b917998ac99b8f55a8c0c3ef9d58a1889a02878b379f43069df3a03e3c68f"
     },
     "t2": {
-      "path": "data\\processed\\imagery\\2026_stack.tif",
+      "path": "c:\\Users\\User\\skywatch_poc\\data\\processed\\imagery\\2026_stack.tif",
       "sha256": "f38ee03f92f24f911cf52bedf9c33b21ac5006c26ab51764aecd690f901767c6"
     },
     "aoi": {
-      "path": "data\\aoi\\changneung_test_aoi.gpkg",
+      "path": "c:\\Users\\User\\skywatch_poc\\data\\aoi\\changneung_test_aoi.gpkg",
       "sha256": "e34c1826d2bf4c6ebfca598b06dcdd69e40db8ef828b5452087cfb1f97cd41fa"
     },
     "buildings": {
-      "path": "data\\processed\\buildings\\changneung_buildings_clipped.gpkg",
-      "sha256": "73bc6f598c40e2c80a25f8cf40ffe67bea827205407fcb07788c297e40c3d4d7"
+      "path": "c:\\Users\\User\\skywatch_poc\\data\\processed\\buildings\\changneung_buildings_clipped.gpkg",
+      "sha256": "77b935c20018f3dad2d23037187ad7beb2cffd048f4dc18d1fad57e0dd04f697"
     },
     "building_register": {
-      "path": "data\\raw\\building_register\\changneung_title_info.json",
-      "sha256": "a1a7f26edfa1bf1373e8515be61bd637886eb33f20e4cd48b3f3bc95be59d0d8"
+      "path": "c:\\Users\\User\\skywatch_poc\\data\\raw\\building_register\\changneung_title_info.json",
+      "sha256": "89a51aa5b6784e11d3bcfa6ad4ced66f343379bf029a90b39cd649e3798f1204"
     }
   },
   "params": {
@@ -51,9 +51,9 @@
     "rasterio": "1.4.3",
     "geopandas": "1.1.4",
     "shapely": "2.1.2",
-    "pyproj": "3.7.2",
+    "pyproj": "3.8.0",
     "fiona": "1.10.1",
-    "numpy": "2.5.2",
+    "numpy": "2.5.3",
     "pandas": "3.0.5",
     "opencv-python": "5.0.0.93",
     "scikit-image": "0.26.0",

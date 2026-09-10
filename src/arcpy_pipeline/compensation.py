@@ -106,7 +106,10 @@ def evaluate_compensation(
     pms = parse_date(row.get("pmsDay"))
 
     # --- 1) 행정 근거가 있는 경우 ---
-    if matched and use_apr:
+    # 기존 건물의 오래된 사용승인일은 최근 증축·개축의 발생시점을 설명하지
+    # 못한다. 신축 후보에만 건물 전체의 사용승인일을 강한 시점 근거로 쓰고,
+    # 증축·개축은 별도 대수선/증축 허가자료가 없으면 영상 구간으로 판정한다.
+    if matched and use_apr and row.get("change_type") == "NEW_BUILDING":
         if use_apr < baseline_date:
             return _result(
                 PRE_BASELINE,
@@ -156,9 +159,27 @@ def evaluate_compensation(
             epoch,
         )
 
+    # 대장은 매칭됐지만 사용승인일 자체가 없는 경우 - 최근 변화 시점을
+    # 추정할 행정 근거가 전혀 없으므로, 영상 구간과 무관하게 판단 보류.
+    if not use_apr:
+        return _result(
+            UNKNOWN,
+            "건축물대장은 매칭됐으나 사용승인일이 없어 시점 판단 불가",
+            epoch,
+        )
+
+    if t1_date >= baseline_date:
+        return _result(
+            UNKNOWN,
+            "기존 건물 대장은 매칭됐으나 최근 증축·개축의 행정 시점 근거가 없음; "
+            f"영상 구간({epoch})은 기준일 이후이므로 별도 인허가 이력 확인 필요",
+            epoch,
+        )
+    if t2_date <= baseline_date:
+        return _result(PRE_BASELINE, f"영상 비교구간({epoch})이 기준일 이전", epoch)
     return _result(
-        UNKNOWN,
-        "건축물대장은 매칭됐으나 사용승인일이 없어 시점 판단 불가",
+        STRADDLES_BASELINE,
+        f"기존 건물의 오래된 사용승인일로 최근 변화를 소급 판정하지 않음; 영상 구간({epoch})이 기준일을 걸침",
         epoch,
     )
 

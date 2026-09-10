@@ -209,6 +209,35 @@ def resolve_path(p: str | Path) -> str:
     return str((PROJECT_ROOT / p).resolve())
 
 
+def resolve_feature_path(p: str | Path) -> str:
+    """외부 공간파일을 ArcPy가 직접 사용할 Feature Class 경로로 바꾼다.
+
+    ArcPy는 단일 레이어 GeoPackage 파일 자체에는 ``Exists=True``를 반환하지만,
+    ``env.extent``나 분석 도구 입력에는 ``file.gpkg\\main.layer`` 형태의 내부
+    레이어 경로가 필요하다. 단일 레이어 GeoPackage는 자동으로 내부 레이어를
+    선택하고, 여러 레이어가 있으면 호출자가 명시하도록 오류를 낸다.
+    """
+    resolved = resolve_path(p)
+    if Path(resolved).suffix.lower() != ".gpkg":
+        return resolved
+
+    previous_workspace = arcpy.env.workspace
+    try:
+        arcpy.env.workspace = resolved
+        feature_classes = arcpy.ListFeatureClasses() or []
+    finally:
+        arcpy.env.workspace = previous_workspace
+
+    if len(feature_classes) == 1:
+        return str(Path(resolved) / feature_classes[0])
+    if not feature_classes:
+        raise ValueError(f"[ENV] GeoPackage에 Feature Class가 없습니다: {resolved}")
+    raise ValueError(
+        f"[ENV] GeoPackage에 레이어가 여러 개입니다. 내부 레이어를 명시하세요: "
+        f"{resolved} ({', '.join(feature_classes)})"
+    )
+
+
 def env_report() -> dict:
     """실행 환경 스냅샷 (run_manifest에 기록해 재현성 추적)."""
     info = arcpy.GetInstallInfo()

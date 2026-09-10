@@ -18,24 +18,37 @@ T1, T2 = date(2022, 5, 17), date(2024, 5, 31)
 
 
 def test_use_apr_before_baseline_is_pre_baseline():
-    r = evaluate_compensation({"has_register_match": True, "useAprDay": "20220301"}, BASELINE, T1, T2)
+    r = evaluate_compensation(
+        {"has_register_match": True, "useAprDay": "20220301", "change_type": "NEW_BUILDING"}, BASELINE, T1, T2
+    )
     assert r["compensation_status"] == PRE_BASELINE
     assert r["compensation_risk"] == 0.0
 
 
 def test_use_apr_after_but_permit_before_is_permitted():
     r = evaluate_compensation(
-        {"has_register_match": True, "useAprDay": "20231001", "pmsDay": "20230101"}, BASELINE, T1, T2
+        {"has_register_match": True, "useAprDay": "20231001", "pmsDay": "20230101", "change_type": "NEW_BUILDING"},
+        BASELINE, T1, T2,
     )
     assert r["compensation_status"] == POST_BASELINE_PERMITTED
 
 
 def test_use_apr_and_permit_both_after_is_unverified_highest_risk():
     r = evaluate_compensation(
-        {"has_register_match": True, "useAprDay": "20231001", "pmsDay": "20230801"}, BASELINE, T1, T2
+        {"has_register_match": True, "useAprDay": "20231001", "pmsDay": "20230801", "change_type": "NEW_BUILDING"},
+        BASELINE, T1, T2,
     )
     assert r["compensation_status"] == POST_BASELINE_UNVERIFIED
     assert r["compensation_risk"] == 1.0
+
+
+def test_use_apr_on_expansion_is_not_used_as_evidence():
+    """증축/개축은 건물 전체의 오래된 사용승인일로 소급 판정하지 않는다 (REQ03 관련 요구사항)."""
+    r = evaluate_compensation(
+        {"has_register_match": True, "useAprDay": "20220301", "change_type": "EXPANSION_OR_RECONSTRUCTION"},
+        BASELINE, T1, T2,
+    )
+    assert r["compensation_status"] == STRADDLES_BASELINE
 
 
 def test_unmatched_window_entirely_after_baseline_is_unverified():

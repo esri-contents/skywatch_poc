@@ -62,6 +62,7 @@ from .env import (
     load_config,
     load_requirements,
     resolve_path,
+    resolve_feature_path,
     setup_logging,
 )
 
@@ -94,6 +95,7 @@ def run_change_intelligence(
     t2_date: str = "2024-05-31",
     out_gdb: str | None = None,
     additional_epochs: list[dict] | None = None,
+    reports_dir: str | None = None,
 ) -> dict:
     """LH 통합 파이프라인을 실행하고 STEP 결과 + REQ별 산출물 현황을 반환한다.
 
@@ -116,14 +118,14 @@ def run_change_intelligence(
     cfg = load_config(config_path)
     requirements = load_requirements(requirements_path)
 
-    aoi_path = resolve_path(aoi_path)
-    buildings_path = resolve_path(buildings_path)
-    parcel_path = resolve_path(parcel_path) if parcel_path else None
+    aoi_path = resolve_feature_path(aoi_path)
+    buildings_path = resolve_feature_path(buildings_path)
+    parcel_path = resolve_feature_path(parcel_path) if parcel_path else None
     building_register_path = resolve_path(building_register_path) if building_register_path else None
 
     out_gdb = resolve_path(out_gdb or cfg.get("arcgis_pro", {}).get("output_gdb", "outputs/arcgis/changneung.gdb"))
     gdb = ensure_gdb(out_gdb)
-    reports_dir = Path(resolve_path("outputs/reports"))
+    reports_dir = Path(resolve_path(reports_dir or cfg.get("paths", {}).get("reports", "outputs/reports")))
     reports_dir.mkdir(parents=True, exist_ok=True)
 
     t1_d, t2_d = _parse_date(t1_date), _parse_date(t2_date)
@@ -210,6 +212,12 @@ def run_change_intelligence(
         if baseline_date:
             comp_counts = compensation.apply_to_featureclass(results_fc, baseline_date, t1_d, t2_d)
             status["REQ03"] = {"status": "ok", "baseline_date": baseline_date.isoformat(), **comp_counts}
+            if not cfg.get("compensation", {}).get("business_confirmed", False):
+                status["REQ03"]["note"] = (
+                    f"[미확정 잠정값] 기준일 {baseline_date.isoformat()}은 사업부서가 아직 확정하지 "
+                    "않은 후보일 - 이번 실행의 REQ03 결과는 참고용 우선순위 스크리닝일 뿐, 보상 "
+                    "대상 판정 근거로 쓸 수 없음 (compensation.business_confirmed: false)"
+                )
         else:
             status["REQ03"] = {
                 "status": "skipped",
@@ -294,7 +302,7 @@ def run_change_intelligence(
         )
         latest = imagery_tasking.latest_available(bbox, within_days=it_cfg.get("recent_days_window", 90))
         imagery_tasking.build_tasking_request(
-            reports_dir / "tasking_request.md", "고양 창릉지구",
+            reports_dir / "tasking_request.md", cfg.get("project", {}).get("short_name", "분석지구"),
             _aoi_area_km2(aoi_path),
             {"mean_change_area_m2": _mean_area(change_fc), "polygon_count": n_change, "gsd_m": 10.0},
             target_dates=[f"{date.today().year}-Q4", f"{date.today().year + 1}-Q2"],
@@ -336,12 +344,20 @@ def _try_publish(cfg, gdb, results_fc, change_fc, aoi_path, sites_fc, reports_di
     ap_cfg = cfg.get("arcgis_pro", {})
     template = resolve_path(ap_cfg.get("template_aprx", "outputs/arcgis/templates/blank_template.aprx"))
     try:
-        aprx_out = str(Path(gdb).parent / "changneung_poc.aprx")
-        report_builder.build_map_document(template, aprx_out, aoi_path, change_fc, results_fc, sites_fc)
+        project = cfg.get("project", {})
+        project_id = project.get("id", "changneung")
+        project_name = project.get("short_name", "고양 창릉")
+        aprx_out = str(Path(gdb).parent / f"{project_id}.aprx")
+        report_builder.build_map_document(
+            template, aprx_out, aoi_path, change_fc, results_fc, sites_fc,
+            map_name=f"{project_name} Building Change Intelligence",
+        )
         report_builder.export_field_report_pdf(
-            aprx_out, reports_dir / "changneung_field_report.pdf",
-            {"변화후보": status.get("REQ01", {}).get("change_polygons"),
+            aprx_out, reports_dir / f"{project_id}_field_report.pdf",
+            {"사업지": project_name,
+             "변화후보": status.get("REQ01", {}).get("change_polygons"),
              "현장수": status.get("REQ05", {}).get("site_count")},
+            report_title=f"{project_name} 변화탐지 현장조사 지도",
         )
         result["pdf_report"] = "ok"
     except report_builder.MissingProjectError as e:
@@ -353,18 +369,56 @@ def _try_publish(cfg, gdb, results_fc, change_fc, aoi_path, sites_fc, reports_di
 
     try:
         exports = {
-            "aoi": Path(gdb).parent / "aoi_wgs84.geojson",
-            "change_polygons": Path(gdb).parent / "change_polygons_wgs84.geojson",
-            "building_change_results": Path(gdb).parent / "results_wgs84.geojson",
-            "survey_sites": Path(gdb).parent / "sites_wgs84.geojson",
+            "aoi": Path(gdb).parent / "aoi.zip",
+            "change_polygons": Path(gdb).parent / "change_polygons.zip",
+            "building_change_results": Path(gdb).parent / "results.zip",
+            "survey_sites": Path(gdb).parent / "sites.zip",
         }
-        webmap_publish.export_wgs84_geojson(aoi_path, exports["aoi"])
-        webmap_publish.export_wgs84_geojson(change_fc, exports["change_polygons"])
-        webmap_publish.export_wgs84_geojson(results_fc, exports["building_change_results"])
-        webmap_publish.export_wgs84_geojson(sites_fc, exports["survey_sites"])
-        items = webmap_publish.publish_all({k: str(v) for k, v in exports.items()})
+        parcel_fc = fc_path(gdb, "parcel_change_summary")
+        progress_fc = fc_path(gdb, "progress_by_block")
+        if arcpy.Exists(parcel_fc):
+            exports["parcel_change_summary"] = Path(gdb).parent / "parcels.zip"
+        if arcpy.Exists(progress_fc):
+            exports["progress_by_block"] = Path(gdb).parent / "progress.zip"
+        webmap_publish.export_file_gdb_zip(aoi_path, exports["aoi"], "aoi")
+        webmap_publish.export_file_gdb_zip(
+            change_fc, exports["change_polygons"], "change_polygons"
+        )
+        webmap_publish.export_file_gdb_zip(
+            results_fc, exports["building_change_results"], "building_change_results"
+        )
+        webmap_publish.export_file_gdb_zip(
+            sites_fc, exports["survey_sites"], "survey_sites"
+        )
+        if "parcel_change_summary" in exports:
+            webmap_publish.export_file_gdb_zip(
+                parcel_fc, exports["parcel_change_summary"], "parcel_change_summary"
+            )
+        if "progress_by_block" in exports:
+            webmap_publish.export_file_gdb_zip(
+                progress_fc, exports["progress_by_block"], "progress_by_block"
+            )
+        pub = cfg.get("publishing", {})
+        items = webmap_publish.publish_all(
+            {k: str(v) for k, v in exports.items()},
+            folder=pub.get("folder", f"skywatch_poc_{cfg.get('project', {}).get('id', 'changneung')}"),
+            web_map_title=pub.get("web_map_title", "Building Change Intelligence - LH 업무 통합"),
+            title_prefix=cfg.get("project", {}).get("short_name", "분석지구"),
+            overwrite=bool(pub.get("overwrite_existing", False)),
+        )
         result["web_map"] = "ok"
         result["web_map_url"] = items.get("web_map").homepage if items.get("web_map") else None
+        result["portal"] = items.get("_portal")
+        result["publication_validation"] = items.get("_validation")
+        publication_record = reports_dir / "arcgis_publication.json"
+        publication_record.write_text(
+            __import__("json").dumps({
+                "portal": items.get("_portal"),
+                "web_map_url": result["web_map_url"],
+                "validation": items.get("_validation"),
+            }, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
     except Exception as e:
         result["web_map"] = "skipped"
         result["web_map_reason"] = f"{type(e).__name__}: {e}"

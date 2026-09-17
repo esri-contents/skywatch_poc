@@ -19,8 +19,6 @@ import pandas as pd
 
 logger = logging.getLogger("build_cadastre")
 
-ANALYSIS_CRS = "EPSG:5186"
-
 
 def build_cadastre(
     bonbun_geojson_path: str | Path,
@@ -37,21 +35,24 @@ def build_cadastre(
         out_path: 저장할 GeoPackage 경로.
 
     Returns:
-        Clip된 필지 GeoDataFrame (ANALYSIS_CRS).
+        Clip된 필지 GeoDataFrame (AOI와 동일 CRS - build_buildings.py와 동일한
+        이유로 하드코딩 대신 AOI 자체의 CRS를 analysis_crs로 삼는다).
     """
+    analysis_crs = gpd.read_file(aoi_path).crs
+
     parts = []
     for p in (bonbun_geojson_path, bubun_geojson_path):
         gdf = gpd.read_file(p)
         if gdf.crs is None:
             gdf = gdf.set_crs("EPSG:4326")
-        parts.append(gdf.to_crs(ANALYSIS_CRS))
+        parts.append(gdf.to_crs(analysis_crs))
 
-    parcels = gpd.GeoDataFrame(pd.concat(parts, ignore_index=True), crs=ANALYSIS_CRS)
+    parcels = gpd.GeoDataFrame(pd.concat(parts, ignore_index=True), crs=analysis_crs)
     # VWorld 원본 필지 중 self-intersection 등 위상 오류가 실측 확인되어
     # (TopologyException), clip 전에 make_valid로 정리한다.
     parcels["geometry"] = parcels.geometry.make_valid()
 
-    aoi = gpd.read_file(aoi_path).to_crs(ANALYSIS_CRS)
+    aoi = gpd.read_file(aoi_path).to_crs(analysis_crs)
     clipped = gpd.clip(parcels, aoi)
 
     out_path = Path(out_path)

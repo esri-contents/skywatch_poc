@@ -1,0 +1,43 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>제주김녕 위성 변화탐지 비교 보고서 - Sentinel-2 vs CAS500-1</title>
+<style>@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;800&display=swap');*{box-sizing:border-box}body{margin:0;background:#f2f5f8;color:#17222e;font-family:'Noto Sans KR',sans-serif}header{background:linear-gradient(120deg,#073b4c,#118ab2);color:white;padding:54px max(6vw,34px)}h1{font-size:32px;margin:5px 0}header p{max-width:900px;line-height:1.7}main{max-width:1180px;margin:-24px auto 40px;padding:0 24px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:13px}.card,section{background:white;border-radius:14px;padding:20px;box-shadow:0 4px 20px #17324d14}.card b,.card small{display:block;color:#567}.card strong{font-size:27px;display:block;margin:8px 0;color:#087e8b}section{margin-top:18px}h2{color:#073b4c}table{width:100%;border-collapse:collapse}th,td{padding:10px;border-bottom:1px solid #dde5eb;text-align:left}th{background:#f7fafc}img{max-width:100%;border-radius:10px}.warn{border-left:5px solid #ff9f1c;background:#fff8e9}.win{border-left:5px solid #06d6a0;background:#effcf7}a{color:#087e8b}.badge{display:inline-block;padding:2px 10px;border-radius:99px;font-size:12px;font-weight:600}.badge.s2{background:#dbe9f5;color:#1a5a8a}.badge.cas{background:#e3f6ee;color:#0a7a53}@media(max-width:800px){.grid{grid-template-columns:1fr 1fr}}</style></head>
+<body><header><small>LH 업무 적용 검토 · 실행 결과 기반 · 2026-09-11 확인</small><h1>제주김녕 공공주택지구 - Sentinel-2 vs CAS500-1 위성영상 비교</h1><p>같은 지구(제주김녕 공공주택지구, 108,122㎡), 거의 같은 두 시점(2021년 11월 말 / 2023년 10~11월)을 무료 Sentinel-2(10m)와 국토지리정보원 CAS500-1(0.5m) 두 영상 소스로 각각 관측해 동일 파이프라인으로 처리한 결과다. 목적은 해상도 차이가 실제 산출물(검출 개수·정밀도·현장조사 활용성)에 미치는 영향을 실측으로 비교하는 것이다.</p></header><main>
+<div class="grid">
+<div class="card"><b>공식 지구면적</b><strong>0.108 km²</strong><small>제주특별자치도 고시 제2018-901호(추정, 미검증)</small></div>
+<div class="card"><b>Sentinel-2 검출</b><strong>2개</strong><small>변화 픽셀 4.57%, 10m/px, 46×50px</small></div>
+<div class="card"><b>CAS500-1 검출</b><strong>52개</strong><small>변화 픽셀 20.47%, 0.5m/px, 908×1000px</small></div>
+<div class="card"><b>정합 정밀도</b><strong>0.00m</strong><small>CAS500-1 T1/T2 위상상관 변위 (Sentinel-2는 1.81m)</small></div>
+</div>
+
+<section><h2>왜 같은 지구를 두 영상으로 각각 봤는가</h2><p>이 PoC의 기존 결론(hwaseong_jinan 등)은 "Sentinel-2 10m로는 개별 건물 단위 변화가 화소 안에 묻힌다"였다. 마침 국토지리정보원의 CAS500-1(국토위성) 데이터가 공공주택지구 하나(제주김녕, zonecode <code>50110LH2018001</code>)를 실제로 <b>2021-11-27</b>과 <b>2023-10-25</b> 두 시점 모두 촬영해뒀다는 것을 좌표 대조로 확인했다 (D 드라이브 gdb의 26개 장면 중 이 지구를 커버하는 유일한 2장). 같은 지구·비슷한 시점을 두 소스로 관측할 수 있는 흔치 않은 기회라 정면으로 비교했다. Sentinel-2 쪽은 CAS500-1 촬영일에 최대한 맞춘 장면(AOI 내부 SCL 재계산 기준 구름 0%인 장면만 선정: <b>2021-11-28</b>, <b>2023-10-19</b>)을 썼다.</p></section>
+
+<section><h2>영상 비교 - Sentinel-2 (10m)</h2><img src="../comparisons/t0_t1/figures/before_after_change.png" alt="Sentinel-2 T1/T2/변화확률/분류"><p>AOI가 46×50픽셀뿐이라 지구 내부가 사실상 뭉개진 색 블록으로만 보인다. 개별 필지·도로·구조물을 육안으로도 구분할 수 없다.</p></section>
+
+<section class="win"><h2>영상 비교 - CAS500-1 (0.5m)</h2><img src="cas500/before_after_change_cas500.png" alt="CAS500-1 T1/T2/변화확률/분류"><p>동일 지구가 908×1000픽셀로, 필지 경계·농로·개별 소형 구조물이 육안으로 뚜렷이 구분된다. Change Probability 패널에서 필지 경계선을 따라 뚜렷한 변화 신호가 보이는데, 이는 <b>2021년과 2023년의 작물/경작 상태 차이(계절·작기 차이)</b>일 가능성이 높다 - 아래 한계 섹션 참고.</p></section>
+
+<section><h2>실행 결과 비교</h2><table><thead><tr><th>지표</th><th><span class="badge s2">Sentinel-2</span></th><th><span class="badge cas">CAS500-1</span></th></tr></thead><tbody>
+<tr><td>공간해상도</td><td>10m</td><td>0.5m (20배)</td></tr>
+<tr><td>촬영일 (T1 → T2)</td><td>2021-11-28 → 2023-10-19</td><td>2021-11-27 → 2023-10-25</td></tr>
+<tr><td>AOI 내 유효 픽셀</td><td>100% (SCL 재계산)</td><td>432,786 / 908,040 (47.7%, 나머지는 AOI 경계 밖 클리핑)</td></tr>
+<tr><td>변화 픽셀 비율</td><td>4.57%</td><td>20.47%</td></tr>
+<tr><td>변화 폴리곤 수</td><td>2개</td><td>52개</td></tr>
+<tr><td>T1/T2 정합 변위</td><td>1.81m (ECC)</td><td>0.00m (위상상관, peak_ratio 18.7 - 매우 뚜렷)</td></tr>
+<tr><td>우선순위 분포</td><td>MEDIUM 2</td><td>MEDIUM 52</td></tr>
+<tr><td>건축물대장 매칭</td><td>0/2 (AOI 내 기존 건물 0동)</td><td>0/52 (동일 - 신규 택지개발지구라 사전 건물이 없음)</td></tr>
+<tr><td>지적 연계 (REQ08)</td><td>미실행</td><td>52개 후보 → 17개 필지 매칭</td></tr>
+<tr><td>현장조사 축약 (REQ05)</td><td>2개 현장</td><td>52개 현장, 총 이동거리 2.3km</td></tr>
+<tr><td>공간적 군집(Moran's I)</td><td>표본 부족(n=2)으로 미계산</td><td>I=-0.023, p=0.93 (공간적 군집 유의하지 않음 - 무작위 분산)</td></tr>
+</tbody></table></section>
+
+<section class="warn"><h2>한계 - 검출 개수 26배 차이를 "정확도 26배"로 읽으면 안 되는 이유</h2>
+<ul>
+<li><b>정답 라벨이 없다.</b> 52개 중 실제로 신축/토목공사에 해당하는 것이 몇 개인지, 단순 경작 변화(휴경↔파종, 작물 교체)인지 사람이 확인하지 않았다. Moran's I가 유의하지 않다는 것(공간적으로 군집되지 않고 흩어져 있음)은 "지구 전체에 걸쳐 고르게 퍼진 변화"라는 뜻인데, 이는 국지적 신축공사보다는 <b>계절적 지표 변화(농경지 특성)</b>와 더 부합하는 패턴이다.</li>
+<li><b>이 지구는 여전히 사실상 나대지다.</b> 언론 보도상 2022년 완공 목표였으나, 두 촬영 시점(2021-11 / 2023-10) 모두 T1/T2 영상에서 대규모 신축 구조물이 육안으로 보이지 않는다 - 즉 이 비교는 "신축 탐지 성공 사례"가 아니라 "동일한, 아직 개발 전인 부지를 두 해상도로 봤을 때의 신호 차이"에 가깝다.</li>
+<li><b>Sentinel-2 쪽 t1 장면은 절충 선택이다.</b> CAS500-1 T1(2023-10-25)과 정확히 같은 날짜의 저구름 Sentinel-2 장면이 없어, 장면 전체 구름률은 24.48%지만 AOI 내부만 재계산하면 구름 0%인 2023-10-19(6일 차이) 장면을 썼다. 최초 후보였던 2023-11-03(장면 구름률 7.16%)은 AOI 내부가 94.8% 구름에 덮여 있어 폐기했다 - 즉 "장면 전체 구름률"만으로 작은 AOI의 가용성을 판단하면 안 된다는 것 자체가 이번 실행에서 실측 확인된 사실이다.</li>
+<li><b>보상기준일(2018-12-31)은 미확정 잠정값이다.</b> 관보 원문을 확보하지 못하고 eum.go.kr 요약 조회에만 의존했다 - hwaseong_jinan 수준의 원문 검증을 거치지 못했으므로 52개 후보 전부에 붙은 "POST_BASELINE_UNVERIFIED" 딱지는 참고용이지 법적 판정이 아니다.</li>
+</ul>
+</section>
+
+<section><h2>그럼에도 남는 결론</h2><p>해상도가 산출물의 <b>"쓸 수 있는 형태"</b> 자체를 바꾼다는 것은 명확하다. Sentinel-2 결과물(46×50픽셀 이미지, 폴리곤 2개)은 사람이 육안으로 검증할 근거 이미지조차 되지 못한다. CAS500-1 결과물은 필지·도로·구조물이 식별 가능해 현장조사 야장(52개 지점, 2.3km 동선)과 지적 연계(17개 필지)까지 실제로 만들어졌다 - 이 자체가 "1차 스크리닝 이후 정밀 확인 단계에 상용/고해상 영상이 필요하다"는 이 PoC의 기존 결론을 다른 지역·다른 해상도 소스로도 재확인한 것이다. 다만 위 한계 때문에, 52개라는 숫자를 "26배 더 정확하다"가 아니라 "26배 더 민감하되 사람 검수가 그만큼 더 필요하다"로 읽어야 한다.</p></section>
+
+<section><h2>데이터 출처와 코드 변경</h2><p>AOI: VWorld WFS <code>lt_c_lhzone</code>, zonecode <code>50110LH2018001</code> (실측 면적 108,122㎡, 언론 보도치 108,388㎡와 0.25% 오차). CAS500-1: <code>D:\NGII_CAS500_1_IMAGE.gdb</code> 모자이크 데이터셋(26개 장면 중 이 지구를 커버하는 2개만 존재함을 arcpy footprint 대조로 확인). 이번 작업 중 이 프로젝트가 처음으로 노출시킨 실제 버그 5건(0건 건물 AOI에서 CRS 유실, arcpy 빈 FeatureClass 처리, env.extent와 SpatialAutocorrelation 충돌, arcpy_pipeline 분석좌표계 하드코딩)을 함께 수정했다 - 상세는 <code>src/data/build_buildings.py</code>, <code>src/data/build_cadastre.py</code>, <code>src/arcpy_pipeline/buildings.py</code>, <code>src/arcpy_pipeline/spatial_stats.py</code>, <code>src/arcpy_pipeline/env.py</code> 참고.</p></section>
+</main></body></html>

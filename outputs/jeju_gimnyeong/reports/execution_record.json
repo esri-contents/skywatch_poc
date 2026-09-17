@@ -1,0 +1,43 @@
+{
+  "project_id": "jeju_gimnyeong",
+  "generated_at": "2026-09-11T17:28:32+09:00",
+  "project_config": "config/projects/hwaseong_jinan.yaml",
+  "selected_imagery": [
+    {
+      "id": "t0",
+      "date": "2021-11-28",
+      "item_id": "S2A_T52SBC_20211128T022033_L2A",
+      "role": "CAS500-1 T0(2021-11-27)와 촬영일 1일 차이 - 계절/시점 정합 최우선 매칭"
+    },
+    {
+      "id": "t1",
+      "date": "2023-10-19",
+      "item_id": "S2A_T52SBC_20231019T022334_L2A",
+      "role": "CAS500-1 T1(2023-10-25)과 촬영일 6일 차이. 장면 전체 구름률(24.48%)은 높지만, AOI 내부만 SCL로 재계산하면 구름 0% - 실측 우선(아래 selection_note 참고)"
+    }
+  ],
+  "aoi": {
+    "status": "official",
+    "provider": "VWorld WFS",
+    "layer": "lt_c_lhzone",
+    "zonecode": "50110LH2018001",
+    "zonename": "제주김녕 공공주택지구",
+    "source_url": "https://api.vworld.kr/req/wfs",
+    "designation_notice_url": "https://eum.go.kr/web/gs/gv/gvGosiDet.jsp?seq=37724",
+    "designation_notice_number": "제주특별자치도 고시 제2018-901호 (미검증 - WebFetch 요약 기반, 원문 미확보)",
+    "designation_notice_date": "2018-12-31",
+    "note": "hwaseong_jinan과 달리 이번 조사는 관보 원문 PDF를 직접 확보해 전문 검색하지 못했다 (WebFetch로 eum.go.kr 고시 상세페이지를 요약 조회한 결과만 반영). 고시번호·고시일자는 2차 요약 정보이므로 사업부서 확인 전까지 확정값으로 쓰지 말 것.\n"
+  },
+  "compensation_baseline": {
+    "baseline_date": "2018-12-31",
+    "baseline_type": "지구지정 및 지형도면 등의 고시일 (제주특별자치도 고시 제2018-901호로 추정) - 미확정",
+    "source_url": "https://eum.go.kr/web/gs/gv/gvGosiDet.jsp?seq=37724",
+    "business_confirmed": false,
+    "interim_use_approved": true,
+    "interim_use_note": "hwaseong_jinan 때와 달리 이번에는 시간 제약상 관보 원문 PDF를 직접 확보해 전문 텍스트 검색을 하지 못했다. WebFetch로 eum.go.kr 고시 상세페이지를 요약 조회한 결과(고시번호 \"제주2018-901호\", 고시일 2018-12-31, 지정권자 제주특별자치도지사)만 반영한 잠정값이다. 뉴스 보도(제주의소리 2019-12-31자 기사)에 따르면 국토부가 2018년 7월 이 지구를 \"신혼희망타운\"으로 별도 지정한 사실도 확인되나, 이는 지구지정 고시와는 다른 절차로 보이며 서로 혼동하지 않아야 한다. 사업부서가 확정한 실제 주민공람공고일/이주대책 기준일로 반드시 교체할 것 - pipeline.py는 business_confirmed가 false인 동안 REQ03 결과에 \"[미확정 잠정값]\" 표시를 자동으로 남긴다.\n",
+    "open_questions_for_business_team": [
+      "제주2018-901호(2018-12-31) 고시 원문에 권리산정기준일/이주대책기준일이 명시되어 있는가, 아니면 지구지정 제안 단계의 별도 주민공람공고일이 존재하는가? (hwaseong_jinan 사례처럼 지구지정고시 자체에는 해당 표현이 없을 가능성이 있음 - 원문 미확보 상태)",
+      "2018년 7월 국토부 '신혼희망타운' 지정과 2018-12-31 지구지정고시 중 어느 것이 법적으로 유의미한 기준일 후보인가?"
+    ]
+  }
+}

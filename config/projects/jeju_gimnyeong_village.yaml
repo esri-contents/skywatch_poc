@@ -1,0 +1,110 @@
+project:
+  id: jeju_gimnyeong_village
+  name: "제주 구좌읍 김녕리 마을 위성영상 기반 변화탐지/불법건축물 스크리닝 데모"
+  short_name: "김녕리 마을"
+  official_name: "제주시 구좌읍 김녕리 (마을 중심부, 비공식 데모 AOI)"
+  location: "제주특별자치도 제주시 구좌읍 김녕리 일원"
+  official_area_m2: 360000
+  operator: "N/A (LH 공공주택지구 아님 - 실제 건물 밀집지역에서 불법건축물 스크리닝 로직을 검증하기 위한 데모)"
+  analysis_crs: "EPSG:5179"
+
+demo_note: >
+  jeju_gimnyeong(제주김녕 공공주택지구)은 신규 택지개발 예정지라 AOI 안에 기존
+  건물이 0동이었다 - 그 결과 REQ02(불법건축물 스크리닝)와 NEW_BUILDING 분류
+  로직이 애초에 대조할 대장/footprint가 없어 항상 NONE/빈 결과만 냈다. 같은
+  CAS500-1 장면 쌍(2021-11-27 / 2023-10-25)이 훨씬 넓은 영역(약 14km x 14km)을
+  덮고 있다는 점을 이용해, VWorld 건물 레이어(lt_c_spbd) 밀도를 그리드로 집계해
+  실제 건물이 가장 밀집한 좌표(126.7485E, 33.5565N 부근, 반경 약 300m 안에
+  1,400여 동)를 찾아 그 자리에 600m x 600m 데모 AOI를 새로 만들었다. LH
+  공공주택지구가 아니므로 zonecode/공식 고시/보상기준일 절차는 적용하지
+  않는다 - 목적은 순수하게 "기존 건물이 실제로 있는 지역에서 파이프라인의
+  건물 매칭·분류·불법 스크리닝이 의도대로 동작하는지" 검증이다.
+
+paths:
+  data_root: "data/projects/jeju_gimnyeong_village"
+  output_root: "outputs/jeju_gimnyeong_village"
+  aoi: "data/projects/jeju_gimnyeong_village/aoi/jeju_gimnyeong_village_aoi.gpkg"
+  buildings: "data/projects/jeju_gimnyeong_village/processed/buildings.gpkg"
+  cadastre: "data/projects/jeju_gimnyeong_village/processed/cadastre.gpkg"
+  building_register: "data/projects/jeju_gimnyeong_village/raw/building_register/title_info.json"
+  building_permits: "data/projects/jeju_gimnyeong_village/raw/building_permits/basic_outline.json"
+  output_gdb: "outputs/jeju_gimnyeong_village/arcgis/jeju_gimnyeong_village.gdb"
+  output_aprx: "outputs/jeju_gimnyeong_village/arcgis/jeju_gimnyeong_village.aprx"
+  reports: "outputs/jeju_gimnyeong_village/reports"
+
+aoi:
+  status: demo
+  provider: "VWorld 건물밀도 기반 자체 산정 (LH 공식 지구 아님)"
+  note: "600m x 600m 정사각형, 중심 (126.7485E, 33.5565N) - VWorld lt_c_spbd 건물
+    8,442동을 CAS500-1 장면 footprint 전체에서 그리드 집계해 찾은 최고밀도 지점"
+
+imagery:
+  provider: "Element 84 Earth Search (AWS Open Data)"
+  stac_api: "https://earth-search.aws.element84.com/v1"
+  collection: "sentinel-2-c1-l2a"
+  bands: ["B02", "B03", "B04", "B08"]
+  asset_aliases: {B02: blue, B03: green, B04: red, B08: nir, SCL: scl}
+  epochs:
+    - id: t0
+      date: "2021-11-28"
+      item_id: "S2A_T52SBC_20211128T022033_L2A"
+      role: "jeju_gimnyeong과 동일 장면(같은 Sentinel-2 타일 T52SBC) - AOI만 마을
+        중심부로 이동, 이 AOI 내부 구름 재계산으로 재검증함"
+    - id: t1
+      date: "2023-10-19"
+      item_id: "S2A_T52SBC_20231019T022334_L2A"
+      role: "jeju_gimnyeong과 동일 장면 재사용"
+  selection_note: >
+    jeju_gimnyeong 프로젝트에서 이미 AOI 내부 구름 0%로 검증된 두 Sentinel-2
+    장면을 그대로 재사용한다 - 같은 타일(T52SBC)이므로 유효하다. 다만 AOI
+    좌표가 달라졌으므로 이 프로젝트의 새 AOI 기준으로 SCL을 다시 계산해
+    재확인해야 한다 (acquire_imagery가 실행 시 자동 재계산).
+
+cas500_imagery:
+  source_gdb: "D:/NGII_CAS500_1_IMAGE.gdb"
+  mosaic_dataset: "NGII_CAS500_1"
+  native_crs: "EPSG:5179"
+  native_cell_size_m: 0.5
+  band_count: 4
+  band_order_assumption: "jeju_gimnyeong과 동일 가정 (Blue/Green/Red/NIR, 미확정) 참고."
+  epochs:
+    - id: t0
+      date: "2021-11-27"
+      raster_name: "C1_20211127020937_03799_00075386"
+      raster_path: "D:/NGII_CAS500_1_IMAGE.gdb/C1_20211127020937_03799_00075386"
+    - id: t1
+      date: "2023-10-25"
+      raster_name: "C1_20231025021510_14397_00025893"
+      raster_path: "D:/NGII_CAS500_1_IMAGE.gdb/C1_20231025021510_14397_00025893"
+  coverage_note: >
+    jeju_gimnyeong과 동일한 raster item 2개를 그대로 재사용한다 (같은 장면이
+    새 AOI도 포함함을 arcpy footprint intersect로 확인, 2026-09-11).
+
+compensation:
+  baseline_date: null
+  baseline_type: "N/A - LH 공공주택지구가 아니므로 보상기준일 개념 자체가 적용되지 않음"
+  business_confirmed: false
+  interim_use_approved: false
+  interim_use_note: "이 프로젝트는 REQ03(보상기준일 판정)을 의도적으로 건너뛴다."
+
+analysis:
+  base_config: "config/config.yaml"
+  change_ratio_new_building_min: 0.5
+  threshold_candidates: [0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
+  comparison_pairs:
+    - [t0, t1]
+
+illegal_screening:
+  tolerance_ratio: 1.3
+  strong_change_ratio: 0.5
+  strong_confidence: 0.6
+
+publishing:
+  folder: "skywatch_poc_jeju_gimnyeong_village"
+  web_map_title: "김녕리 마을 Building Change Intelligence - 불법건축물 스크리닝 데모"
+  sharing: private
+  overwrite_existing: false
+
+sources_checked_at: "2026-09-11"
+
+official_sources: []

@@ -1,0 +1,2 @@
+change_id,building_id,predicted_class,confidence,priority_score,inspection_priority,manual_class,is_correct,comment
+,5011025634116560000,EXPANSION_OR_RECONSTRUCTION,0.6667,0.6657,MEDIUM,,,

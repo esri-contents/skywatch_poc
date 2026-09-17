@@ -1,0 +1,162 @@
+project:
+  id: jeju_gimnyeong
+  name: "제주김녕 공공주택지구 위성영상 기반 변화탐지 PoC (Sentinel-2 vs CAS500-1 비교)"
+  short_name: "제주김녕"
+  official_name: "제주김녕 공공주택지구"
+  location: "제주특별자치도 제주시 구좌읍 김녕리 일원"
+  official_area_m2: null  # AOI 수집 시 area_m2_calc(실측 폴리곤 면적)로 대체 - 언론 보도(108,388m²)는 미검증 참고치
+  operator: "한국토지주택공사 (제주지역본부)"
+  analysis_crs: "EPSG:5179"
+
+crs_decision_note: >
+  hwaseong_jinan은 EPSG:5186(중부원점, 중앙자오선 127E)을 썼지만, 제주는 원점(위도
+  38N)에서 훨씬 멀리 떨어져 있어(위도 33.5N) 왜곡이 커진다. 이번 CAS500-1 gdb
+  원본 좌표계가 이미 EPSG:5179(KGD2002 Unified CS, 전국 단일좌표계)이고, 국내
+  다수 기관이 제주 지역 GIS 작업에 통일좌표계를 실무적으로 사용하므로 별도
+  재투영 왜곡 없이 EPSG:5179를 분석좌표계로 채택한다.
+
+paths:
+  data_root: "data/projects/jeju_gimnyeong"
+  output_root: "outputs/jeju_gimnyeong"
+  aoi: "data/projects/jeju_gimnyeong/aoi/jeju_gimnyeong_official.gpkg"
+  buildings: "data/projects/jeju_gimnyeong/processed/buildings.gpkg"
+  cadastre: "data/projects/jeju_gimnyeong/processed/cadastre.gpkg"
+  building_register: "data/projects/jeju_gimnyeong/raw/building_register/title_info.json"
+  building_permits: "data/projects/jeju_gimnyeong/raw/building_permits/basic_outline.json"
+  output_gdb: "outputs/jeju_gimnyeong/arcgis/jeju_gimnyeong.gdb"
+  output_aprx: "outputs/jeju_gimnyeong/arcgis/jeju_gimnyeong.aprx"
+  reports: "outputs/jeju_gimnyeong/reports"
+
+aoi:
+  status: official
+  provider: "VWorld WFS"
+  layer: "lt_c_lhzone"
+  zonecode: "50110LH2018001"
+  zonename: "제주김녕 공공주택지구"
+  source_url: "https://api.vworld.kr/req/wfs"
+  designation_notice_url: "https://eum.go.kr/web/gs/gv/gvGosiDet.jsp?seq=37724"
+  designation_notice_number: "제주특별자치도 고시 제2018-901호 (미검증 - WebFetch 요약 기반, 원문 미확보)"
+  designation_notice_date: "2018-12-31"
+  note: >
+    hwaseong_jinan과 달리 이번 조사는 관보 원문 PDF를 직접 확보해 전문 검색하지
+    못했다 (WebFetch로 eum.go.kr 고시 상세페이지를 요약 조회한 결과만 반영).
+    고시번호·고시일자는 2차 요약 정보이므로 사업부서 확인 전까지 확정값으로
+    쓰지 말 것.
+
+imagery:
+  # Baseline(Sentinel-2, src/project_pipeline.py + src/data/project_acquisition.py)이
+  # 소비하는 블록 - hwaseong_jinan과 동일 스키마.
+  provider: "Element 84 Earth Search (AWS Open Data)"
+  stac_api: "https://earth-search.aws.element84.com/v1"
+  collection: "sentinel-2-c1-l2a"
+  bands: ["B02", "B03", "B04", "B08"]
+  asset_aliases: {B02: blue, B03: green, B04: red, B08: nir, SCL: scl}
+  epochs:
+    - id: t0
+      date: "2021-11-28"
+      item_id: "S2A_T52SBC_20211128T022033_L2A"
+      role: "CAS500-1 T0(2021-11-27)와 촬영일 1일 차이 - 계절/시점 정합 최우선 매칭"
+    - id: t1
+      date: "2023-10-19"
+      item_id: "S2A_T52SBC_20231019T022334_L2A"
+      role: "CAS500-1 T1(2023-10-25)과 촬영일 6일 차이. 장면 전체 구름률(24.48%)은 높지만,
+        AOI 내부만 SCL로 재계산하면 구름 0% - 실측 우선(아래 selection_note 참고)"
+  selection_note: >
+    이 프로젝트의 목적은 "제주 지역 CAS500-1 접목 가능성" 판단과 함께, 동일
+    AOI·최대한 근접한 촬영일로 무료 Sentinel-2(10m)와 상용/공공 고해상
+    CAS500-1(0.5m)을 나란히 돌려 해상도 차이가 실제 산출물에 미치는 영향을
+    비교하는 것이다. t0/t1 날짜는 CAS500-1 실제 촬영일(2021-11-27,
+    2023-10-25)에 맞춰 후보 중 AOI 내부 구름률이 가장 낮은 장면을 선택했다.
+    t1 최초 후보였던 2023-11-03(장면 구름률 7.16%)은 장면 전체는 맑아도 AOI
+    자체가 구름 아래 있어(AOI 내부 재계산 시 94.8%) 실사용 불가였다 - 장면
+    전체 구름률만으로는 이 작은 AOI(0.108km²)의 실제 가용성을 알 수 없다는
+    점을 실측으로 재확인했다(2026-09-11, 6개 후보 SCL 직접 계산). 다른
+    hwaseong_jinan 프로젝트처럼 3개 시점 계절 매칭이 아니라, "같은 두 시점을
+    두 영상 소스로 각각 관찰"하는 것이 설계 목적이라 t2는 두지 않는다.
+
+cas500_imagery:
+  # arcpy_pipeline이 소비할 블록 - Sentinel-2 STAC 대신 로컬 FileGDB 모자이크
+  # 데이터셋의 개별 raster item을 직접 참조한다 (raster_ops.project_and_clip이
+  # 다중밴드 원본을 그대로 재투영+clip 하도록 pipeline.run_change_intelligence에
+  # t1_raster/t2_raster 옵션을 추가해 사용).
+  source_gdb: "D:/NGII_CAS500_1_IMAGE.gdb"
+  mosaic_dataset: "NGII_CAS500_1"
+  native_crs: "EPSG:5179"
+  native_cell_size_m: 0.5
+  band_count: 4
+  band_order_assumption: >
+    Band_1=Blue, Band_2=Green, Band_3=Red, Band_4=NIR로 가정한다 (KOMPSAT/CAS500
+    계열 국내 위성의 통상적 4밴드 순서, Sentinel-2 B02/B03/B04/B08과 동일 순서).
+    래스터 자체에 밴드명/파장 메타데이터가 없어(Band_1..4로만 노출) DN 통계만으로는
+    확정할 수 없었다 - NGII 공식 제품 스펙시트로 검증 필요 (미확정).
+  epochs:
+    - id: t0
+      date: "2021-11-27"
+      raster_name: "C1_20211127020937_03799_00075386"
+      raster_path: "D:/NGII_CAS500_1_IMAGE.gdb/C1_20211127020937_03799_00075386"
+    - id: t1
+      date: "2023-10-25"
+      raster_name: "C1_20231025021510_14397_00025893"
+      raster_path: "D:/NGII_CAS500_1_IMAGE.gdb/C1_20231025021510_14397_00025893"
+  coverage_note: >
+    26개 장면 중 이 AOI(제주김녕)를 실제로 커버하는 것은 이 두 장면뿐임을
+    arcpy Describe/footprint intersect로 직접 확인했다 (2026-09-11). 다른 제주
+    LH 지구(제주동부 50110LH2020001, 제주화북2 50110LH2026001)는 이 gdb로
+    커버되지 않아 애초에 후보에서 제외했다.
+
+compensation:
+  baseline_date: "2018-12-31"
+  baseline_type: "지구지정 및 지형도면 등의 고시일 (제주특별자치도 고시 제2018-901호로 추정) - 미확정"
+  source_url: "https://eum.go.kr/web/gs/gv/gvGosiDet.jsp?seq=37724"
+  business_confirmed: false
+  interim_use_approved: true
+  interim_use_note: >
+    hwaseong_jinan 때와 달리 이번에는 시간 제약상 관보 원문 PDF를 직접 확보해
+    전문 텍스트 검색을 하지 못했다. WebFetch로 eum.go.kr 고시 상세페이지를
+    요약 조회한 결과(고시번호 "제주2018-901호", 고시일 2018-12-31, 지정권자
+    제주특별자치도지사)만 반영한 잠정값이다. 뉴스 보도(제주의소리 2019-12-31자
+    기사)에 따르면 국토부가 2018년 7월 이 지구를 "신혼희망타운"으로 별도
+    지정한 사실도 확인되나, 이는 지구지정 고시와는 다른 절차로 보이며 서로
+    혼동하지 않아야 한다. 사업부서가 확정한 실제 주민공람공고일/이주대책
+    기준일로 반드시 교체할 것 - pipeline.py는 business_confirmed가 false인 동안
+    REQ03 결과에 "[미확정 잠정값]" 표시를 자동으로 남긴다.
+  open_questions_for_business_team:
+    - "제주2018-901호(2018-12-31) 고시 원문에 권리산정기준일/이주대책기준일이
+      명시되어 있는가, 아니면 지구지정 제안 단계의 별도 주민공람공고일이
+      존재하는가? (hwaseong_jinan 사례처럼 지구지정고시 자체에는 해당 표현이
+      없을 가능성이 있음 - 원문 미확보 상태)"
+    - "2018년 7월 국토부 '신혼희망타운' 지정과 2018-12-31 지구지정고시 중 어느
+      것이 법적으로 유의미한 기준일 후보인가?"
+
+analysis:
+  base_config: "config/config.yaml"
+  change_ratio_new_building_min: 0.5
+  threshold_candidates: [0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
+  comparison_pairs:
+    - [t0, t1]
+
+publishing:
+  folder: "skywatch_poc_jeju_gimnyeong"
+  web_map_title: "제주김녕 Building Change Intelligence - Sentinel-2 vs CAS500-1 비교"
+  sharing: private
+  overwrite_existing: false
+
+sources_checked_at: "2026-09-11"
+
+official_sources:
+  - title: "제주김녕 공공주택지구의 지정 및 지형도면 등의 고시"
+    agency: "제주특별자치도"
+    notice_number: "제주특별자치도 고시 제2018-901호 (WebFetch 요약, 원문 미확보 - 미검증)"
+    notice_date: "2018-12-31"
+    url: "https://eum.go.kr/web/gs/gv/gvGosiDet.jsp?seq=37724"
+    confirms: "지구 위치(제주시 구좌읍 김녕리 일원), 지정권자(제주특별자치도지사),
+      사업시행자(LH 제주지역본부). 권리산정기준일/이주대책기준일 명시 여부는
+      원문 미확보로 미확인."
+  - title: "김녕 공공주택지구 1048세대...신혼희망 245세대"
+    agency: "제주의소리 (언론보도)"
+    notice_number: "N/A (뉴스 기사)"
+    notice_date: "2019-12-31"
+    url: "http://www.jejusori.net/news/articleView.html?idxno=310265"
+    confirms: "2018년 7월 국토부 '신혼희망타운' 지정, 총 1,048세대(신혼희망 245·
+      행복주택 275·국민임대 352·분양 176), 2022년 준공 목표. 지구지정
+      제안일/고시일 상세 타임라인은 기사에 없음."

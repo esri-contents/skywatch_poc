@@ -86,7 +86,18 @@ def overlay_buildings_with_changes(
         out_fc 경로. OVERLAY_FIELDS가 채워져 있다.
     """
     delete_if_exists(out_fc)
-    arcpy.management.CopyFeatures(buildings_fc, out_fc)
+    if int(arcpy.management.GetCount(buildings_fc)[0]) == 0:
+        # 사전 건물이 아예 없는 AOI(신규 택지개발지구 등)에서 실측 확인된 문제:
+        # geopandas가 0건 GeoDataFrame을 GPKG로 쓰면 geometry type이 미확정
+        # ("Any")으로 남아, CopyFeatures가 ERROR 160169로 실패한다. 이 경우
+        # change_fc의 공간참조를 그대로 쓰는 빈 폴리곤 FC를 직접 만든다.
+        out_path, out_name = Path(out_fc).parent, Path(out_fc).name
+        arcpy.management.CreateFeatureclass(
+            str(out_path), out_name, "POLYGON",
+            spatial_reference=arcpy.Describe(change_fc).spatialReference,
+        )
+    else:
+        arcpy.management.CopyFeatures(buildings_fc, out_fc)
     for name, ftype, length in OVERLAY_FIELDS:
         add_field_if_missing(out_fc, name, ftype, field_length=length)
 
@@ -459,16 +470,25 @@ def classify_unmatched_changes(
     brightness_delta > 0(T2가 오히려 밝아짐)이면 철거와 정반대 방향이므로
     OTHER_CHANGE로 되돌린다 - 라벨을 바꿀 뿐 후보에서 지우지는 않는다.
     """
-    lyr = "chg_unmatched_lyr"
     delete_if_exists(out_fc)
-    arcpy.management.MakeFeatureLayer(change_fc, lyr)
-    try:
-        arcpy.management.SelectLayerByLocation(
-            lyr, "INTERSECT", buildings_fc, selection_type="NEW_SELECTION", invert_spatial_relationship="INVERT"
-        )
-        arcpy.management.CopyFeatures(lyr, out_fc)
-    finally:
-        arcpy.management.Delete(lyr)
+    if int(arcpy.management.GetCount(buildings_fc)[0]) == 0:
+        # 건물이 0건이면 "어떤 건물과도 교차하지 않는 change"는 정의상 전체
+        # change_fc와 같다 - SelectLayerByLocation을 거칠 필요가 없을 뿐 아니라,
+        # geopandas가 0건으로 쓴 GPKG는 geometry type이 미확정("Any")으로 남아
+        # SelectLayerByLocation/MakeFeatureLayer가 ERROR 999999로 실패한다
+        # (overlay_buildings_with_changes와 동일 근본원인, 실측 확인:
+        # jeju_gimnyeong - 신규 택지개발지구라 기존 건물이 아예 없음).
+        arcpy.management.CopyFeatures(change_fc, out_fc)
+    else:
+        lyr = "chg_unmatched_lyr"
+        arcpy.management.MakeFeatureLayer(change_fc, lyr)
+        try:
+            arcpy.management.SelectLayerByLocation(
+                lyr, "INTERSECT", buildings_fc, selection_type="NEW_SELECTION", invert_spatial_relationship="INVERT"
+            )
+            arcpy.management.CopyFeatures(lyr, out_fc)
+        finally:
+            arcpy.management.Delete(lyr)
 
     add_field_if_missing(out_fc, "change_type", "TEXT", field_length=40)
     add_field_if_missing(out_fc, "classification_note", "TEXT", field_length=400)

@@ -1,0 +1,138 @@
+project:
+  id: jeju_gimnyeong
+  name: 제주김녕 공공주택지구 위성영상 기반 변화탐지 PoC (Sentinel-2 vs CAS500-1 비교)
+  short_name: 제주김녕
+  official_name: 제주김녕 공공주택지구
+  location: 제주특별자치도 제주시 구좌읍 김녕리 일원
+  official_area_m2: null
+  operator: 한국토지주택공사 (제주지역본부)
+  analysis_crs: EPSG:5179
+satellite:
+  provider: planetary-computer
+  collection: sentinel-2-l2a
+  bands:
+  - B02
+  - B03
+  - B04
+  - B08
+  max_cloud_cover_pct: 20
+  t1_date_range: 2022-01-01/2022-12-31
+  t2_date_range: 2024-01-01/2024-12-31
+  search_bbox_wgs84:
+  - 126.7628422568081
+  - 33.552647580465
+  - 126.76815936811674
+  - 33.55679826955975
+  known_limitation: '10m 해상도로 개별 단독주택 단위 신축/증축 탐지는 어려움. 대형 아파트단지/ 대규모 토지조성 등 큰 변화
+    위주로 검증 후 SkyWatch Benchmark에서 고해상 상용영상과 비교한다.
+
+    '
+crs:
+  source_crs: EPSG:4326
+  analysis_crs: EPSG:5186
+  decision_note: 'EPSG:5186 (Korea 2000 / Central Belt 2010, 중부원점, 중앙자오선 127E)을 선택.
+    창릉 AOI 경도범위(126.87~126.91E)가 중부원점 적용범위(125.5~128.5E)에 들어가며, 국내 서울/경기 지역 공공 GIS
+    데이터에서 가장 널리 쓰이는 표준 투영좌표계이기 때문. Sentinel-2 실측 확인: EPSG:32652 (WGS 84 / UTM zone
+    52N), 10m, uint16, nodata=0. Raster Preprocessing 단계에서 EPSG:5186으로 재투영한다. NGII
+    정사영상은 확보 후 별도로 원본 CRS를 확인한다.
+
+    '
+alignment:
+  method: ECC
+  max_allowed_rmse_m: 10.0
+change_detection:
+  methods:
+  - robust_cva
+  - ssim
+  - edge_texture
+  - ensemble
+  min_area_thresholds_m2:
+  - 10
+  - 25
+  - 50
+  - 100
+  threshold_method: fixed
+  mask_threshold: 0.5
+postprocess:
+  morphology:
+    opening_kernel: 3
+    closing_kernel: 3
+  min_component_area_m2: 25
+spatial_statistics:
+  k: 8
+  permutations: 999
+random_seed: 42
+classification:
+  buffer_distances_m:
+  - 3
+  - 5
+  change_ratio_new_building_min: 0.5
+priority_scoring:
+  weights:
+    change_confidence: 0.4
+    change_ratio: 0.3
+    administrative_uncertainty: 0.2
+    building_relevance: 0.1
+  thresholds:
+    high: 0.7
+    medium: 0.4
+validation_sample:
+  high_n: 50
+  medium_n: 30
+  low_n: 20
+compensation:
+  baseline_date: '2018-12-31'
+  baseline_type: 지구지정 및 지형도면 등의 고시일 (제주특별자치도 고시 제2018-901호로 추정) - 미확정
+  source_url: https://eum.go.kr/web/gs/gv/gvGosiDet.jsp?seq=37724
+  business_confirmed: false
+  interim_use_approved: true
+  interim_use_note: 'hwaseong_jinan 때와 달리 이번에는 시간 제약상 관보 원문 PDF를 직접 확보해 전문 텍스트 검색을
+    하지 못했다. WebFetch로 eum.go.kr 고시 상세페이지를 요약 조회한 결과(고시번호 "제주2018-901호", 고시일 2018-12-31,
+    지정권자 제주특별자치도지사)만 반영한 잠정값이다. 뉴스 보도(제주의소리 2019-12-31자 기사)에 따르면 국토부가 2018년 7월 이 지구를
+    "신혼희망타운"으로 별도 지정한 사실도 확인되나, 이는 지구지정 고시와는 다른 절차로 보이며 서로 혼동하지 않아야 한다. 사업부서가 확정한
+    실제 주민공람공고일/이주대책 기준일로 반드시 교체할 것 - pipeline.py는 business_confirmed가 false인 동안 REQ03
+    결과에 "[미확정 잠정값]" 표시를 자동으로 남긴다.
+
+    '
+  open_questions_for_business_team:
+  - 제주2018-901호(2018-12-31) 고시 원문에 권리산정기준일/이주대책기준일이 명시되어 있는가, 아니면 지구지정 제안 단계의 별도 주민공람공고일이
+    존재하는가? (hwaseong_jinan 사례처럼 지구지정고시 자체에는 해당 표현이 없을 가능성이 있음 - 원문 미확보 상태)
+  - 2018년 7월 국토부 '신혼희망타운' 지정과 2018-12-31 지구지정고시 중 어느 것이 법적으로 유의미한 기준일 후보인가?
+illegal_screening:
+  tolerance_ratio: 1.3
+  strong_change_ratio: 0.5
+  strong_confidence: 0.6
+progress_monitor:
+  grid_cell_size_m: 250.0
+  site_persistence_distance_m: 30.0
+imagery_tasking:
+  recent_days_window: 90
+  season_months:
+  - 4
+  - 6
+field_survey:
+  buffer_m_for_near_change: 3.0
+reality_3d:
+  review_buffer_m: 20.0
+  floor_height_m: 3.0
+  target_gsd_cm: 3.0
+  overlap_pct: 75
+arcgis_pro:
+  output_gdb: outputs\jeju_gimnyeong\arcgis\jeju_gimnyeong_cas500.gdb
+  template_aprx: outputs/arcgis/templates/blank_template.aprx
+paths:
+  data_root: data/projects/jeju_gimnyeong
+  output_root: outputs/jeju_gimnyeong
+  aoi: data/projects/jeju_gimnyeong/aoi/jeju_gimnyeong_official.gpkg
+  buildings: data/projects/jeju_gimnyeong/processed/buildings.gpkg
+  cadastre: data/projects/jeju_gimnyeong/processed/cadastre.gpkg
+  building_register: data/projects/jeju_gimnyeong/raw/building_register/title_info.json
+  building_permits: data/projects/jeju_gimnyeong/raw/building_permits/basic_outline.json
+  output_gdb: outputs/jeju_gimnyeong/arcgis/jeju_gimnyeong.gdb
+  output_aprx: outputs/jeju_gimnyeong/arcgis/jeju_gimnyeong.aprx
+  reports: outputs/jeju_gimnyeong/reports
+publishing:
+  folder: skywatch_poc_jeju_gimnyeong
+  web_map_title: 제주김녕 Building Change Intelligence - Sentinel-2 vs CAS500-1 비교
+  sharing: private
+  overwrite_existing: false

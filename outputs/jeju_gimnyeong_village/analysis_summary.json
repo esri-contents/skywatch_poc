@@ -1,0 +1,22 @@
+{
+  "t0_t1": {
+    "out_dir": "outputs\\jeju_gimnyeong_village\\comparisons\\t0_t1",
+    "candidate_count": 1,
+    "site_count": 1,
+    "priority": {
+      "MEDIUM": 1
+    },
+    "change_type": {
+      "EXPANSION_OR_RECONSTRUCTION": 1
+    },
+    "register_match_count": 1,
+    "alignment": {
+      "dx_px": -0.3904384970664978,
+      "dy_px": -0.6763733625411987,
+      "displacement_px": 0.7809757650188855,
+      "displacement_m": 7.806019999342084,
+      "ecc_score": 0.9126130719189699,
+      "converged": true
+    }
+  }
+}

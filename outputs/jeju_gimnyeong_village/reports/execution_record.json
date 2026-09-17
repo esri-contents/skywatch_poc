@@ -1,0 +1,31 @@
+{
+  "project_id": "jeju_gimnyeong_village",
+  "generated_at": "2026-09-11T18:14:10+09:00",
+  "project_config": "config/projects/hwaseong_jinan.yaml",
+  "selected_imagery": [
+    {
+      "id": "t0",
+      "date": "2021-11-28",
+      "item_id": "S2A_T52SBC_20211128T022033_L2A",
+      "role": "jeju_gimnyeong과 동일 장면(같은 Sentinel-2 타일 T52SBC) - AOI만 마을 중심부로 이동, 이 AOI 내부 구름 재계산으로 재검증함"
+    },
+    {
+      "id": "t1",
+      "date": "2023-10-19",
+      "item_id": "S2A_T52SBC_20231019T022334_L2A",
+      "role": "jeju_gimnyeong과 동일 장면 재사용"
+    }
+  ],
+  "aoi": {
+    "status": "demo",
+    "provider": "VWorld 건물밀도 기반 자체 산정 (LH 공식 지구 아님)",
+    "note": "600m x 600m 정사각형, 중심 (126.7485E, 33.5565N) - VWorld lt_c_spbd 건물 8,442동을 CAS500-1 장면 footprint 전체에서 그리드 집계해 찾은 최고밀도 지점"
+  },
+  "compensation_baseline": {
+    "baseline_date": null,
+    "baseline_type": "N/A - LH 공공주택지구가 아니므로 보상기준일 개념 자체가 적용되지 않음",
+    "business_confirmed": false,
+    "interim_use_approved": false,
+    "interim_use_note": "이 프로젝트는 REQ03(보상기준일 판정)을 의도적으로 건너뛴다."
+  }
+}

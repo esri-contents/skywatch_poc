@@ -1,0 +1,64 @@
+{
+  "timestamp_utc": "2026-09-11T09:14:07.441668+00:00",
+  "seed": 42,
+  "git_commit": "e0a4a0ffab694c98cc933a94927dc95bf92bd982",
+  "inputs": {
+    "t1": {
+      "path": "data\\projects\\jeju_gimnyeong_village\\processed\\imagery\\t0_stack.tif",
+      "sha256": "038abf7e84bd8df96cb989bfad50dea136d02f6ec900cbb6aeb4aead5eb81548"
+    },
+    "t2": {
+      "path": "data\\projects\\jeju_gimnyeong_village\\processed\\imagery\\t1_stack.tif",
+      "sha256": "d523e2cbe6b11a555422e03eae46233982b3aba829a496da85c9c5a8110648e1"
+    },
+    "aoi": {
+      "path": "data\\projects\\jeju_gimnyeong_village\\aoi\\jeju_gimnyeong_village_aoi.gpkg",
+      "sha256": "c376a774002f131abb7f62287ed3ad5396a35300b2429faf0c41eca4ed5721ad"
+    },
+    "buildings": {
+      "path": "data\\projects\\jeju_gimnyeong_village\\processed\\buildings.gpkg",
+      "sha256": "744eb6a8be49b30427b2c38303d4dae4f202f59862abcb075068cd0506540eb9"
+    },
+    "building_register": {
+      "path": "data\\projects\\jeju_gimnyeong_village\\raw\\building_register\\title_info.json",
+      "sha256": "cb88e1887f3bd18ade5b23a991729ae6e16beab0c16469e9ea4da8b179dee2c3"
+    }
+  },
+  "params": {
+    "threshold_method": "fixed",
+    "used_threshold": 0.5,
+    "min_component_area_m2": 25,
+    "buffer_m": 3,
+    "priority_scoring_weights": {
+      "change_confidence": 0.4,
+      "change_ratio": 0.3,
+      "administrative_uncertainty": 0.2,
+      "building_relevance": 0.1
+    },
+    "spatial_statistics": {
+      "k": 8,
+      "permutations": 999
+    },
+    "global_moran": {
+      "I": null,
+      "p_sim": null,
+      "z_sim": null,
+      "n": 1,
+      "k": 8
+    }
+  },
+  "package_versions": {
+    "rasterio": "1.4.3",
+    "geopandas": "1.1.4",
+    "shapely": "2.1.2",
+    "pyproj": "3.8.0",
+    "fiona": "1.10.1",
+    "numpy": "2.5.3",
+    "pandas": "3.0.5",
+    "opencv-python": "5.0.0.93",
+    "scikit-image": "0.26.0",
+    "scikit-learn": "1.9.0",
+    "libpysal": "4.15.0",
+    "esda": "2.10.0"
+  }
+}

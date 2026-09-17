@@ -20,8 +20,6 @@ import geopandas as gpd
 
 logger = logging.getLogger("build_buildings")
 
-ANALYSIS_CRS = "EPSG:5186"
-
 
 def build_buildings(
     bbox_geojson_path: str | Path,
@@ -36,14 +34,21 @@ def build_buildings(
         out_path: 저장할 GeoPackage 경로.
 
     Returns:
-        Clip된 건물 GeoDataFrame (ANALYSIS_CRS).
+        Clip된 건물 GeoDataFrame (AOI와 동일 CRS - 프로젝트마다 analysis_crs가
+        다를 수 있어(예: hwaseong_jinan EPSG:5186 vs jeju_gimnyeong EPSG:5179),
+        하드코딩 대신 이미 프로젝트 analysis_crs로 저장된 AOI 자체의 CRS를
+        기준으로 삼는다 - 두 CRS가 어긋나면 이후 change_polygons와 concat할 때
+        조용히 실패하지 않고 CRS mismatch로 바로 드러난다).
     """
+    aoi = gpd.read_file(aoi_path)
+    analysis_crs = aoi.crs
+
     buildings = gpd.read_file(bbox_geojson_path)
     if buildings.crs is None:
         buildings = buildings.set_crs("EPSG:4326")
-    buildings = buildings.to_crs(ANALYSIS_CRS)
+    buildings = buildings.to_crs(analysis_crs)
 
-    aoi = gpd.read_file(aoi_path).to_crs(ANALYSIS_CRS)
+    aoi = aoi.to_crs(analysis_crs)
     clipped = gpd.clip(buildings, aoi)
 
     out_path = Path(out_path)

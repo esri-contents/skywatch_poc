@@ -1,0 +1,22 @@
+{
+  "t0_t1": {
+    "out_dir": "outputs\\jeju_gimnyeong\\comparisons\\t0_t1",
+    "candidate_count": 2,
+    "site_count": 2,
+    "priority": {
+      "MEDIUM": 2
+    },
+    "change_type": {
+      "OTHER_CHANGE": 2
+    },
+    "register_match_count": 0,
+    "alignment": {
+      "dx_px": -0.1402393877506256,
+      "dy_px": -0.11495909839868546,
+      "displacement_px": 0.18133582156129263,
+      "displacement_m": 1.8125001895765627,
+      "ecc_score": 0.9709821113603098,
+      "converged": true
+    }
+  }
+}

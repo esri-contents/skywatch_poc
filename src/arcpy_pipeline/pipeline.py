@@ -83,10 +83,10 @@ def _parse_date(s) -> date | None:
 
 
 def run_change_intelligence(
-    t1_bands: dict[str, str],
-    t2_bands: dict[str, str],
-    aoi_path: str,
-    buildings_path: str,
+    t1_bands: dict[str, str] | None = None,
+    t2_bands: dict[str, str] | None = None,
+    aoi_path: str = "",
+    buildings_path: str = "",
     parcel_path: str | None = None,
     building_register_path: str | None = None,
     config_path: str = "config/config.yaml",
@@ -96,11 +96,19 @@ def run_change_intelligence(
     out_gdb: str | None = None,
     additional_epochs: list[dict] | None = None,
     reports_dir: str | None = None,
+    t1_raster: str | None = None,
+    t2_raster: str | None = None,
+    cell_size: float = 10.0,
 ) -> dict:
     """LH 통합 파이프라인을 실행하고 STEP 결과 + REQ별 산출물 현황을 반환한다.
 
     Args:
-        t1_bands / t2_bands: {"B02": path, ...} 원본 밴드 (재투영 전).
+        t1_bands / t2_bands: {"B02": path, ...} 원본 밴드 (재투영 전). Sentinel-2처럼
+            밴드별로 파일이 분리된 소스일 때 쓴다. t1_raster/t2_raster를 주면 무시된다.
+        t1_raster / t2_raster: 이미 4밴드로 합쳐진 원본 래스터 경로 (예: CAS500-1
+            모자이크 데이터셋의 개별 raster item). 밴드 순서가 t1_bands의 band_order
+            (기본 Blue/Green/Red/NIR)와 이미 일치한다고 가정하고, CompositeBands
+            없이 project_and_clip만 거친다.
         aoi_path: AOI Feature Class/GPKG.
         buildings_path: 건물 footprint (AOI clip 완료본).
         parcel_path: 연속지적도 필지 레이어 (없으면 REQ08 건너뜀).
@@ -110,10 +118,15 @@ def run_change_intelligence(
         out_gdb: 결과 FileGDB 경로. None이면 config.yaml의 arcgis_pro.output_gdb.
         additional_epochs: [{"label","t1_bands","t2_bands","t1","t2"}] 형태로
             추가 시기를 주면 progress_monitor(REQ04/09)가 다시기 분석을 수행한다.
+        cell_size: 출력 격자 크기(m). Sentinel-2는 10.0(기본값), CAS500-1처럼
+            더 세밀한 원본은 원본 해상도(예: 0.5)로 낮춰야 다운샘플링되지 않는다.
 
     Returns:
         각 REQ별 실행 결과 요약 dict (lh_traceability.md 생성에도 쓰인다).
     """
+    if not (t1_raster and t2_raster) and not (t1_bands and t2_bands):
+        raise ValueError("[PIPELINE] t1_bands/t2_bands 또는 t1_raster/t2_raster 중 하나는 필요합니다")
+
     setup_logging()
     cfg = load_config(config_path)
     requirements = load_requirements(requirements_path)
@@ -133,16 +146,25 @@ def run_change_intelligence(
 
     with arcpy_session(gdb, extensions=("Spatial", "3D"), extent=aoi_path):
         # --- STEP 9-11: raster 전처리 + 정합 ---
-        t1_stack = raster_ops.build_stacked_scene(
-            t1_bands, aoi_path, str(Path(out_gdb).parent / "t1_stack.tif"), cell_size=10.0
-        )
-        t2_stack = raster_ops.build_stacked_scene(
-            t2_bands, aoi_path, str(Path(out_gdb).parent / "t2_stack.tif"), cell_size=10.0, snap_raster=t1_stack
-        )
+        if t1_raster and t2_raster:
+            t1_stack = raster_ops.project_and_clip(
+                resolve_path(t1_raster), aoi_path, str(Path(out_gdb).parent / "t1_stack.tif"), cell_size=cell_size
+            )
+            t2_stack = raster_ops.project_and_clip(
+                resolve_path(t2_raster), aoi_path, str(Path(out_gdb).parent / "t2_stack.tif"),
+                cell_size=cell_size, snap_raster=t1_stack,
+            )
+        else:
+            t1_stack = raster_ops.build_stacked_scene(
+                t1_bands, aoi_path, str(Path(out_gdb).parent / "t1_stack.tif"), cell_size=cell_size
+            )
+            t2_stack = raster_ops.build_stacked_scene(
+                t2_bands, aoi_path, str(Path(out_gdb).parent / "t2_stack.tif"), cell_size=cell_size, snap_raster=t1_stack
+            )
         a1, _ = raster_ops.read_stack(t1_stack)
         a2, _ = raster_ops.read_stack(t2_stack)
         align = raster_ops.verify_alignment(
-            raster_ops.to_grayscale(a1), raster_ops.to_grayscale(a2), pixel_size_m=10.0
+            raster_ops.to_grayscale(a1), raster_ops.to_grayscale(a2), pixel_size_m=cell_size
         )
         logger.info("[PIPELINE] STEP8 정합: %s", align)
 
@@ -177,7 +199,13 @@ def run_change_intelligence(
         )
 
         register_stats = None
-        if building_register_path and Path(building_register_path).exists():
+        n_buildings = int(arcpy.management.GetCount(overlaid_fc)[0])
+        if n_buildings == 0:
+            # 신규 택지개발지구처럼 AOI 안에 기존 건물이 아예 없으면(실측 확인:
+            # jeju_gimnyeong) overlay가 원본 스키마 없는 빈 FC를 반환하므로,
+            # 대장 조인 키 필드 자체가 없다 - 조인할 행이 없으니 그냥 건너뛴다.
+            logger.warning("[PIPELINE] AOI 내 기존 건물 0건 - 대장 조인/행정 불확실성 계산을 건너뜁니다")
+        elif building_register_path and Path(building_register_path).exists():
             register_stats = buildings.join_building_register(overlaid_fc, building_register_path)
             buildings.compute_administrative_uncertainty(overlaid_fc, t1_d, t2_d)
         else:

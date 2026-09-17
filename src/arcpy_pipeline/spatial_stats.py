@@ -47,15 +47,24 @@ def compute_global_moran(
 
     # 주의: arcpy.stats 도구는 대부분 Title_Case 키워드를 쓰지만
     # number_of_neighbors만 소문자다 (arcpy 3.7 실측 확인, inspect.signature로 검증).
-    result = arcpy.stats.SpatialAutocorrelation(
-        Input_Feature_Class=fc,
-        Input_Field=value_field,
-        Generate_Report="NO_REPORT",
-        Conceptualization_of_Spatial_Relationships="K_NEAREST_NEIGHBORS",
-        Distance_Method="EUCLIDEAN_DISTANCE",
-        Standardization="ROW",
-        number_of_neighbors=k,
-    )
+    # arcpy_session()이 잡아둔 env.extent(AOI로 고정)가 켜져 있으면 이 도구가
+    # ERROR 000816으로 실패한다(실측 확인: jeju_gimnyeong CAS500 실행, 동일 호출을
+    # env.extent 없이 단독 실행하면 성공). SpatialAutocorrelation은 자체
+    # scratch 처리 범위를 필요로 해서 고정 extent와 충돌하는 것으로 보인다.
+    previous_extent = arcpy.env.extent
+    try:
+        arcpy.env.extent = None
+        result = arcpy.stats.SpatialAutocorrelation(
+            Input_Feature_Class=fc,
+            Input_Field=value_field,
+            Generate_Report="NO_REPORT",
+            Conceptualization_of_Spatial_Relationships="K_NEAREST_NEIGHBORS",
+            Distance_Method="EUCLIDEAN_DISTANCE",
+            Standardization="ROW",
+            number_of_neighbors=k,
+        )
+    finally:
+        arcpy.env.extent = previous_extent
     out = {
         "I": float(result.getOutput(0)),
         "z_score": float(result.getOutput(1)),
@@ -100,14 +109,19 @@ def compute_hotspots(
 
     out_fc = out_fc or f"{fc}_hotspots"
     delete_if_exists(out_fc)
-    arcpy.stats.HotSpots(
-        Input_Feature_Class=fc,
-        Input_Field=value_field,
-        Output_Feature_Class=out_fc,
-        Conceptualization_of_Spatial_Relationships="K_NEAREST_NEIGHBORS",
-        Distance_Method="EUCLIDEAN_DISTANCE",
-        number_of_neighbors=k,
-    )
+    previous_extent = arcpy.env.extent
+    try:
+        arcpy.env.extent = None  # compute_global_moran과 동일 이유
+        arcpy.stats.HotSpots(
+            Input_Feature_Class=fc,
+            Input_Field=value_field,
+            Output_Feature_Class=out_fc,
+            Conceptualization_of_Spatial_Relationships="K_NEAREST_NEIGHBORS",
+            Distance_Method="EUCLIDEAN_DISTANCE",
+            number_of_neighbors=k,
+        )
+    finally:
+        arcpy.env.extent = previous_extent
 
     add_field_if_missing(out_fc, "gi_zscore", "DOUBLE")
     add_field_if_missing(out_fc, "gi_pvalue", "DOUBLE")

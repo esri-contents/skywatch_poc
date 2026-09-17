@@ -35,8 +35,12 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG = PROJECT_ROOT / "config" / "config.yaml"
 DEFAULT_REQUIREMENTS = PROJECT_ROOT / "config" / "lh_requirements.yaml"
 
-# EPSG:5186 (Korea 2000 / Central Belt 2010). 선택 근거는 config.yaml의
-# crs.decision_note 참고 - Baseline과 반드시 동일해야 결과를 대조할 수 있다.
+# EPSG:5186 (Korea 2000 / Central Belt 2010) - hwaseong_jinan/changneung 기본값.
+# 선택 근거는 config.yaml의 crs.decision_note 참고 - Baseline과 반드시 동일해야
+# 결과를 대조할 수 있다. load_config()가 project.analysis_crs를 읽으면 이 값을
+# 덮어쓴다 (예: jeju_gimnyeong은 EPSG:5179 - 실측 확인: 이 덮어쓰기가 없으면
+# raster_ops.project_and_clip이 항상 5186으로 재투영해, 프로젝트 yaml에
+# analysis_crs를 다르게 명시해도 조용히 무시된다).
 ANALYSIS_EPSG = 5186
 WGS84_EPSG = 4326
 
@@ -55,8 +59,13 @@ def setup_logging(level: int = logging.INFO) -> None:
 
 def load_config(config_path: str | Path = DEFAULT_CONFIG) -> dict:
     """config/config.yaml을 읽는다 (Baseline과 동일한 파일)."""
+    global ANALYSIS_EPSG
     with open(config_path, encoding="utf-8") as f:
-        return yaml.safe_load(f)
+        cfg = yaml.safe_load(f)
+    analysis_crs = cfg.get("project", {}).get("analysis_crs")
+    if analysis_crs:
+        ANALYSIS_EPSG = int(str(analysis_crs).split(":")[-1])
+    return cfg
 
 
 def load_requirements(path: str | Path = DEFAULT_REQUIREMENTS) -> dict:

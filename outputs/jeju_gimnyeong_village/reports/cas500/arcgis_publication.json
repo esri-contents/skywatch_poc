@@ -1,0 +1,682 @@
+{
+  "portal": {
+    "url": "https://portal.esrikr.com/portal/",
+    "type": "ArcGIS Enterprise",
+    "username": "contents_kr"
+  },
+  "web_map_url": "https://portal.esrikr.com/portal//home/item.html?id=6cdf410b12e6414ab518bbc2c86a971f",
+  "validation": {
+    "aoi": {
+      "item_id": "5dd87bc069f54f7c97438ce2ca23e11f",
+      "url": "https://portal.esrikr.com/portal//home/item.html?id=5dd87bc069f54f7c97438ce2ca23e11f",
+      "feature_count": 1,
+      "fields": [
+        "fid",
+        "name",
+        "SHAPE__Length",
+        "SHAPE__Area"
+      ],
+      "spatial_reference": {
+        "falseM": -100000,
+        "xyTolerance": 0.001,
+        "mUnits": 10000,
+        "zUnits": 10000,
+        "latestWkid": 3857,
+        "zTolerance": 0.001,
+        "wkid": 102100,
+        "xyUnits": 148923141.92838538,
+        "mTolerance": 0.001,
+        "falseX": -20037700,
+        "falseY": -30241100,
+        "falseZ": -100000
+      },
+      "geometry_type": "esriGeometryPolygon",
+      "renderer": {
+        "symbol": {
+          "outline": {
+            "color": [
+              110,
+              110,
+              110,
+              255
+            ],
+            "width": 0.7,
+            "style": "esriSLSSolid",
+            "type": "esriSLS"
+          },
+          "color": [
+            182,
+            179,
+            252,
+            255
+          ],
+          "style": "esriSFSSolid",
+          "type": "esriSFS"
+        },
+        "type": "simple"
+      }
+    },
+    "change_polygons": {
+      "item_id": "cbd0f4893a804e17b0598ccdfeedcebb",
+      "url": "https://portal.esrikr.com/portal//home/item.html?id=cbd0f4893a804e17b0598ccdfeedcebb",
+      "feature_count": 368,
+      "fields": [
+        "objectid",
+        "id",
+        "gridcode",
+        "change_id",
+        "change_area_m2",
+        "mean_change_score",
+        "max_change_score",
+        "t1_date",
+        "t2_date",
+        "method",
+        "brightness_t1",
+        "brightness_t2",
+        "brightness_delta",
+        "SHAPE__Length",
+        "SHAPE__Area"
+      ],
+      "spatial_reference": {
+        "falseM": -100000,
+        "xyTolerance": 0.001,
+        "mUnits": 10000,
+        "zUnits": 10000,
+        "latestWkid": 3857,
+        "zTolerance": 0.001,
+        "wkid": 102100,
+        "xyUnits": 148923141.92838538,
+        "mTolerance": 0.001,
+        "falseX": -20037700,
+        "falseY": -30241100,
+        "falseZ": -100000
+      },
+      "geometry_type": "esriGeometryPolygon",
+      "renderer": {
+        "symbol": {
+          "outline": {
+            "color": [
+              110,
+              110,
+              110,
+              255
+            ],
+            "width": 0.7,
+            "style": "esriSLSSolid",
+            "type": "esriSLS"
+          },
+          "color": [
+            252,
+            199,
+            239,
+            255
+          ],
+          "style": "esriSFSSolid",
+          "type": "esriSFS"
+        },
+        "type": "simple"
+      }
+    },
+    "building_change_results": {
+      "item_id": "16c329c0585b4c618ab5efe84d789858",
+      "url": "https://portal.esrikr.com/portal//home/item.html?id=16c329c0585b4c618ab5efe84d789858",
+      "feature_count": 687,
+      "fields": [
+        "objectid",
+        "id",
+        "pk",
+        "bd_mgt_sn",
+        "sido",
+        "sigungu",
+        "gu",
+        "rd_nm",
+        "bld_s",
+        "bld_e",
+        "buld_nm",
+        "buld_nm_dc",
+        "buld_se_cd",
+        "bul_eng_nm",
+        "zip_cd",
+        "gro_flo_co",
+        "und_flo_co",
+        "buld_no",
+        "sig_cd",
+        "rn_cd",
+        "emd_cd",
+        "pnu",
+        "xpos",
+        "ypos",
+        "poi_chk",
+        "building_area_m2",
+        "change_area_m2",
+        "change_ratio",
+        "max_change_score",
+        "near_change",
+        "site_id",
+        "brightness_delta",
+        "mainpurpscdnm",
+        "archarea",
+        "totarea",
+        "grndflrcnt",
+        "ugrndflrcnt",
+        "pmsday",
+        "stcnsday",
+        "useaprday",
+        "has_register_match",
+        "match_method",
+        "administrative_uncertainty",
+        "change_type",
+        "classification_note",
+        "directional_consistency_flag",
+        "geom_length",
+        "geom_area",
+        "gridcode",
+        "change_id",
+        "mean_change_score",
+        "t1_date",
+        "t2_date",
+        "method",
+        "brightness_t1",
+        "brightness_t2",
+        "confidence",
+        "building_relevance",
+        "priority_score",
+        "inspection_priority",
+        "illegal_grade",
+        "illegal_score",
+        "area_excess_ratio",
+        "illegal_evidence",
+        "parcel_pnu",
+        "SHAPE__Length",
+        "SHAPE__Area"
+      ],
+      "spatial_reference": {
+        "falseM": -100000,
+        "xyTolerance": 0.001,
+        "mUnits": 10000,
+        "zUnits": 10000,
+        "latestWkid": 3857,
+        "zTolerance": 0.001,
+        "wkid": 102100,
+        "xyUnits": 148923141.92838538,
+        "mTolerance": 0.001,
+        "falseX": -20037700,
+        "falseY": -30241100,
+        "falseZ": -100000
+      },
+      "geometry_type": "esriGeometryPolygon",
+      "renderer": {
+        "field1": "change_type",
+        "defaultSymbol": {
+          "outline": {
+            "color": [
+              50,
+              50,
+              50,
+              255
+            ],
+            "width": 0.5,
+            "style": "esriSLSSolid",
+            "type": "esriSLS"
+          },
+          "color": [
+            200,
+            200,
+            200,
+            180
+          ],
+          "style": "esriSFSSolid",
+          "type": "esriSFS"
+        },
+        "uniqueValueInfos": [
+          {
+            "symbol": {
+              "outline": {
+                "color": [
+                  50,
+                  50,
+                  50,
+                  255
+                ],
+                "width": 0.5,
+                "style": "esriSLSSolid",
+                "type": "esriSLS"
+              },
+              "color": [
+                230,
+                25,
+                75,
+                255
+              ],
+              "style": "esriSFSSolid",
+              "type": "esriSFS"
+            },
+            "label": "NEW_BUILDING",
+            "value": "NEW_BUILDING"
+          },
+          {
+            "symbol": {
+              "outline": {
+                "color": [
+                  50,
+                  50,
+                  50,
+                  255
+                ],
+                "width": 0.5,
+                "style": "esriSLSSolid",
+                "type": "esriSLS"
+              },
+              "color": [
+                245,
+                130,
+                48,
+                255
+              ],
+              "style": "esriSFSSolid",
+              "type": "esriSFS"
+            },
+            "label": "EXPANSION_OR_RECONSTRUCTION",
+            "value": "EXPANSION_OR_RECONSTRUCTION"
+          },
+          {
+            "symbol": {
+              "outline": {
+                "color": [
+                  50,
+                  50,
+                  50,
+                  255
+                ],
+                "width": 0.5,
+                "style": "esriSLSSolid",
+                "type": "esriSLS"
+              },
+              "color": [
+                120,
+                120,
+                120,
+                255
+              ],
+              "style": "esriSFSSolid",
+              "type": "esriSFS"
+            },
+            "label": "OTHER_CHANGE",
+            "value": "OTHER_CHANGE"
+          },
+          {
+            "symbol": {
+              "outline": {
+                "color": [
+                  50,
+                  50,
+                  50,
+                  255
+                ],
+                "width": 0.5,
+                "style": "esriSLSSolid",
+                "type": "esriSLS"
+              },
+              "color": [
+                70,
+                70,
+                200,
+                255
+              ],
+              "style": "esriSFSSolid",
+              "type": "esriSFS"
+            },
+            "label": "DEMOLITION",
+            "value": "DEMOLITION"
+          }
+        ],
+        "type": "uniqueValue"
+      }
+    },
+    "survey_sites": {
+      "item_id": "e7b30ea306124035953fddbc05656e6f",
+      "url": "https://portal.esrikr.com/portal//home/item.html?id=e7b30ea306124035953fddbc05656e6f",
+      "feature_count": 528,
+      "fields": [
+        "objectid",
+        "site_id",
+        "candidate_count",
+        "building_count",
+        "site_priority",
+        "max_priority_score",
+        "total_change_area_m2",
+        "dominant_change_type",
+        "compensation_status",
+        "illegal_grade",
+        "register_matched_count",
+        "directional_flag_count",
+        "parcel_pnu_list",
+        "route_order",
+        "survey_focus"
+      ],
+      "spatial_reference": {
+        "falseM": -100000,
+        "xyTolerance": 0.001,
+        "mUnits": 10000,
+        "zUnits": 10000,
+        "latestWkid": 3857,
+        "zTolerance": 0.001,
+        "wkid": 102100,
+        "xyUnits": 148923141.92838538,
+        "mTolerance": 0.001,
+        "falseX": -20037700,
+        "falseY": -30241100,
+        "falseZ": -100000
+      },
+      "geometry_type": "esriGeometryPoint",
+      "renderer": {
+        "field1": "site_priority",
+        "defaultSymbol": {
+          "outline": {
+            "color": [
+              50,
+              50,
+              50,
+              255
+            ],
+            "width": 0.5,
+            "style": "esriSLSSolid",
+            "type": "esriSLS"
+          },
+          "color": [
+            200,
+            200,
+            200,
+            180
+          ],
+          "style": "esriSFSSolid",
+          "type": "esriSFS"
+        },
+        "uniqueValueInfos": [
+          {
+            "symbol": {
+              "outline": {
+                "color": [
+                  50,
+                  50,
+                  50,
+                  255
+                ],
+                "width": 0.5,
+                "style": "esriSLSSolid",
+                "type": "esriSLS"
+              },
+              "color": [
+                230,
+                25,
+                75,
+                255
+              ],
+              "style": "esriSFSSolid",
+              "type": "esriSFS"
+            },
+            "label": "HIGH",
+            "value": "HIGH"
+          },
+          {
+            "symbol": {
+              "outline": {
+                "color": [
+                  50,
+                  50,
+                  50,
+                  255
+                ],
+                "width": 0.5,
+                "style": "esriSLSSolid",
+                "type": "esriSLS"
+              },
+              "color": [
+                245,
+                130,
+                48,
+                255
+              ],
+              "style": "esriSFSSolid",
+              "type": "esriSFS"
+            },
+            "label": "MEDIUM",
+            "value": "MEDIUM"
+          },
+          {
+            "symbol": {
+              "outline": {
+                "color": [
+                  50,
+                  50,
+                  50,
+                  255
+                ],
+                "width": 0.5,
+                "style": "esriSLSSolid",
+                "type": "esriSLS"
+              },
+              "color": [
+                255,
+                220,
+                50,
+                255
+              ],
+              "style": "esriSFSSolid",
+              "type": "esriSFS"
+            },
+            "label": "LOW",
+            "value": "LOW"
+          }
+        ],
+        "type": "uniqueValue"
+      }
+    },
+    "parcel_change_summary": {
+      "item_id": "b28deb9c519d4306a9e87dd52458368d",
+      "url": "https://portal.esrikr.com/portal//home/item.html?id=b28deb9c519d4306a9e87dd52458368d",
+      "feature_count": 647,
+      "fields": [
+        "objectid",
+        "pnu",
+        "jibun",
+        "cad_pnu",
+        "cad_jibun",
+        "parcel_pnu",
+        "parcel_jibun",
+        "parcel_area_m2",
+        "change_area_m2",
+        "change_area_ratio",
+        "candidate_count",
+        "site_count",
+        "dominant_change_type",
+        "max_priority_score",
+        "inspection_priority",
+        "worst_compensation_status",
+        "worst_illegal_grade",
+        "SHAPE__Length",
+        "SHAPE__Area"
+      ],
+      "spatial_reference": {
+        "falseM": -100000,
+        "xyTolerance": 0.001,
+        "mUnits": 10000,
+        "zUnits": 10000,
+        "latestWkid": 3857,
+        "zTolerance": 0.001,
+        "wkid": 102100,
+        "xyUnits": 148923141.92838538,
+        "mTolerance": 0.001,
+        "falseX": -20037700,
+        "falseY": -30241100,
+        "falseZ": -100000
+      },
+      "geometry_type": "esriGeometryPolygon",
+      "renderer": {
+        "field1": "worst_compensation_status",
+        "defaultSymbol": {
+          "outline": {
+            "color": [
+              50,
+              50,
+              50,
+              255
+            ],
+            "width": 0.5,
+            "style": "esriSLSSolid",
+            "type": "esriSLS"
+          },
+          "color": [
+            200,
+            200,
+            200,
+            180
+          ],
+          "style": "esriSFSSolid",
+          "type": "esriSFS"
+        },
+        "uniqueValueInfos": [
+          {
+            "symbol": {
+              "outline": {
+                "color": [
+                  50,
+                  50,
+                  50,
+                  255
+                ],
+                "width": 0.5,
+                "style": "esriSLSSolid",
+                "type": "esriSLS"
+              },
+              "color": [
+                200,
+                0,
+                0,
+                220
+              ],
+              "style": "esriSFSSolid",
+              "type": "esriSFS"
+            },
+            "label": "POST_BASELINE_UNVERIFIED",
+            "value": "POST_BASELINE_UNVERIFIED"
+          },
+          {
+            "symbol": {
+              "outline": {
+                "color": [
+                  50,
+                  50,
+                  50,
+                  255
+                ],
+                "width": 0.5,
+                "style": "esriSLSSolid",
+                "type": "esriSLS"
+              },
+              "color": [
+                230,
+                140,
+                0,
+                220
+              ],
+              "style": "esriSFSSolid",
+              "type": "esriSFS"
+            },
+            "label": "STRADDLES_BASELINE",
+            "value": "STRADDLES_BASELINE"
+          },
+          {
+            "symbol": {
+              "outline": {
+                "color": [
+                  50,
+                  50,
+                  50,
+                  255
+                ],
+                "width": 0.5,
+                "style": "esriSLSSolid",
+                "type": "esriSLS"
+              },
+              "color": [
+                150,
+                150,
+                150,
+                200
+              ],
+              "style": "esriSFSSolid",
+              "type": "esriSFS"
+            },
+            "label": "UNKNOWN",
+            "value": "UNKNOWN"
+          },
+          {
+            "symbol": {
+              "outline": {
+                "color": [
+                  50,
+                  50,
+                  50,
+                  255
+                ],
+                "width": 0.5,
+                "style": "esriSLSSolid",
+                "type": "esriSLS"
+              },
+              "color": [
+                80,
+                150,
+                220,
+                200
+              ],
+              "style": "esriSFSSolid",
+              "type": "esriSFS"
+            },
+            "label": "POST_BASELINE_PERMITTED",
+            "value": "POST_BASELINE_PERMITTED"
+          },
+          {
+            "symbol": {
+              "outline": {
+                "color": [
+                  50,
+                  50,
+                  50,
+                  255
+                ],
+                "width": 0.5,
+                "style": "esriSLSSolid",
+                "type": "esriSLS"
+              },
+              "color": [
+                100,
+                180,
+                100,
+                160
+              ],
+              "style": "esriSFSSolid",
+              "type": "esriSFS"
+            },
+            "label": "PRE_BASELINE",
+            "value": "PRE_BASELINE"
+          }
+        ],
+        "type": "uniqueValue"
+      }
+    },
+    "web_map": {
+      "item_id": "6cdf410b12e6414ab518bbc2c86a971f",
+      "url": "https://portal.esrikr.com/portal//home/item.html?id=6cdf410b12e6414ab518bbc2c86a971f",
+      "operational_layer_count": 5,
+      "connected_item_ids": [
+        "5dd87bc069f54f7c97438ce2ca23e11f",
+        "cbd0f4893a804e17b0598ccdfeedcebb",
+        "b28deb9c519d4306a9e87dd52458368d",
+        "16c329c0585b4c618ab5efe84d789858",
+        "e7b30ea306124035953fddbc05656e6f"
+      ],
+      "private": true
+    }
+  }
+}

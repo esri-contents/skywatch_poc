@@ -278,3 +278,155 @@ Operational scalability
 
 세부 요구사항은 `outputs/reports/skywatch_requirements.md` (실제 PoC 결과
 확보 후 작성 예정)에 정리한다.
+
+## 국가철도공단 노하리 변화탐지 Demo
+
+### 목적
+
+**국가철도공단 - 경기도 화성시 팔탄면 노하리 149-2 일대**를 대상으로
+서해선 사업 전·후 지장물/시설물 변화 후보를 확인한다. 이 Demo는 (1) 사업
+전·후 영상 변화탐지, (2) SkyWatch 영상 vs 항공사진 촬영 비용 비교, 두
+기능만 다룬다 - 3D, LLM Agent, 건물대장 연계, 불법건축물 판정은 범위
+밖이다.
+
+위 고양창릉/화성진안 파이프라인(`src/pipeline.py`)은 건물 footprint/
+건축물대장 조인/분류/우선순위 스코어링까지 수행하는 LH 업무용 파이프라인
+이라 건물 footprint가 필수다. 국가철도공단 Demo는 건물 footprint 없이
+영상만으로 실행해야 하므로, 기존 `run_change_detection()`을 고치지 않고
+**`src/imagery_change_pipeline.py`를 새로 추가**했다. 알고리즘 자체(robust
+CVA + SSIM + edge/texture 앙상블 + threshold + morphology + polygonize)는
+전혀 새로 만들지 않고 `src/change_detection/*`, `src/preprocessing/*`를
+그대로 재사용한다.
+
+### 입력 데이터
+
+- T1/T2 GeoTIFF: 임의 CRS/해상도의 3-band(RGB) 또는 4-band(RGBNIR) 영상.
+  기존 Sentinel-2(B02/B03/B04/B08) 스택도 그대로 지원한다 -
+  `src/change_detection/band_schema.py`가 밴드 이름을 role(red/green/
+  blue/nir)로 정규화해, GeoTIFF의 band description을 우선 쓰고 없으면
+  project config의 `imagery.band_order`를 fallback으로 쓴다(밴드 순서를
+  임의로 추측하지 않는다).
+- AOI: `data/projects/kr_rail_nohari/aoi/`에 GeoJSON/GPKG로 준비. 실제
+  필지 경계가 없으면 파이프라인이 아래 메시지를 내고 종료한다(임의 좌표를
+  만들어 쓰지 않는다):
+
+  ```text
+  [DATA] 국가철도공단 노하리 AOI가 없습니다.
+  data/projects/kr_rail_nohari/aoi/ 아래에 GeoJSON/GPKG를 준비하세요.
+  ```
+
+### 디렉터리
+
+```text
+data/projects/kr_rail_nohari/
+├── aoi/
+├── raw/imagery/{t1,t2}/
+├── processed/imagery/
+└── metadata/skywatch_imagery_candidates.csv
+
+outputs/kr_rail_nohari/
+├── rasters/   (t1_aligned.tif, t2_aligned.tif, change_probability.tif, change_mask.tif)
+├── vectors/   (change_polygons.gpkg / .geojson)
+├── figures/   (before_after_change.png)
+├── reports/   (cost_comparison.csv, cost_scenarios.csv, imagery_candidates.csv)
+├── analysis_summary.json
+└── run_manifest.json
+```
+
+`data/raw`, `outputs/`(고양창릉) 및 `data/projects/hwaseong_jinan`,
+`outputs/hwaseong_jinan`(화성진안) 구조는 그대로 유지된다.
+
+### 실행 방법
+
+**변화탐지** (Windows PowerShell/CMD/bash 공통):
+
+```bash
+python -m src.imagery_change_pipeline \
+  --project config/projects/kr_rail_nohari.yaml \
+  --t1 data/projects/kr_rail_nohari/raw/imagery/t1/pre.tif \
+  --t2 data/projects/kr_rail_nohari/raw/imagery/t2/post.tif \
+  --aoi data/projects/kr_rail_nohari/aoi/nohari_aoi.geojson \
+  --t1-date 2014-01-01 \
+  --t2-date 2015-01-01
+```
+
+`--aoi`/`--out-dir`는 생략하면 project config(`config/projects/
+kr_rail_nohari.yaml`)의 `paths.aoi`/`paths.output_root`를 쓴다.
+
+**비용 비교**:
+
+```bash
+python -m src.cost.comparison --project config/projects/kr_rail_nohari.yaml
+```
+
+### 결과 해석
+
+건물 footprint/건축물대장을 쓰지 않으므로 결과를 `NEW_BUILDING`/
+`DEMOLITION`/`EXPANSION_OR_RECONSTRUCTION`으로 자동 분류하지 않는다.
+모든 결과는 "변화 후보(Potential Change)" polygon이며, `confidence`
+컬럼(HIGH/MEDIUM/LOW)은 project config `analysis.confidence_thresholds`에
+명시된 고정 임계값으로만 결정된다(자동 최적화 없음).
+
+`change_polygons.gpkg`/`.geojson` 필드: `change_id`, `change_area_m2`,
+`mean_change_score`, `max_change_score`, `brightness_t1/t2/delta`,
+`t1_date`, `t2_date`, `method`, `confidence`.
+
+### SkyWatch 후보 영상 입력 방법
+
+`src/arcpy_pipeline/imagery_tasking.py`는 이름과 달리 실제로는 **Microsoft
+Planetary Computer의 Sentinel-2 STAC 아카이브 조회**만 구현되어 있다 -
+실제 SkyWatch API 클라이언트가 아니며, 이 저장소에는 존재하지 않는다.
+따라서 SkyWatch 실제 검색 결과는 다음 CSV에 수동으로 입력한다:
+
+```text
+data/projects/kr_rail_nohari/metadata/skywatch_imagery_candidates.csv
+```
+
+컬럼: `scene_id, provider, acquisition_date, resolution_m, cloud_cover_pct,
+archive_or_tasking, area_km2, unit_price, currency, status, source, notes`.
+`src/cost/comparison.py`가 이 CSV를 (1) 분석 시점과 가까운 순, (2) 낮은
+cloud cover 순, (3) 높은 해상도 순으로 정렬해
+`outputs/kr_rail_nohari/reports/imagery_candidates.csv`에 저장한다. 가격을
+포함한 종합점수는 만들지 않는다.
+
+### 비용 입력 방법
+
+`config/projects/kr_rail_nohari.yaml`의 `cost_comparison` 섹션에 실제
+확인된 값만 채운다 - 확인되지 않은 값은 `null`로 둔다(가상의 견적/할인율/
+minimum order를 만들지 않는다):
+
+```yaml
+cost_comparison:
+  area_km2: null
+  acquisition_count: 2
+  skywatch:
+    unit_price_per_km2: null
+    minimum_order_cost: null
+    processing_cost: null
+    currency: USD
+  aerial:
+    mobilization_cost: null
+    unit_price_per_km2: null
+    processing_cost: null
+    currency: KRW
+  exchange_rate:
+    usd_to_krw: null   # SkyWatch(USD)와 항공촬영(KRW) 비교에 필요 - 실시간 조회 안 함
+    source: null
+    reference_date: null
+```
+
+값이 없는 항목은 `cost_comparison.csv`/`cost_scenarios.csv`에서
+"확인 필요"(질적 항목) 또는 빈 칸(계산 불가 수치)으로 표시되며, 파이프라인은
+에러 없이 정상 종료한다.
+
+### 분석 한계
+
+> 본 결과는 영상 기반 자동 변화탐지 결과이며 보상 대상 지장물의 존재 여부
+> 또는 보상 여부를 최종 판정하기 위한 자료가 아니다. 사업 전·후 영상에서
+> 변화 가능성이 높은 영역을 우선 선별하여 담당자의 확인 업무를 지원하기
+> 위한 Decision Support 자료이다.
+
+다음 요소가 오탐(false positive)을 유발할 수 있다: 계절 차이, 태양고도,
+그림자, 센서 차이, 해상도 차이, 촬영각, 정합오차, 식생 변화. 또한 "2014년
+전후"는 서해선 사업 시기를 가리키는 참고값일 뿐 실제 T1/T2 영상 촬영일이
+아니다 - 실제 촬영일이 확정되면 `--t1-date`/`--t2-date`로 명시해야 한다.

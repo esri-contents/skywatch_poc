@@ -5,7 +5,7 @@ import pytest
 import rasterio
 from rasterio.transform import from_origin
 
-from src.change_detection.baseline import run_baseline_change_detection
+from src.change_detection.baseline import run_baseline_change_detection, to_grayscale
 
 BAND_ORDER = ["B02", "B03", "B04", "B08"]
 
@@ -107,3 +107,95 @@ def test_unknown_threshold_method_raises(tmp_path):
             t1_path, t2_path, tmp_path / "prob.tif", tmp_path / "mask.tif",
             threshold_method="not_a_real_method",
         )
+
+
+def test_to_grayscale_sentinel2_band_order_unchanged():
+    """기존 B02/B03/B04/B08 경로가 밴드 스키마 일반화 이후에도 동일하게 동작해야 한다."""
+    stack = np.zeros((4, 5, 5), dtype=np.float32)
+    stack[0] = 10  # B02=blue
+    stack[1] = 20  # B03=green
+    stack[2] = 30  # B04=red
+    stack[3] = 999  # B08=nir (그레이스케일 계산에는 쓰이지 않아야 함)
+    gray = to_grayscale(stack, ["B02", "B03", "B04", "B08"])
+    assert np.allclose(gray, (10 + 20 + 30) / 3)
+
+
+def test_to_grayscale_rgb_3band_role_names():
+    stack = np.zeros((3, 5, 5), dtype=np.float32)
+    stack[0] = 30  # red
+    stack[1] = 20  # green
+    stack[2] = 10  # blue
+    gray = to_grayscale(stack, ["red", "green", "blue"])
+    assert np.allclose(gray, (30 + 20 + 10) / 3)
+
+
+def test_to_grayscale_rgbnir_4band_role_names():
+    stack = np.zeros((4, 5, 5), dtype=np.float32)
+    stack[0] = 10  # blue
+    stack[1] = 20  # green
+    stack[2] = 30  # red
+    stack[3] = 999  # nir (무시되어야 함)
+    gray = to_grayscale(stack, ["blue", "green", "red", "nir"])
+    assert np.allclose(gray, (10 + 20 + 30) / 3)
+
+
+def test_run_baseline_change_detection_rgb_3band(tmp_path):
+    """3-band RGB 입력에서도 baseline 파이프라인이 정상 동작해야 한다(band_order override)."""
+    rng = np.random.default_rng(4)
+    arr = rng.integers(500, 2000, size=(3, 20, 20))
+    t1_path = tmp_path / "t1_rgb.tif"
+    t2_path = tmp_path / "t2_rgb.tif"
+    _write_stack(t1_path, arr)
+    _write_stack(t2_path, arr)
+
+    prob_path, mask_path, used_threshold = run_baseline_change_detection(
+        t1_path, t2_path, tmp_path / "prob.tif", tmp_path / "mask.tif",
+        band_order=["red", "green", "blue"],
+    )
+    with rasterio.open(mask_path) as src:
+        mask = src.read(1)
+    assert mask.sum() == 0
+    assert used_threshold == 0.5
+
+
+def test_run_baseline_change_detection_rgbnir_4band(tmp_path):
+    """RGBNIR(role 이름) 입력에서도 baseline 파이프라인이 정상 동작해야 한다."""
+    rng = np.random.default_rng(5)
+    arr = rng.integers(500, 2000, size=(4, 20, 20))
+    t1_path = tmp_path / "t1_rgbnir.tif"
+    t2_path = tmp_path / "t2_rgbnir.tif"
+    _write_stack(t1_path, arr)
+    _write_stack(t2_path, arr)
+
+    prob_path, mask_path, used_threshold = run_baseline_change_detection(
+        t1_path, t2_path, tmp_path / "prob.tif", tmp_path / "mask.tif",
+        band_order=["blue", "green", "red", "nir"],
+    )
+    with rasterio.open(mask_path) as src:
+        mask = src.read(1)
+    assert mask.sum() == 0
+
+
+def test_ssim_win_size_override_supports_tiny_aoi(tmp_path):
+    """default win_size=7은 7x7 미만 grid에서 실패한다 - 작은 AOI는 config로 낮춰야 한다."""
+    rng = np.random.default_rng(6)
+    arr = rng.integers(500, 2000, size=(3, 6, 5))  # 7x7보다 작음
+    t1_path = tmp_path / "t1_small.tif"
+    t2_path = tmp_path / "t2_small.tif"
+    _write_stack(t1_path, arr)
+    _write_stack(t2_path, arr)
+
+    with pytest.raises(ValueError):
+        run_baseline_change_detection(
+            t1_path, t2_path, tmp_path / "prob.tif", tmp_path / "mask.tif",
+            band_order=["red", "green", "blue"],
+        )
+
+    prob_path, mask_path, used_threshold = run_baseline_change_detection(
+        t1_path, t2_path, tmp_path / "prob2.tif", tmp_path / "mask2.tif",
+        band_order=["red", "green", "blue"], ssim_win_size=3,
+    )
+    with rasterio.open(mask_path) as src:
+        mask = src.read(1)
+    assert mask.shape == (6, 5)
+    assert mask.sum() == 0

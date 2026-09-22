@@ -13,6 +13,7 @@ import cv2
 import numpy as np
 import rasterio
 
+from .band_schema import resolve_band_roles
 from .spectral import robust_cva
 from .structural import ssim_change
 from .thresholding import compute_otsu_threshold
@@ -39,9 +40,16 @@ def edge_texture_change(gray1: np.ndarray, gray2: np.ndarray) -> np.ndarray:
 
 
 def to_grayscale(stack: np.ndarray, band_order: list[str]) -> np.ndarray:
-    """RGB 밴드 평균으로 그레이스케일을 만든다 (band_order: [B02,B03,B04,B08])."""
-    idx = {b: i for i, b in enumerate(band_order)}
-    rgb = stack[[idx["B04"], idx["B03"], idx["B02"]]].astype(np.float32)
+    """RGB 밴드 평균으로 그레이스케일을 만든다.
+
+    band_order는 Sentinel-2 이름(B02/B03/B04/B08)뿐 아니라 RGB(3-band)/
+    RGBNIR(4-band) 등 role 이름(red/green/blue[/nir])도 받는다(NIR가 있어도
+    그레이스케일 계산에는 쓰지 않는다 - 기존 true-color 관례와 동일).
+    band_schema.resolve_band_roles()가 두 표기를 동일하게 다루므로 기존
+    Sentinel-2 4-band 경로는 동작이 바뀌지 않는다.
+    """
+    roles = resolve_band_roles(band_order)
+    rgb = stack[[roles["red"], roles["green"], roles["blue"]]].astype(np.float32)
     return rgb.mean(axis=0)
 
 
@@ -54,6 +62,7 @@ def run_baseline_change_detection(
     ensemble_weights: dict[str, float] = None,
     threshold_method: str = "fixed",
     mask_threshold: float = 0.5,
+    ssim_win_size: int = 7,
 ) -> tuple[Path, Path, float]:
     """Baseline Change Detection 전체 실행: 3개 방법 -> 앙상블 -> 확률/마스크 raster 저장.
 
@@ -70,6 +79,11 @@ def run_baseline_change_detection(
             기본값으로 쓰지 않는다).
         mask_threshold: threshold_method="fixed"일 때 쓰는 고정 임계값. "otsu"가
             유효 픽셀 부족 등으로 계산 불가할 때의 fallback으로도 쓰인다.
+        ssim_win_size: ssim_change()에 그대로 전달하는 SSIM 윈도우 크기(홀수).
+            기본 7은 기존 Sentinel-2 스택(수백~수천 픽셀)에서 검증된 값이라
+            바꾸지 않는다. AOI가 매우 작아(예: 소규모 필지 몇 개) 한 변이
+            7픽셀 미만이면 scikit-image가 ValueError를 내므로, 그 경우에만
+            프로젝트 config에서 더 작은 홀수(예: 3, 5)로 낮춰 쓴다.
 
     Returns:
         (change_probability 경로, change_mask 경로, 실제 사용된 임계값)
@@ -100,8 +114,8 @@ def run_baseline_change_detection(
     gray1 = to_grayscale(t1, band_order)
     gray2 = to_grayscale(t2, band_order)
 
-    logger.info("[CHANGE] Method B: SSIM")
-    structural_score = ssim_change(gray1, gray2)
+    logger.info("[CHANGE] Method B: SSIM (win_size=%d)", ssim_win_size)
+    structural_score = ssim_change(gray1, gray2, win_size=ssim_win_size)
 
     logger.info("[CHANGE] Method C: edge/texture")
     edge_score = edge_texture_change(gray1, gray2)

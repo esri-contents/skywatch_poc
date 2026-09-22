@@ -82,6 +82,19 @@ def test_robust_cva_resists_single_extreme_pixel():
     assert region_cva > 0.1
 
 
+def test_robust_cva_supports_3band_rgb():
+    """robust_cva는 밴드 개수에 종속되지 않아야 한다 (3-band RGB 등 국가철도공단 Demo 입력)."""
+    rng = np.random.default_rng(3)
+    t1 = rng.integers(0, 1000, size=(3, 20, 20)).astype(np.uint16)
+    t2 = t1.copy()
+    t2[:, 5:10, 5:10] += 200
+    result = robust_cva(t1, t2)
+    assert result.shape == (20, 20)
+    assert result.min() >= 0
+    assert result.max() <= 1.0 + 1e-6
+    assert result[5:10, 5:10].mean() > result[15:, 15:].mean()
+
+
 def test_robust_cva_mad_near_zero_falls_back_to_std():
     """대부분 픽셀의 차분이 동일(MAD=0)해도 나눗셈 에러 없이 동작해야 한다."""
     t1 = np.zeros((2, 10, 10), dtype=np.float32)

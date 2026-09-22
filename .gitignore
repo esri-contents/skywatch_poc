@@ -51,11 +51,27 @@ data/projects/*/raw/
 data/projects/*/processed/
 data/projects/*/source_docs/
 data/projects/*/aoi/
+# 실제 벤더 계정에서 받은 단가/견적 등 상업적으로 민감할 수 있는 데이터
+# (예: SkyWatch 단가 CSV) - PUBLIC 저장소에 커밋하지 않는다.
+data/projects/*/metadata/
+# 위 metadata에서 파생된 리포트도 동일한 실제 단가를 그대로 담고 있어 함께 제외.
+outputs/kr_rail_nohari/reports/imagery_candidates.csv
+outputs/kr_rail_nohari/reports/cost_scenarios.csv
+outputs/kr_rail_nohari/reports/aerial_photography_rfq.md
+outputs/kr_rail_nohari/reports/work_summary_*.html
 outputs/arcgis/
 outputs/*/arcgis/
 outputs/*/comparisons/*/rasters/
 outputs/*/comparisons/*/vectors/
 outputs/*/comparisons/*/figures/
+# kr_rail_nohari 등 comparisons/ 중첩 없이 outputs/<id>/{rasters,vectors,figures}/를
+# 바로 쓰는 프로젝트 레이아웃 - 위와 동일한 정책(파생 지리정보/대용량 래스터 비커밋).
+outputs/*/rasters/**/*.tif
+outputs/*/rasters/**/*.tiff
+outputs/*/vectors/**/*.gpkg
+outputs/*/vectors/**/*.geojson
+outputs/*/vectors/**/*.shp
+outputs/*/figures/**/*.png
 
 # Jupyter
 .ipynb_checkpoints/

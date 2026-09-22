@@ -1,0 +1,58 @@
+{
+  "timestamp_utc": "2026-09-22T07:26:40.552448+00:00",
+  "seed": 42,
+  "git_commit": "e0a4a0ffab694c98cc933a94927dc95bf92bd982",
+  "inputs": {
+    "t1": {
+      "path": "data\\projects\\kr_rail_nohari\\processed\\imagery\\t1_stack.tif",
+      "sha256": "63e5c29e59e296ce50a93f6dd827b712f7140f12d3c27ac51aa311fc178356c6"
+    },
+    "t2": {
+      "path": "data\\projects\\kr_rail_nohari\\processed\\imagery\\t2_stack.tif",
+      "sha256": "68d577f7200a8d517b6aa8ef3f0b82728757edc7fd82975ae1c57e9c02d1f3c0"
+    },
+    "aoi": {
+      "path": "data\\projects\\kr_rail_nohari\\aoi\\nohari_aoi.geojson",
+      "sha256": "8590f0ff6fc51d83ca934ae234d92ee6a25fbde4071b04597bcfcc8bfb735a27"
+    },
+    "highlight_aoi": {
+      "path": "data\\projects\\kr_rail_nohari\\aoi\\nohari_aoi_149-2_only.geojson",
+      "sha256": "b7b98afcabdb66669bf101c65a6a9fc5d04fa3d80a3fffcca8a64bc81112576d"
+    }
+  },
+  "params": {
+    "threshold_method": "fixed",
+    "used_threshold": 0.5,
+    "min_component_area_m2": 25,
+    "band_order": [
+      "B02",
+      "B03",
+      "B04",
+      "B08"
+    ],
+    "grid": {
+      "crs": "EPSG:5186",
+      "resolution_m": 9.999605914334097,
+      "width": 7,
+      "height": 6
+    },
+    "confidence_thresholds": {
+      "high": 0.7,
+      "medium": 0.4
+    }
+  },
+  "package_versions": {
+    "rasterio": "1.5.1",
+    "geopandas": "1.1.4",
+    "shapely": "2.1.2",
+    "pyproj": "3.8.0",
+    "fiona": "1.10.1",
+    "numpy": "2.5.2",
+    "pandas": "3.0.5",
+    "opencv-python": "5.0.0.93",
+    "scikit-image": "0.26.0",
+    "scikit-learn": "1.9.0",
+    "libpysal": "4.15.0",
+    "esda": "2.10.0"
+  }
+}

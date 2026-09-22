@@ -29,6 +29,8 @@ import rasterio  # noqa: E402
 from matplotlib.patches import Patch  # noqa: E402
 from rasterio.plot import plotting_extent  # noqa: E402
 
+from ..change_detection.band_schema import resolve_band_roles  # noqa: E402
+
 logger = logging.getLogger("visualize")
 
 PRIORITY_COLORS = {"HIGH": "#e6194b", "MEDIUM": "#f58230", "LOW": "#ffdc32"}
@@ -56,15 +58,19 @@ def _read_true_color(
     band_order: list[str] = ("B02", "B03", "B04", "B08"),
     percentile: tuple[float, float] = (2, 98),
 ) -> tuple[np.ndarray, tuple, object]:
-    """스택 GeoTIFF를 (H, W, 3) 0~1 true-color 배열로 읽는다 (percentile stretch, NoData=0 제외)."""
-    idx = {b: i for i, b in enumerate(band_order)}
+    """스택 GeoTIFF를 (H, W, 3) 0~1 true-color 배열로 읽는다 (percentile stretch, NoData=0 제외).
+
+    band_order는 Sentinel-2 이름(B02/B03/B04/B08)뿐 아니라 RGB/RGBNIR 등 role
+    이름(red/green/blue[/nir])도 받는다 - band_schema.resolve_band_roles() 참고.
+    """
+    roles = resolve_band_roles(band_order)
     with rasterio.open(stack_path) as src:
         arr = src.read().astype(np.float32)
         extent = plotting_extent(src)
         transform = src.transform
         nodata = src.nodata
 
-    rgb = arr[[idx["B04"], idx["B03"], idx["B02"]]]
+    rgb = arr[[roles["red"], roles["green"], roles["blue"]]]
     valid = np.all(arr != nodata, axis=0) if nodata is not None else np.ones(arr.shape[1:], dtype=bool)
 
     out = np.zeros((rgb.shape[1], rgb.shape[2], 3), dtype=np.float32)
@@ -396,6 +402,88 @@ def plot_gi_star_hotspots(
     ax.set_xticks([])
     ax.set_yticks([])
     ax.set_title("Getis-Ord Gi* 공간 hotspot 분류")
+
+    fig.tight_layout()
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+    logger.info("[VIZ] 저장 완료: %s", out_path)
+    return out_path
+
+
+def plot_imagery_change_demo(
+    t1_path: str | Path,
+    t2_path: str | Path,
+    change_prob_path: str | Path,
+    change_polygons: "gpd.GeoDataFrame | str | Path",
+    out_path: str | Path,
+    band_order: list[str] = ("B02", "B03", "B04", "B08"),
+    t1_label: str = "T1",
+    t2_label: str = "T2",
+    highlight_geom: "gpd.GeoDataFrame | str | Path | None" = None,
+    highlight_label: str = "실제 필지 경계",
+) -> Path:
+    """건물 footprint/분류 없이 T1/T2/Change Probability/Change Polygon만 비교하는 경량 시각화.
+
+    plot_before_after_grid()는 building_change_results(change_type 분류 컬럼)를
+    필수로 요구해서, 건물 footprint 없이 실행하는 imagery-only 파이프라인
+    (src/imagery_change_pipeline.py)에는 억지로 맞지 않는다. 이 함수는 그
+    대신 순수 변화 후보(polygon) 자체만 표시한다. band_order는 Sentinel-2/
+    RGB/RGBNIR을 모두 지원한다(_read_true_color 참고).
+
+    highlight_geom: 분석 범위(AOI)가 실제 필지보다 넓은 "Demo용 컨텍스트"일 때
+    (예: 노하리 149-2처럼 실제 필지가 위성 해상도 대비 너무 작아 분석 범위를
+    넓힌 경우), 실제 필지 경계를 모든 패널에 겹쳐 그려 "이 중 어디까지가 실제
+    대상인지"를 명확히 구분해준다. None이면 그리지 않는다(기존 호출과 동일).
+    """
+    t1_rgb, extent, _ = _read_true_color(t1_path, band_order=band_order)
+    t2_rgb, _, _ = _read_true_color(t2_path, band_order=band_order)
+
+    with rasterio.open(change_prob_path) as src:
+        prob = src.read(1)
+        dst_crs = src.crs
+
+    if isinstance(change_polygons, (str, Path)):
+        change_polygons = gpd.read_file(change_polygons)
+    if change_polygons.crs is not None:
+        change_polygons = change_polygons.to_crs(dst_crs)
+
+    if highlight_geom is not None:
+        if isinstance(highlight_geom, (str, Path)):
+            highlight_geom = gpd.read_file(highlight_geom)
+        if highlight_geom.crs is not None:
+            highlight_geom = highlight_geom.to_crs(dst_crs)
+
+    fig, axes = plt.subplots(1, 4, figsize=(20, 5.5))
+
+    axes[0].imshow(t1_rgb, extent=extent)
+    axes[0].set_title(f"T1 · {t1_label}")
+
+    axes[1].imshow(t2_rgb, extent=extent)
+    axes[1].set_title(f"T2 · {t2_label}")
+
+    axes[2].imshow(t2_rgb * 0.5, extent=extent)
+    prob_masked = np.ma.masked_where(prob < 0.05, prob)
+    axes[2].imshow(prob_masked, extent=extent, cmap="magma", vmin=0, vmax=1, alpha=0.85)
+    axes[2].set_title("Change Probability")
+
+    axes[3].imshow(t2_rgb * 0.5 + 0.25, extent=extent)
+    if len(change_polygons):
+        change_polygons.plot(ax=axes[3], facecolor="none", edgecolor="#e6194b", linewidth=1.2)
+    axes[3].set_title(f"Potential Change ({len(change_polygons)}건)")
+
+    if highlight_geom is not None and len(highlight_geom):
+        for ax in axes:
+            highlight_geom.boundary.plot(ax=ax, color="#00e5ff", linewidth=2.0, linestyle="--")
+        axes[0].legend(
+            handles=[Patch(facecolor="none", edgecolor="#00e5ff", label=highlight_label, linestyle="--")],
+            loc="lower left", fontsize=7, framealpha=0.85,
+        )
+
+    for ax in axes:
+        ax.set_xticks([])
+        ax.set_yticks([])
 
     fig.tight_layout()
     out_path = Path(out_path)

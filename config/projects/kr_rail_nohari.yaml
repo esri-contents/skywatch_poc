@@ -1,0 +1,221 @@
+# 국가철도공단 - 화성시 팔탄면 노하리 149-2 일대 변화탐지 Demo
+#
+# 이 프로젝트는 src/imagery_change_pipeline.py(건물 footprint 불필요, 영상만으로
+# 실행하는 경량 파이프라인) 전용이다. src/pipeline.py::run_change_detection()이
+# 요구하는 buildings/building_register/classification/priority_scoring 섹션은
+# 이 프로젝트에는 없다 - 국가철도공단 1차 Demo 범위에서 제외되었기 때문이다.
+#
+# 중요: 아래 날짜/영상/AOI는 실제 확정된 값이 아니다. 실제 데이터 확보 전까지는
+# 임의 좌표/임의 촬영일을 만들어 넣지 않는다 (섹션 8/10 참고).
+
+project:
+  id: kr_rail_nohari
+  name: "국가철도공단 노하리 변화탐지 Demo"
+  short_label: "국가철도공단 노하리"
+  customer: "국가철도공단"
+  location: "경기도 화성시 팔탄면 노하리 149-2"
+  purpose: "서해선 사업 전·후 지장물 및 시설물 변화 후보 확인 (Decision Support - 최종 지장물/보상 판정 자료 아님)"
+  # 화성시는 hwaseong_jinan 프로젝트와 동일하게 EPSG:5186(Korea 2000 / Central
+  # Belt 2010)의 중부원점 적용범위(125.5~128.5E)에 들어간다 - config/config.yaml의
+  # crs.decision_note와 동일한 근거로 이 프로젝트도 EPSG:5186을 그대로 쓴다.
+  analysis_crs: "EPSG:5186"
+  reference_period_note: >
+    분석 기준 시점은 원래 "서해선 사업 전후(2014년 전후)"로 논의되었으나,
+    2026-09-22 실측 확인 결과 Sentinel-2는 2015-11-30 이전 장면이 이 AOI
+    인근에 0건이다(Sentinel-2A 위성 자체가 2015-06-23 발사). T1을 Sentinel-2가
+    실제로 존재하는 가장 이른 시점 근방으로 조정했다. 아래
+    imagery_archive_candidates/실행결과는 실제 GeoTIFF를 다운로드하고
+    change detection까지 완료한 결과다(2026-09-22).
+
+  # 2026-09-22 Microsoft Planetary Computer STAC 실측 조회 + 실제 SCL(구름
+  # 분류) 픽셀 확인 결과. 처음엔 T1=2015-11-30(타일 T52SBG 기준 구름 19.75%)을
+  # 검토했으나, 실제 149-2 필지 정확한 centroid로 재조회하니 이 지점은
+  # T52SCG 타일에 속하고, 2015-11-30 장면의 해당 픽셀 SCL 값이 9(Cloud High
+  # Probability) - 정확히 그 지점이 구름에 가려져 있었다. 픽셀 단위로
+  # SCL=5(Not Vegetated, 맑음)인 후보로 교체했다.
+  imagery_archive_candidates:
+    t1:
+      collection: "sentinel-2-l2a"
+      scene_id: "S2A_MSIL2A_20160109T022052_R003_T52SCG_20210527T124250"
+      date: "2016-01-09"
+      cloud_cover_pct: 1.07
+      scl_at_parcel: 5  # Not Vegetated - 실제 149-2 필지 픽셀에서 맑음 확인
+      status: "다운로드 및 change detection 실행 완료 (2026-09-22)"
+    t2:
+      collection: "sentinel-2-l2a"
+      scene_id: "S2B_MSIL2A_20251112T021829_R003_T52SCG_20251112T041340"
+      date: "2025-11-12"
+      cloud_cover_pct: 0.06
+      scl_at_parcel: 5  # Not Vegetated - 실제 149-2 필지 픽셀에서 맑음 확인
+      status: "다운로드 및 change detection 실행 완료 (2026-09-22)"
+
+  # 2026-09-22 실행 결과 요약 (outputs/kr_rail_nohari/analysis_summary.json 원본 참고).
+  # 149-2 필지(254m^2)는 10m 해상도로는 3x3 픽셀에 불과해 SSIM(최소 7x7 필요)이
+  # 자체적으로 실패해, 다운로드한 620m x 620m 컨텍스트 창 전체를 Demo 분석범위로
+  # 확장해 실행했다(nohari_demo_context_aoi.geojson, 실제 필지 아님 - 아래 aoi
+  # 섹션의 nohari_aoi.geojson이 진짜 필지).
+  first_run_findings:
+    - run: "620m x 620m demo_context_aoi (2026-09-22, 확장 결정 전 임시 실행)"
+      change_polygon_count: 5
+      total_change_area_m2: 26197.94
+      max_change_score: 0.7239
+      parcel_intersects_any_change: false  # 149-2 필지 자체는 검출된 5개 폴리곤 중 어느 것과도 겹치지 않음(최근접 97m)
+      visual_note: >
+        T2(2025-11-12) 영상에서 T1(2016-01-09)에는 없던 대각선 선형 구조물이
+        뚜렷이 나타난다. OpenStreetMap Overpass API로 교차 확인한 결과, 이
+        지점 800m 이내에 실제 "서해선"(railway=rail) 선형이 존재해 시기·위치가
+        부합한다 - 해당 선형이 이 기간에 개통된 서해선 구간일 가능성이 높다.
+        다만 그 선형 자체는 opening(3x3) 형태학 연산으로 얇은 구조가 지워져
+        5개 검출 폴리곤에는 포함되지 않았고, 검출된 5개는 선형 주변의 넓은
+        면적 변화(공사장/가설시설 등으로 추정)다.
+    - run: "149-family 공식 AOI (2026-09-22, aoi_expansion_decision 확정 후 실행)"
+      change_polygon_count: 0
+      total_change_area_m2: 0.0
+      grid: "7x6 px @ 10m (ssim_win_size=5 override 적용)"
+      note: >
+        149-family(149/149-1/149-2/149-3/149-4, 1,980m^2) 자체에는 threshold=0.5
+        기준 검출된 변화가 없다. change_probability 값 자체는 중간 수준(자주색)으로
+        나타나 완전히 무변화는 아니지만 보수적 기본 임계값을 넘지 못했다. 픽셀 수가
+        7x6으로 여전히 매우 작아(통계적으로 신뢰하기 어려움) 이 결과를 "실제 지장물
+        없음"으로 해석하면 안 된다 - 위 620m 컨텍스트 실행에서 확인된 서해선 신규
+        선형이 이 필지들에서 90~150m 이내로 근접해 있어, 실제 영향 여부는 SkyWatch/
+        항공사진 고해상도 영상으로 별도 확인이 반드시 필요하다.
+
+aoi:
+  status: confirmed_parcel
+  provider: "VWorld WFS (lp_pa_cbnd_bubun)"
+  pnu: "4159134027101490002"
+  jibun: "149-2 답"
+  full_address: "경기도 화성시 만세구 팔탄면 노하리 149-2"
+  area_m2: 254.11
+  gosi_year_month: "2025-01"
+  confirmed_at: "2026-09-22"
+  source_script: "src/data/build_kr_rail_nohari_aoi.py"
+  note: >
+    2026-09-22, 사용자가 발급한 VWorld API 키로 lp_pa_cbnd_bonbun/bubun 레이어를
+    노하리 인근 bbox로 조회해 지번(149-2)이 정확히 일치하는 필지 1건을 확인했다.
+    면적이 254m^2로 매우 작은 좁고 긴 필지(답)라 Sentinel-2(10m)로는 3x3 픽셀
+    수준만 확보되어 SSIM 등 change detection에 픽셀 수가 부족함을 실측
+    확인했다(2026-09-22 첫 실행 시도, ValueError: win_size exceeds image
+    extent). 임시 조치로 아래 demo_context_aoi(주변 620x620m)를 Demo 실행
+    범위로 넓혔다 - 실제 149-2 보상 범위는 이 필지(nohari_aoi.geojson)뿐이며,
+    demo_context_aoi 기준 검출 결과를 149-2 필지의 실제 변화로 착각하면 안
+    된다. AOI를 인접 필지까지 공식적으로 포함할지는 사업부서 확인이 필요하다
+    (아래 aoi_expansion_decision_pending 참고).
+
+aoi_expansion_decision:
+  status: "확정 - 2026-09-22, 149-family로 공식 AOI 확장"
+  rationale: >
+    VWorld 연속지적도 실측 확인 결과, 149번지가 149/149-1/149-2/149-3/149-4
+    5필지로 분필되어 있고 전부 149-2와 맞닿아 있다(지목 전부 "답"). 하나의
+    원 필지가 정확히 5조각으로 나뉜 패턴은 보상/수용 경계에 맞춘 분필로
+    보기에 충분히 강력한 근거로 판단해, 149-2 단독(254m^2, 3x3px) 대신
+    149-family 전체(1,980.34m^2)를 공식 AOI로 확정했다. 기존 149-2 단일
+    필지는 nohari_aoi_149-2_only.geojson으로 보존해 Demo 이미지에 "실제
+    최초 대상 필지" 하이라이트로 계속 표시한다(--highlight-aoi).
+  member_pnus:
+    - "4159134027101490000"  # 149 (원 필지)
+    - "4159134027101490001"  # 149-1
+    - "4159134027101490002"  # 149-2 (최초 대상 필지)
+    - "4159134027101490003"  # 149-3
+    - "4159134027101490004"  # 149-4
+
+paths:
+  data_root: "data/projects/kr_rail_nohari"
+  output_root: "outputs/kr_rail_nohari"
+  aoi: "data/projects/kr_rail_nohari/aoi/nohari_aoi.geojson"  # 149-family (공식, 1,980.34m^2)
+  official_parcel_aoi: "data/projects/kr_rail_nohari/aoi/nohari_aoi_149-2_only.geojson"  # 149-2 단일 필지 (하이라이트용)
+  demo_context_aoi: "data/projects/kr_rail_nohari/aoi/nohari_demo_context_aoi.geojson"  # 참고용 - family AOI로 충분해 더 이상 기본 실행에 쓰지 않음
+
+imagery:
+  # 실제 GeoTIFF에 band description(rasterio dst.descriptions)이 있으면 그것을
+  # 우선 쓰고, 없을 때만 아래 band_order를 fallback으로 쓴다(밴드 순서를 임의로
+  # 추측하지 않는다 - band_schema.determine_band_order 참고).
+  # band_schema는 문서화 목적 라벨일 뿐, 실제 동작은 band_order 길이/이름으로 결정된다.
+  band_schema: RGBNIR
+  band_order: ["red", "green", "blue", "nir"]
+  # null이면 T1/T2를 분석 CRS로 재투영했을 때의 픽셀 크기 중 더 낮은(coarser)
+  # 해상도를 자동으로 쓴다 (preprocessing.raster_preprocess.align_imagery_pair).
+  resolution_m: null
+
+analysis:
+  # postprocess.morphology(opening/closing kernel) 등 여기 없는 값은 base_config에서
+  # 가져온다 (hwaseong_jinan.yaml과 동일한 패턴).
+  base_config: "config/config.yaml"
+  # config/config.yaml과 동일한 원칙: threshold_method=fixed를 기본으로 유지하고,
+  # 여기서 override만 한다. otsu 자동 최적화 등 새 알고리즘은 도입하지 않는다.
+  threshold_method: "fixed"
+  mask_threshold: 0.5
+  min_component_area_m2: 25
+  # 149-family AOI가 10m 격자 기준 7x6 픽셀로 작아 SSIM 기본 win_size=7이
+  # "win_size exceeds image extent"로 실패함을 실측 확인(2026-09-22).
+  # change_detection.baseline.run_baseline_change_detection에 새로 노출한
+  # ssim_win_size로 낮춘다 - 다른 프로젝트(화성진안/창릉)는 이 키가 없어
+  # 기존 기본값 7을 그대로 쓴다.
+  ssim_win_size: 5
+  # change_polygons.confidence 컬럼 산정 규칙 (mean_change_score 기준, 명시적 config 값).
+  confidence_thresholds:
+    high: 0.7
+    medium: 0.4
+
+analysis_limitations:
+  - "본 결과는 영상 기반 자동 변화탐지 결과이며 보상 대상 지장물의 존재 여부 또는 보상 여부를 최종 판정하기 위한 자료가 아니다."
+  - "사업 전·후 영상에서 변화 가능성이 높은 영역을 우선 선별하여 담당자의 확인 업무를 지원하기 위한 Decision Support 자료이다."
+  - "계절 차이, 태양고도, 그림자, 센서 차이, 해상도 차이, 촬영각, 정합오차, 식생 변화 등이 오탐(false positive)을 유발할 수 있다."
+
+# 비용 비교 모듈(src/cost/comparison.py) 입력. 확인되지 않은 값은 null로 둔다 -
+# 임의 가격/할인율/견적을 만들어 넣지 않는다(#32 원칙).
+cost_comparison:
+  # 확정된 것은 149-2 필지 하나(254.11 m^2, 위 aoi 섹션)뿐이다. 실제 영상
+  # 촬영/비용 비교 대상 면적은 서해선 사업 corridor 전체(다수 필지)일 가능성이
+  # 높으므로, 한 필지 면적을 그대로 area_km2로 쓰지 않고 사업부서 확인 전까지
+  # null로 둔다(#32 원칙 - 임의로 범위를 정하지 않는다).
+  area_km2: null
+  acquisition_count: 2   # 사업 전/후 비교이므로 기본 2회
+
+  skywatch:
+    # 2026-09-22, SkyWatch Content Store for ArcGIS(contentstore.skywatch.com)
+    # 실제 화면 export로 단가를 확인했으나, 이 저장소는 PUBLIC이라 실제 계정
+    # 단가를 소스에 커밋하지 않는다(#32 원칙의 연장 - 실제 값이 없어서가
+    # 아니라 공개하지 않기로 한 결정). 실측값은 로컬(비커밋) 파일 참고:
+    # data/projects/kr_rail_nohari/metadata/skywatch_imagery_candidates.csv
+    # (.gitignore 처리됨). 로컬에서 실제 비용 계산을 돌리려면 이 값을
+    # 임시로 채워서 실행한 뒤 커밋하지 않도록 주의할 것.
+    unit_price_per_km2: null
+    # 화면 export에 "최소 주문" 항목이 별도로 표시되지 않아 null로 둔다(#32 원칙).
+    minimum_order_cost: null
+    processing_cost: null
+    # SkyWatch는 USD가 아니라 자체 "Credits" 단위로 과금한다 - 실측 확인.
+    currency: Credits
+
+  aerial:
+    mobilization_cost: null
+    unit_price_per_km2: null
+    processing_cost: null
+    currency: KRW
+
+  exchange_rate:
+    # SkyWatch(Credits)와 항공촬영(KRW)을 비교하려면 Credits->KRW 환율이 필요하다.
+    # 이건 계정 결제/계약 조건에 따라 정해지는 값이라 공개 시세로 조회할 수 없다 -
+    # SkyWatch 영업 담당자 또는 결제 내역에서 확인해야 한다(#28/#32 원칙 - 추측 금지).
+    credits_to_krw: null
+    source: null
+    reference_date: null
+    # 참고용(사업부서가 결정하면 교체) - 2026-09-22 웹 조회 mid-market rate,
+    # 은행 고시환율(매매기준율) 아님. 현재 계산에는 쓰이지 않는다(USD 가격이 없음).
+    usd_to_krw: 1374.90
+    usd_to_krw_source: "https://wise.com/us/currency-converter/usd-to-krw-rate (mid-market rate)"
+    usd_to_krw_reference_date: "2026-09-22"
+
+  scenarios_km2: [10, 50, 100, 500]
+
+imagery_candidates:
+  csv_path: "data/projects/kr_rail_nohari/metadata/skywatch_imagery_candidates.csv"
+  note: >
+    2026-09-22, SkyWatch Content Store for ArcGIS(contentstore.skywatch.com)
+    실제 화면 export 136건(부분 - 화면 스크롤/50,000자 제한으로 일부만 확보,
+    2023-01~2026-09 범위). 화면에 scene_id가 노출되지 않아 날짜/해상도/밴드/
+    off-nadir각으로 합성 ID를 만들었다(VANTOR_<res>_<date>_<band>_off<각도>).
+    area_km2는 각 장면의 전체 주문가능 footprint 면적이지 노하리 149-family
+    AOI(0.00198km^2)만의 면적이 아니다 - 실제 주문 시 AOI 면적 기준으로
+    재계산해야 한다.

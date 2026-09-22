@@ -1,0 +1,38 @@
+{
+  "project": "국가철도공단 노하리 변화탐지 Demo",
+  "project_id": "kr_rail_nohari",
+  "t1_date": "2016-01-09",
+  "t2_date": "2025-11-12",
+  "change_polygon_count": 0,
+  "total_change_area_m2": 0.0,
+  "mean_change_area_m2": 0.0,
+  "max_change_score": 0.0,
+  "threshold_method": "fixed",
+  "threshold": 0.5,
+  "band_order": [
+    "B02",
+    "B03",
+    "B04",
+    "B08"
+  ],
+  "alignment": {
+    "dx_px": -0.004807214718312025,
+    "dy_px": -0.09255841374397278,
+    "displacement_px": 0.09268316604512604,
+    "displacement_m": 0.9267951353440516,
+    "ecc_score": 0.9966361961487012,
+    "converged": true
+  },
+  "grid": {
+    "crs": "EPSG:5186",
+    "resolution_m": 9.999605914334097,
+    "width": 7,
+    "height": 6
+  },
+  "analysis_limitations": [
+    "본 결과는 영상 기반 자동 변화탐지 결과이며 보상 대상 지장물의 존재 여부 또는 보상 여부를 최종 판정하기 위한 자료가 아니다.",
+    "사업 전·후 영상에서 변화 가능성이 높은 영역을 우선 선별하여 담당자의 확인 업무를 지원하기 위한 Decision Support 자료이다.",
+    "계절 차이, 태양고도, 그림자, 센서 차이, 해상도 차이, 촬영각, 정합오차, 식생 변화 등이 오탐(false positive)을 유발할 수 있다."
+  ],
+  "highlight_note": "AOI(data\\projects\\kr_rail_nohari\\aoi\\nohari_aoi.geojson) 안에 data/projects/kr_rail_nohari/aoi/nohari_aoi_149-2_only.geojson로 표시된 부분 영역이 별도로 강조되어 있다(예: 원래 요청받은 단일 필지가 해상도 문제로 인접 필지를 포함한 더 넓은 공식 AOI로 확장된 경우). 위 change_polygon_count/total_change_area_m2 등은 AOI 전체 기준이며, 강조 영역만의 결과가 아니다. before_after_change.png에 강조 영역 경계가 점선으로 표시된다."
+}

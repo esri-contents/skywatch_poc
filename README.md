@@ -430,3 +430,82 @@ cost_comparison:
 그림자, 센서 차이, 해상도 차이, 촬영각, 정합오차, 식생 변화. 또한 "2014년
 전후"는 서해선 사업 시기를 가리키는 참고값일 뿐 실제 T1/T2 영상 촬영일이
 아니다 - 실제 촬영일이 확정되면 `--t1-date`/`--t2-date`로 명시해야 한다.
+
+## 한국철도공단 단양 매포읍 Sentinel-2 다중시점 Screening (SkyWatch 구매 전 단계)
+
+중앙선 도담~영천 복선전철 토지보상 Demo 후보지(충북 단양군 매포읍 매포리·하괴리)에서
+**SkyWatch 50cm 아카이브를 구매하기 전에** Sentinel-2 무료 영상으로 변화 Screening을 먼저 수행한다.
+
+| 단계 | 도구 | 질문 |
+|---|---|---|
+| Stage 1 (이 PoC) | Sentinel-2 10m, 넓은 Master AOI | **어디가** 바뀌었는가 → hotspot / ROI / 촬영연도 제안 |
+| Stage 2 (향후) | SkyWatch 50cm, 추천 ROI | **무엇이** 생기고 없어지고 어떻게 변했는가 |
+
+Sentinel-2 결과는 change candidate / hotspot 이며 지장물·보상대상·불법건축물을 확정하지 않는다.
+Sentinel-2는 2015-06 이후만 존재하므로 2016년 이후만 Screening한다(착공 2015 이전은 범위 밖).
+비용/가격/법적 기준일은 이 코드가 다루지 않는다.
+
+### 구성
+
+- `config/projects/kr_rail_danyang.yaml` - AOI(잠정), 연도/계절, 연도쌍, hotspot/ROI 파라미터
+- `src/data/build_kr_rail_danyang_aoi.py` - VWorld 법정리 경계(매포리+하괴리) + OSM 철도 수집
+- `src/imagery/providers.py` - Imagery Provider (`Sentinel2Provider`, 향후 SkyWatch용 `LocalGeoTiffProvider`)
+- `src/multitemporal_pipeline.py` - select → run → hotspots → report (연도쌍별 변화탐지는 기존
+  `src/imagery_change_pipeline.py` 재사용)
+- `src/hotspot.py` - polygon 군집 → hotspot → ROI → 촬영연도 제안
+- `src/evaluation/multitemporal_figures.py`, `multitemporal_report.py` - figure 6종 + Markdown 보고서
+
+### 실행 방법 (Runbook)
+
+```bash
+# 1. dependency 설치 (위 Installation 참고). .env에 VWORLD_API_KEY 필요
+pip install -r requirements.txt
+
+# 2. config 확인: config/projects/kr_rail_danyang.yaml (aoi.status=provisional 인지, years/season)
+
+# 3. AOI(+철도) 확보 -> data/projects/kr_rail_danyang/aoi/
+python -m src.data.build_kr_rail_danyang_aoi
+
+# 4. 영상 검색 + 5. 다운로드(AOI window만, cache) : outputs/.../reports/scene_selection.json 에 선택 근거 기록
+python -m src.multitemporal_pipeline --project config/projects/kr_rail_danyang.yaml --phase A --stage select
+
+# 6. Baseline(Phase A, 2016 vs 2026 한 쌍) - 전체 흐름 검증
+python -m src.multitemporal_pipeline --project config/projects/kr_rail_danyang.yaml --phase A --stage all
+
+# 7. Multi-temporal(Phase B, 연속 연도쌍 + 장기쌍)
+python -m src.multitemporal_pipeline --project config/projects/kr_rail_danyang.yaml --phase B --stage all
+
+# 9. 단일 HTML 보고서(이미지·차트 내장, 약 2.5MB) -> outputs/kr_rail_danyang/reports/kr_rail_danyang_report.html
+python -m src.evaluation.generate_multitemporal_html_report --project config/projects/kr_rail_danyang.yaml
+
+# 8. hotspot / report 만 다시 만들기 (변화탐지 결과 재사용)
+python -m src.multitemporal_pipeline --project config/projects/kr_rail_danyang.yaml --phase B --stage hotspots
+python -m src.multitemporal_pipeline --project config/projects/kr_rail_danyang.yaml --phase B --stage report
+```
+
+`--stage select|run|hotspots|report|all`, `--force`(연도쌍 결과 재계산). 변화 polygon이 0건이어도 정상 종료한다.
+
+> **Windows 주의**: 시스템 환경변수 `PROJ_LIB`가 PostgreSQL/PostGIS의 구버전 `proj.db`를 가리키면
+> `EPSG:5186 unknown` 오류가 난다. 해당 셸에서만 rasterio 번들 PROJ를 쓰도록 지정하면 된다
+> (시스템 설정은 바꾸지 않음): `PROJ_LIB`/`PROJ_DATA`를 `<site-packages>/rasterio/proj_data`,
+> `GDAL_DATA`를 `<site-packages>/rasterio/gdal_data`로 설정.
+
+### 산출물 (저장소의 기존 `outputs/<project>/{rasters,vectors,figures,reports}` 관례를 따름)
+
+| 경로 | 내용 |
+|---|---|
+| `outputs/kr_rail_danyang/comparisons/<y1>_<y2>/` | 연도쌍별 change_probability/mask(GeoTIFF), change_polygons(GPKG/GeoJSON), summary |
+| `outputs/kr_rail_danyang/vectors/` | `change_polygons_all`, `hotspots`, `skywatch_roi` (GPKG + GeoJSON, ArcGIS Pro/Portal 바로 사용 가능) |
+| `outputs/kr_rail_danyang/rasters/change_intensity.tif` | 연도쌍 change score 최대값 |
+| `outputs/kr_rail_danyang/figures/` | fig1~fig6 (Master AOI / Before-After / Intensity / Polygon / Hotspot / ROI) |
+| `outputs/kr_rail_danyang/reports/` | `sentinel2_baseline_report.md`, `scene_selection.json`, `pair_change_summary.csv`, `hotspots.csv`, `skywatch_roi.csv`, `recommended_acquisition_years.json` |
+
+래스터/벡터/PNG는 저장소 정책상 커밋하지 않는다(`.gitignore`). 기존 `src/publish/arcgis_online.py`로
+publish할 때는 위 GPKG/GeoJSON을 입력으로 쓸 수 있다(자격증명은 `.env`).
+
+### SkyWatch 50cm로 교체하려면
+
+`imagery.provider: local_geotiff` + `imagery.local_files`에 **실제 구매한** GeoTIFF 경로/촬영일/scene_id를
+기입하면 같은 파이프라인이 입력으로 받는다. 단 50cm에서는 `resolution_m`, `min_component_area_m2`,
+morphology/SSIM/ECC 파라미터를 별도 project config에서 다시 정해야 한다(10m 파라미터 그대로 사용 불가).
+SkyWatch Content Store 주문/다운로드 provider는 구현하지 않았다.

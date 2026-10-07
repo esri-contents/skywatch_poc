@@ -1,0 +1,6 @@
+﻿roi_id,hotspot_id,roi_size_m,roi_area_km2,roi_clipped
+ROI_01,HS_01,1000,1.0,True
+ROI_02,HS_02,1000,1.0,True
+ROI_03,HS_03,1000,1.0,True
+ROI_04,HS_04,1000,1.0,True
+ROI_05,HS_05,1000,1.0,True

@@ -1,0 +1,101 @@
+# 한국철도공단 토지보상 Demo - 중앙선 도담~영천 복선전철, 단양군 매포읍 매포리·하괴리 일대
+# Sentinel-2 기반 다중시점 변화 Screening PoC (SkyWatch 50cm 구매 전 단계).
+#
+# 이 프로젝트는 src/multitemporal_pipeline.py 전용이다. 연도쌍별 변화탐지는 기존
+# src/imagery_change_pipeline.py(run_imagery_change_detection)를 그대로 재사용한다.
+#
+# 역할 분담:
+#   Sentinel-2 (10m)   : "어디가 바뀌었는가?"  -> change hotspot / 고해상도 ROI 추천
+#   SkyWatch 50cm(향후): "무엇이 생겼고 없어졌고 형태가 어떻게 변했는가?"
+# Sentinel-2 결과만으로 지장물/보상대상/불법건축물을 확정하지 않는다.
+
+project:
+  id: kr_rail_danyang
+  name: "한국철도공단 토지보상 Demo - 단양 매포읍 변화 Screening"
+  short_label: "한국철도공단 단양 매포"
+  customer: "한국철도공단"
+  location: "충청북도 단양군 매포읍 매포리·하괴리 일대"
+  purpose: "SkyWatch 50cm 구매 전 Sentinel-2 시계열 Screening (Decision Support - 지장물/보상 판정 자료 아님)"
+  analysis_crs: "EPSG:5186"   # 매포읍 경도 128.3E - 중부원점 적용범위(125.5~128.5E) 이내, config/config.yaml과 동일 근거
+  context:
+    # 아래 날짜들은 사업 개요 context일 뿐이며 보상 기준일/법적 기준일/지장물 판정 기준일이 아니다.
+    railway_project: "중앙선 도담~영천 복선전철"
+    construction_start: {"도담~안동": "2015-05", "안동~영천": "2015-11"}
+    double_track_opening: {"도담~안동": "2022-07", "안동~영천": "2024-12-21"}
+
+aoi:
+  status: provisional
+  source: "VWorld Data API LT_C_ADRI_INFO (법정리 경계) - 매포읍 매포리 + 하괴리 dissolve"
+  source_script: "src/data/build_kr_rail_danyang_aoi.py"
+  note: >
+    잠정 AOI. 행정경계(법정리)이며 사업구역/보상구역 경계가 아니다. 사용자가 검토 중인
+    SkyWatch 검색 범위(약 22.3 km^2)의 geometry는 저장소에 없어 임의로 재현하지 않았다
+    (실측 AOI 면적은 outputs/kr_rail_danyang/reports/sentinel2_baseline_report.md 참고).
+    공식 SkyWatch 검색 geometry를 받으면 paths.aoi만 교체하면 된다.
+  railway_source: "OpenStreetMap Overpass (railway=rail, 중앙선) - 공식 노선 geometry 아님"
+
+paths:
+  data_root: "data/projects/kr_rail_danyang"
+  output_root: "outputs/kr_rail_danyang"
+  aoi: "data/projects/kr_rail_danyang/aoi/danyang_master_aoi.geojson"
+  ri_boundaries: "data/projects/kr_rail_danyang/aoi/danyang_ri_all.geojson"
+  railway: "data/projects/kr_rail_danyang/aoi/osm_railway.geojson"
+  imagery_dir: "data/projects/kr_rail_danyang/raw/sentinel2"       # raw/ 는 .gitignore 처리됨
+  skywatch_dir: "data/projects/kr_rail_danyang/raw/skywatch"       # 향후 50cm GeoTIFF 위치(현재 비어 있음)
+
+imagery:
+  provider: sentinel2          # sentinel2 | local_geotiff (향후 SkyWatch 50cm)
+  band_order: ["B02", "B03", "B04", "B08"]
+  resolution_m: 10             # 모든 연도쌍이 동일 grid를 쓰도록 고정(change intensity 합성에 필요)
+  # Sentinel-2는 2015-06 이후에만 존재 - 2010~2015 구간은 Sentinel-2로 Screening하지 않는다.
+  years: [2016, 2018, 2020, 2022, 2024, 2026]
+  # 동일 계절 비교(식생 위상 차이로 인한 오탐 최소화). 4~5월: 전 연도 구름 적은 장면 확인됨.
+  season: {start: "04-10", end: "05-31", target_mmdd: "05-01"}
+  max_scene_cloud_pct: 20
+  # AOI polygon 내부 SCL clear 비율 하한. 0.98은 2018년 후보 최고치(0.978)가 못 넘어 0.95로 낮춤:
+  # 이 AOI는 밝은 채석장/산업 지표가 많아 SCL이 일부를 구름/눈으로 오분류해 구름이 거의 없는
+  # 장면(scene cloud<2%)도 AOI clear가 97~99%에 머문다(2016/2026 선택본도 98~99%). 선택 후보의
+  # scene cloud/AOI clear는 scene_selection.json에 모두 남긴다.
+  min_aoi_clear_fraction: 0.95
+  # local_geotiff provider용 (향후 SkyWatch). 날짜/scene_id는 실제 메타데이터만 기입.
+  local_files: {}
+
+pairs:
+  # Phase A: 최소 실행 경로 - 첫/마지막 연도 한 쌍으로 end-to-end 검증
+  phase_a: [2016, 2026]
+  # Phase B: 연속 연도쌍 + 장기 비교
+  consecutive: true
+  long_term: [[2016, 2026], [2020, 2026]]
+
+analysis:
+  base_config: "config/config.yaml"
+  threshold_method: "fixed"
+  mask_threshold: 0.5
+  # 10m 해상도에서 1 pixel = 100 m^2. 노이즈 억제를 위해 4 pixel(400 m^2) 이상만 후보로 유지.
+  min_component_area_m2: 400
+  ssim_win_size: 7
+  confidence_thresholds: {high: 0.7, medium: 0.4}
+
+hotspot:
+  top_n: 5
+  cluster_distance_m: 60        # 이 거리 이내의 변화 polygon은 하나의 hotspot으로 묶는다
+  min_hotspot_area_m2: 1000     # 이보다 작은 군집은 hotspot에서 제외(10 pixel 미만)
+  recommend_min_area_m2: 5000   # 고해상도 확인 추천 최소 면적
+  recommend_min_score: 0.5      # 고해상도 확인 추천 최소 change_score
+  buffer_m: 300                 # ROI = hotspot bounds + buffer
+  min_roi_size_m: 500           # ROI 최소 한 변 길이(주변 맥락 확보)
+  max_roi_size_m: 1000          # ROI 최대 한 변 길이(초과 시 hotspot 중심 기준으로 자름, roi_clipped=true)
+  railway_corridor_buffer_m: 300   # OSM 철도(비공식) 양측 이 거리 이내 변화량을 corridor_change_area_m2로 별도 집계
+  roi_overlap_merge: 0.5        # ROI가 이 비율 이상 겹치면 낮은 순위 ROI는 생략
+
+acquisition_years:
+  # 연도별 변화 면적이 "가장 큰 연도쌍 대비 이 비율" 이상이면 active로 본다
+  active_fraction_of_max: 0.25
+
+analysis_limitations:
+  - "Sentinel-2 공간해상도는 10m로 개별 지장물/소형 건물 판독용이 아니다."
+  - "본 결과는 change candidate / change hotspot이며 possible construction-related change일 뿐, 반드시 고해상도 영상(SkyWatch 50cm 등)으로 검증해야 한다."
+  - "change candidate는 보상 대상 지장물이 아니며 불법/무허가 건축물도 아니다. 법적·행정적 판단은 본 Demo 범위 밖이다."
+  - "계절·식생(농경지 경운/작황), 그림자, 대기/센서 차이, 영상 정합오차가 오탐을 유발할 수 있다."
+  - "'변화 없음'이 아니라 'Sentinel-2에서는 유의미한 변화가 검출되지 않음'으로 해석해야 한다."
+  - "Sentinel-2는 2015-06 이후만 존재해 착공(2015) 이전 상태(2010~2015)는 이 Screening으로 확인할 수 없다."

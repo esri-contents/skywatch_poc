@@ -1,0 +1,40 @@
+{
+  "project": "한국철도공단 토지보상 Demo - 단양 매포읍 변화 Screening",
+  "project_id": "kr_rail_danyang",
+  "t1_date": "2016-05-08",
+  "t2_date": "2018-04-28",
+  "change_polygon_count": 62,
+  "total_change_area_m2": 271100.0,
+  "mean_change_area_m2": 4372.58,
+  "max_change_score": 1.0,
+  "threshold_method": "fixed",
+  "threshold": 0.5,
+  "band_order": [
+    "B02",
+    "B03",
+    "B04",
+    "B08"
+  ],
+  "alignment": {
+    "dx_px": -0.05650310218334198,
+    "dy_px": -0.5397197604179382,
+    "displacement_px": 0.54266934715528,
+    "displacement_m": 5.426693471552801,
+    "ecc_score": 0.9685570540509265,
+    "converged": true
+  },
+  "grid": {
+    "crs": "EPSG:5186",
+    "resolution_m": 10,
+    "width": 356,
+    "height": 459
+  },
+  "analysis_limitations": [
+    "Sentinel-2 공간해상도는 10m로 개별 지장물/소형 건물 판독용이 아니다.",
+    "본 결과는 change candidate / change hotspot이며 possible construction-related change일 뿐, 반드시 고해상도 영상(SkyWatch 50cm 등)으로 검증해야 한다.",
+    "change candidate는 보상 대상 지장물이 아니며 불법/무허가 건축물도 아니다. 법적·행정적 판단은 본 Demo 범위 밖이다.",
+    "계절·식생(농경지 경운/작황), 그림자, 대기/센서 차이, 영상 정합오차가 오탐을 유발할 수 있다.",
+    "'변화 없음'이 아니라 'Sentinel-2에서는 유의미한 변화가 검출되지 않음'으로 해석해야 한다.",
+    "Sentinel-2는 2015-06 이후만 존재해 착공(2015) 이전 상태(2010~2015)는 이 Screening으로 확인할 수 없다."
+  ]
+}

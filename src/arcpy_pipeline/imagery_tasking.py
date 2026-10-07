@@ -76,6 +76,10 @@ def search_archive(
             "cloud_cover": float(f["properties"].get("eo:cloud_cover", 100.0)),
             "platform": f["properties"].get("platform"),
             "assets": {k: v.get("href") for k, v in (f.get("assets") or {}).items()},
+            # 아래 두 키는 추가 전용(기존 호출자는 무시) - 다중시점 파이프라인이 장면
+            # footprint/처리 baseline(L2A 반사율 offset 판단)을 쓴다.
+            "properties": f["properties"],
+            "geometry": f.get("geometry"),
         }
         for f in features
     ]

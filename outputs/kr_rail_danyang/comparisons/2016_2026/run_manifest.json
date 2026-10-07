@@ -1,0 +1,54 @@
+{
+  "timestamp_utc": "2026-10-07T04:40:48.942150+00:00",
+  "seed": 42,
+  "git_commit": "27a902d6cea7d5a09a2e22cc043e6ebcf1858a86",
+  "inputs": {
+    "t1": {
+      "path": "data\\projects\\kr_rail_danyang\\raw\\sentinel2\\s2_2016_2016-05-08.tif",
+      "sha256": "059cf263f68b8fc806df14230c2263045a4c02a1496ad26157e54271c08fa3c3"
+    },
+    "t2": {
+      "path": "data\\projects\\kr_rail_danyang\\raw\\sentinel2\\s2_2026_2026-05-06.tif",
+      "sha256": "b1a60a99410cf95c16ddb5b340c83fb5d68babd9e4e6af506c75fb55656e0b48"
+    },
+    "aoi": {
+      "path": "data\\projects\\kr_rail_danyang\\aoi\\danyang_master_aoi.geojson",
+      "sha256": "4ec7459661d7c8220ee3a6a1584b2759bf07fa6f73fcf9638f1592581ac39081"
+    }
+  },
+  "params": {
+    "threshold_method": "fixed",
+    "used_threshold": 0.5,
+    "min_component_area_m2": 400,
+    "band_order": [
+      "B02",
+      "B03",
+      "B04",
+      "B08"
+    ],
+    "grid": {
+      "crs": "EPSG:5186",
+      "resolution_m": 10,
+      "width": 356,
+      "height": 459
+    },
+    "confidence_thresholds": {
+      "high": 0.7,
+      "medium": 0.4
+    }
+  },
+  "package_versions": {
+    "rasterio": "1.5.1",
+    "geopandas": "1.1.4",
+    "shapely": "2.1.2",
+    "pyproj": "3.8.0",
+    "fiona": "1.10.1",
+    "numpy": "2.5.2",
+    "pandas": "3.0.5",
+    "opencv-python": "5.0.0.93",
+    "scikit-image": "0.26.0",
+    "scikit-learn": "1.9.0",
+    "libpysal": "4.15.0",
+    "esda": "2.10.0"
+  }
+}

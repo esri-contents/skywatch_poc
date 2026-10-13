@@ -81,3 +81,14 @@ outputs/*/figures/**/*.png
 Thumbs.db
 .vscode/
 .idea/
+
+# kr_rail_danyang NDVI/BSI 확장 산출물: 중첩 레이아웃(outputs/<id>/{ndvi,bsi,composite}/...)의 파생 지리정보/대용량 파일은 비커밋.
+outputs/*/*/rasters/
+outputs/*/*/vectors/
+outputs/*/*/report/static/
+outputs/*/composite/*/
+outputs/*/validation/montages/
+deliverables/
+data/projects/*/raw/
+data/projects/*/context/
+data/projects/*/cadastre/

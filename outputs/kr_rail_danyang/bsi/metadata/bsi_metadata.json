@@ -1,0 +1,788 @@
+{
+  "generated_at": "2026-10-13T14:16:41+09:00",
+  "grid": {
+    "epsg": 5186,
+    "res_m": 20,
+    "shape": [
+      246,
+      193
+    ],
+    "transform": [
+      20.0,
+      0.0,
+      316880.0,
+      0.0,
+      -20.0,
+      494000.0
+    ]
+  },
+  "years_available_bsi": [
+    2016,
+    2018,
+    2020,
+    2022,
+    2024,
+    2026
+  ],
+  "years_unavailable_bsi": [],
+  "swir_provenance": {
+    "2016": {
+      "year": 2016,
+      "scene_id": "S2A_MSIL2A_20160508T022702_R003_T52SDG_20210211T092928",
+      "recorded_date": "2016-05-08",
+      "recorded_processing_baseline": "02.12",
+      "recorded_boa_offset_removed_dn": 0,
+      "source": "local_cache",
+      "path": "data\\projects\\kr_rail_danyang\\raw\\sentinel2_swir\\s2_2016_B11_S2A_MSIL2A_20160508T022702_R003_T52SDG_20210211T092928.tif",
+      "cached_tags": {
+        "boa_offset_removed_dn": "0",
+        "datetime": "2016-05-08T02:27:02.027000Z",
+        "native_resolution_m": "20.0",
+        "processing_baseline": "02.12",
+        "scene_id": "S2A_MSIL2A_20160508T022702_R003_T52SDG_20210211T092928",
+        "scl_clear_masked": "true",
+        "AREA_OR_POINT": "Area"
+      },
+      "status": "OK"
+    },
+    "2018": {
+      "year": 2018,
+      "scene_id": "S2A_MSIL2A_20180428T021611_R003_T52SDF_20201013T033603",
+      "recorded_date": "2018-04-28",
+      "recorded_processing_baseline": "02.12",
+      "recorded_boa_offset_removed_dn": 0,
+      "source": "local_cache",
+      "path": "data\\projects\\kr_rail_danyang\\raw\\sentinel2_swir\\s2_2018_B11_S2A_MSIL2A_20180428T021611_R003_T52SDF_20201013T033603.tif",
+      "cached_tags": {
+        "boa_offset_removed_dn": "0",
+        "datetime": "2018-04-28T02:16:11.024000Z",
+        "native_resolution_m": "20.0",
+        "processing_baseline": "02.12",
+        "scene_id": "S2A_MSIL2A_20180428T021611_R003_T52SDF_20201013T033603",
+        "scl_clear_masked": "true",
+        "AREA_OR_POINT": "Area"
+      },
+      "status": "OK"
+    },
+    "2020": {
+      "year": 2020,
+      "scene_id": "S2B_MSIL2A_20200429T020649_R103_T52SDG_20200922T143841",
+      "recorded_date": "2020-04-29",
+      "recorded_processing_baseline": "02.12",
+      "recorded_boa_offset_removed_dn": 0,
+      "source": "local_cache",
+      "path": "data\\projects\\kr_rail_danyang\\raw\\sentinel2_swir\\s2_2020_B11_S2B_MSIL2A_20200429T020649_R103_T52SDG_20200922T143841.tif",
+      "cached_tags": {
+        "boa_offset_removed_dn": "0",
+        "datetime": "2020-04-29T02:06:49.024000Z",
+        "native_resolution_m": "20.0",
+        "processing_baseline": "02.12",
+        "scene_id": "S2B_MSIL2A_20200429T020649_R103_T52SDG_20200922T143841",
+        "scl_clear_masked": "true",
+        "AREA_OR_POINT": "Area"
+      },
+      "status": "OK"
+    },
+    "2022": {
+      "year": 2022,
+      "scene_id": "S2A_MSIL2A_20220504T020701_R103_T52SDF_20220504T164654",
+      "recorded_date": "2022-05-04",
+      "recorded_processing_baseline": "04.00",
+      "recorded_boa_offset_removed_dn": 1000,
+      "source": "local_cache",
+      "path": "data\\projects\\kr_rail_danyang\\raw\\sentinel2_swir\\s2_2022_B11_S2A_MSIL2A_20220504T020701_R103_T52SDF_20220504T164654.tif",
+      "cached_tags": {
+        "boa_offset_removed_dn": "1000",
+        "datetime": "2022-05-04T02:07:01.024000Z",
+        "native_resolution_m": "20.0",
+        "processing_baseline": "04.00",
+        "scene_id": "S2A_MSIL2A_20220504T020701_R103_T52SDF_20220504T164654",
+        "scl_clear_masked": "true",
+        "AREA_OR_POINT": "Area"
+      },
+      "status": "OK"
+    },
+    "2024": {
+      "year": 2024,
+      "scene_id": "S2A_MSIL2A_20240503T020651_R103_T52SDG_20240503T072226",
+      "recorded_date": "2024-05-03",
+      "recorded_processing_baseline": "05.10",
+      "recorded_boa_offset_removed_dn": 1000,
+      "source": "local_cache",
+      "path": "data\\projects\\kr_rail_danyang\\raw\\sentinel2_swir\\s2_2024_B11_S2A_MSIL2A_20240503T020651_R103_T52SDG_20240503T072226.tif",
+      "cached_tags": {
+        "boa_offset_removed_dn": "1000",
+        "datetime": "2024-05-03T02:06:51.024000Z",
+        "native_resolution_m": "20.0",
+        "processing_baseline": "05.10",
+        "scene_id": "S2A_MSIL2A_20240503T020651_R103_T52SDG_20240503T072226",
+        "scl_clear_masked": "true",
+        "AREA_OR_POINT": "Area"
+      },
+      "status": "OK"
+    },
+    "2026": {
+      "year": 2026,
+      "scene_id": "S2C_MSIL2A_20260506T021601_R003_T52SDG_20260506T055524",
+      "recorded_date": "2026-05-06",
+      "recorded_processing_baseline": "05.12",
+      "recorded_boa_offset_removed_dn": 1000,
+      "source": "local_cache",
+      "path": "data\\projects\\kr_rail_danyang\\raw\\sentinel2_swir\\s2_2026_B11_S2C_MSIL2A_20260506T021601_R003_T52SDG_20260506T055524.tif",
+      "cached_tags": {
+        "boa_offset_removed_dn": "1000",
+        "datetime": "2026-05-06T02:16:01.025000Z",
+        "native_resolution_m": "20.0",
+        "processing_baseline": "05.12",
+        "scene_id": "S2C_MSIL2A_20260506T021601_R003_T52SDG_20260506T055524",
+        "scl_clear_masked": "true",
+        "AREA_OR_POINT": "Area"
+      },
+      "status": "OK"
+    }
+  },
+  "swir_qa": {
+    "per_year": {
+      "2016": {
+        "b11_tags": {
+          "boa_offset_removed_dn": "0",
+          "datetime": "2016-05-08T02:27:02.027000Z",
+          "native_resolution_m": "20.0",
+          "processing_baseline": "02.12",
+          "scene_id": "S2A_MSIL2A_20160508T022702_R003_T52SDG_20210211T092928",
+          "scl_clear_masked": "true",
+          "AREA_OR_POINT": "Area"
+        },
+        "grid_alignment": {
+          "offset_col_px": 0,
+          "offset_row_px": 1,
+          "parity_aligned": true
+        },
+        "valid_fraction_20m_native": 0.972840437570728,
+        "bsi_p05": -0.2892550826072693,
+        "bsi_median": -0.09210959821939468,
+        "bsi_p95": 0.08597227931022644,
+        "bsi_min": -0.4999842345714569,
+        "bsi_max": 0.2128840535879135,
+        "swir_dn_p0.5": 430.0,
+        "n_bsi_denominator_rejected": 0
+      },
+      "2018": {
+        "b11_tags": {
+          "boa_offset_removed_dn": "0",
+          "datetime": "2018-04-28T02:16:11.024000Z",
+          "native_resolution_m": "20.0",
+          "processing_baseline": "02.12",
+          "scene_id": "S2A_MSIL2A_20180428T021611_R003_T52SDF_20201013T033603",
+          "scl_clear_masked": "true",
+          "AREA_OR_POINT": "Area"
+        },
+        "grid_alignment": {
+          "offset_col_px": 0,
+          "offset_row_px": 1,
+          "parity_aligned": true
+        },
+        "valid_fraction_20m_native": 0.9663611955532874,
+        "bsi_p05": -0.23718403279781342,
+        "bsi_median": -0.02574547566473484,
+        "bsi_p95": 0.11015962064266205,
+        "bsi_min": -0.36081719398498535,
+        "bsi_max": 0.22870776057243347,
+        "swir_dn_p0.5": 321.42999267578125,
+        "n_bsi_denominator_rejected": 0
+      },
+      "2020": {
+        "b11_tags": {
+          "boa_offset_removed_dn": "0",
+          "datetime": "2020-04-29T02:06:49.024000Z",
+          "native_resolution_m": "20.0",
+          "processing_baseline": "02.12",
+          "scene_id": "S2B_MSIL2A_20200429T020649_R103_T52SDG_20200922T143841",
+          "scl_clear_masked": "true",
+          "AREA_OR_POINT": "Area"
+        },
+        "grid_alignment": {
+          "offset_col_px": 0,
+          "offset_row_px": 1,
+          "parity_aligned": true
+        },
+        "valid_fraction_20m_native": 0.9751703019948077,
+        "bsi_p05": -0.1906324326992035,
+        "bsi_median": 0.022082194685935974,
+        "bsi_p95": 0.14674586057662964,
+        "bsi_min": -0.36034974455833435,
+        "bsi_max": 0.3222882151603699,
+        "swir_dn_p0.5": 148.0,
+        "n_bsi_denominator_rejected": 0
+      },
+      "2022": {
+        "b11_tags": {
+          "boa_offset_removed_dn": "1000",
+          "datetime": "2022-05-04T02:07:01.024000Z",
+          "native_resolution_m": "20.0",
+          "processing_baseline": "04.00",
+          "scene_id": "S2A_MSIL2A_20220504T020701_R103_T52SDF_20220504T164654",
+          "scl_clear_masked": "true",
+          "AREA_OR_POINT": "Area"
+        },
+        "grid_alignment": {
+          "offset_col_px": 0,
+          "offset_row_px": 1,
+          "parity_aligned": true
+        },
+        "valid_fraction_20m_native": 0.9889275966893736,
+        "bsi_p05": -0.3029977083206177,
+        "bsi_median": -0.057778794318437576,
+        "bsi_p95": 0.11433146893978119,
+        "bsi_min": -0.4223194718360901,
+        "bsi_max": 0.33221474289894104,
+        "swir_dn_p0.5": 251.88999938964844,
+        "n_bsi_denominator_rejected": 0
+      },
+      "2024": {
+        "b11_tags": {
+          "boa_offset_removed_dn": "1000",
+          "datetime": "2024-05-03T02:06:51.024000Z",
+          "native_resolution_m": "20.0",
+          "processing_baseline": "05.10",
+          "scene_id": "S2A_MSIL2A_20240503T020651_R103_T52SDG_20240503T072226",
+          "scl_clear_masked": "true",
+          "AREA_OR_POINT": "Area"
+        },
+        "grid_alignment": {
+          "offset_col_px": 0,
+          "offset_row_px": 1,
+          "parity_aligned": true
+        },
+        "valid_fraction_20m_native": 0.9880178401047329,
+        "bsi_p05": -0.3382994830608368,
+        "bsi_median": -0.12079858034849167,
+        "bsi_p95": 0.08548277616500854,
+        "bsi_min": -0.41827690601348877,
+        "bsi_max": 0.2575867176055908,
+        "swir_dn_p0.5": 182.0,
+        "n_bsi_denominator_rejected": 0
+      },
+      "2026": {
+        "b11_tags": {
+          "boa_offset_removed_dn": "1000",
+          "datetime": "2026-05-06T02:16:01.025000Z",
+          "native_resolution_m": "20.0",
+          "processing_baseline": "05.12",
+          "scene_id": "S2C_MSIL2A_20260506T021601_R003_T52SDG_20260506T055524",
+          "scl_clear_masked": "true",
+          "AREA_OR_POINT": "Area"
+        },
+        "grid_alignment": {
+          "offset_col_px": 0,
+          "offset_row_px": 1,
+          "parity_aligned": true
+        },
+        "valid_fraction_20m_native": 0.9824039763019504,
+        "bsi_p05": -0.3552027940750122,
+        "bsi_median": -0.09379181265830994,
+        "bsi_p95": 0.11369720101356506,
+        "bsi_min": -0.43368932604789734,
+        "bsi_max": 0.29015621542930603,
+        "swir_dn_p0.5": 195.0,
+        "n_bsi_denominator_rejected": 0
+      }
+    },
+    "unavailable_years": []
+  },
+  "thresholds": {
+    "ndvi": {
+      "before_min": 0.35,
+      "after_max": 0.2,
+      "delta_max": -0.2,
+      "recovery_ndvi": 0.35,
+      "recovery_delta_min": 0.2
+    },
+    "bsi": {
+      "increase_min": 0.1,
+      "decrease_min": 0.05,
+      "exposed_min": 0.0,
+      "conflict_decrease_min": 0.1
+    },
+    "exposed_state": {
+      "ndvi_max": 0.25
+    },
+    "min_persistent_exposed_obs": 4,
+    "min_valid_obs_pixel": 4,
+    "min_followup_obs": 1,
+    "water_mndwi_min": 0.0,
+    "bias_correction": true,
+    "stable_dndvi": 0.05,
+    "aggregate_min_valid_10m": 4,
+    "quarry": {
+      "reference_tags": {
+        "landuse": [
+          "quarry"
+        ]
+      },
+      "adjacency_distance_m": 40,
+      "min_component_pixels": 2
+    },
+    "parcel": {
+      "min_area_m2_for_composite": 800,
+      "min_change_area_m2": 800,
+      "min_change_ratio": 0.1,
+      "min_evaluable_fraction": 0.8
+    },
+    "rankB": {
+      "weights": {
+        "exposed_ratio": 0.4,
+        "quarry_link": 0.35,
+        "persistence": 0.25
+      },
+      "exposed_ratio_full_score": 0.5,
+      "quarry_link_scores": {
+        "POTENTIAL_QUARRY_EXPANSION": 100,
+        "QUARRY_INTERNAL_CHANGE": 60,
+        "EXPOSED_SURFACE_CHANGE": 40
+      },
+      "persistence_scores": {
+        "PERSISTENT": 100,
+        "UNCONFIRMED": 50,
+        "REVEGETATED": 20
+      },
+      "min_exposed_area_m2": 800
+    }
+  },
+  "bias_shifts_dbsi_by_interval": {
+    "2016→2018": 0.008031900972127914,
+    "2018→2020": 0.027239395305514336,
+    "2020→2022": -0.016808131709694862,
+    "2022→2024": -0.02530534565448761,
+    "2024→2026": 0.011269532144069672
+  },
+  "bias_shifts_dndvi_by_interval": {
+    "2016→2018": -0.06589645147323608,
+    "2018→2020": -0.03518541902303696,
+    "2020→2022": 0.09973004460334778,
+    "2022→2024": 0.024180889129638672,
+    "2024→2026": 0.008204787969589233
+  },
+  "quarry_reference": {
+    "path": "data\\projects\\kr_rail_danyang\\reference\\osm_quarry_candidates.geojson",
+    "reference_level": "OSM_UNOFFICIAL",
+    "used_tags": {
+      "landuse": [
+        "quarry"
+      ]
+    },
+    "status": "OK",
+    "n_polygons": 4,
+    "provenance": {
+      "source": "OpenStreetMap via Overpass API",
+      "license": "ODbL 1.0 (c) OpenStreetMap contributors",
+      "crs_native": "EPSG:4326",
+      "accuracy": "자원봉사 기반 참고자료. 공인 경계/최신성/정확도 보증 없음",
+      "status": "OK",
+      "retrieved_at": "2026-10-13T10:36:24+09:00",
+      "bbox_wgs84": [
+        128.30525757555813,
+        36.98451866832265,
+        128.36511883833705,
+        37.04595405545826
+      ],
+      "n_quarry_candidates": 7,
+      "n_context": 11,
+      "quarry_tag_counts": {
+        "landuse": {
+          "quarry": 4
+        },
+        "natural": {
+          "bare_rock": 3
+        }
+      },
+      "queries": {
+        "quarry": [
+          "[\"landuse\"=\"quarry\"]",
+          "[\"industrial\"~\"quarry|mine\"]",
+          "[\"man_made\"=\"mineshaft\"]",
+          "[\"resource\"~\"limestone|stone|gravel|sand\"]",
+          "[\"natural\"=\"bare_rock\"]",
+          "[\"landuse\"=\"brownfield\"]"
+        ],
+        "context": [
+          "[\"landuse\"~\"farmland|orchard|farmyard|meadow|vineyard|plant_nursery\"]",
+          "[\"landuse\"~\"industrial|construction|landfill|retail|commercial\"]"
+        ]
+      }
+    }
+  },
+  "quarry_analysis_performed": true,
+  "aoi_summary": {
+    "exposed_increase_ha": 12.381084102867574,
+    "veg_decline_ha": 18.199984145934454,
+    "veg_recovery_ha": 15.754370346659725,
+    "persistent_exposed_ha": 130.25904589655607,
+    "potential_quarry_expansion_ha": 1.0443744245483113,
+    "evaluable_ha": 598.6355527968038,
+    "quarry_reference_in_aoi_ha": 91.257765471251
+  },
+  "quarry_components": {
+    "n_exposed_components": 245,
+    "n_connected_pixels": 186
+  },
+  "context": {
+    "vworld_layers": {
+      "zoning_urban": {
+        "layer": "lt_c_uq111",
+        "n_features": 57,
+        "status": "OK",
+        "dyear_values": [
+          "2017",
+          "2025"
+        ]
+      },
+      "zoning_managed": {
+        "layer": "lt_c_uq112",
+        "n_features": 97,
+        "status": "OK",
+        "dyear_values": [
+          "2017",
+          "2025"
+        ]
+      },
+      "zoning_agroforest": {
+        "layer": "lt_c_uq113",
+        "n_features": 17,
+        "status": "OK",
+        "dyear_values": [
+          "2017",
+          "2025"
+        ]
+      },
+      "agri_disadvantaged": {
+        "layer": "lt_c_agrixue102",
+        "n_features": 194,
+        "status": "OK",
+        "dyear_values": [
+          "2013"
+        ]
+      },
+      "forest_site": {
+        "layer": "lt_c_fsdifrsts",
+        "n_features": 111,
+        "status": "OK",
+        "dyear_values": []
+      },
+      "forest_protection": {
+        "layer": "lt_c_uf151",
+        "n_features": 11,
+        "status": "OK",
+        "dyear_values": [
+          "2019",
+          "2020",
+          "2024"
+        ]
+      }
+    },
+    "lulc": {
+      "source": "Impact Observatory/Esri 10m Annual Land Use Land Cover v02 (Planetary Computer io-lulc-annual-v02)",
+      "license": "CC BY 4.0",
+      "nature": "모델 산출물(참조 정답 아님)",
+      "years": {
+        "2017": {
+          "status": "OK",
+          "source": "local_cache"
+        },
+        "2018": {
+          "status": "OK",
+          "source": "local_cache"
+        },
+        "2019": {
+          "status": "OK",
+          "source": "local_cache"
+        },
+        "2020": {
+          "status": "OK",
+          "source": "local_cache"
+        },
+        "2021": {
+          "status": "OK",
+          "source": "local_cache"
+        },
+        "2022": {
+          "status": "OK",
+          "source": "local_cache"
+        },
+        "2023": {
+          "status": "OK",
+          "source": "local_cache"
+        },
+        "2024": {
+          "status": "OK",
+          "source": "local_cache"
+        }
+      }
+    }
+  },
+  "lulc_agreement": {
+    "reference": "IO LULC annual v02 (모델 산출물, 정답 아님)",
+    "positive": "IO class bare(8) 또는 built(7)",
+    "pred": "NDVI20<=0.25 and BSI>=0 (노출 상태)",
+    "years": {
+      "2018": {
+        "n": 14734,
+        "tp": 2979,
+        "fp": 762,
+        "fn": 2171,
+        "tn": 8822,
+        "precision": 0.7963111467522053,
+        "recall": 0.5784466019417476,
+        "f1": 0.670115847486222,
+        "accuracy": 0.8009366092032034
+      },
+      "2020": {
+        "n": 14936,
+        "tp": 3500,
+        "fp": 1214,
+        "fn": 1859,
+        "tn": 8363,
+        "precision": 0.7424692405600339,
+        "recall": 0.6531069229333831,
+        "f1": 0.6949270326615705,
+        "accuracy": 0.7942554900910551
+      },
+      "2022": {
+        "n": 15150,
+        "tp": 2968,
+        "fp": 820,
+        "fn": 2297,
+        "tn": 9065,
+        "precision": 0.7835269271383316,
+        "recall": 0.5637226970560304,
+        "f1": 0.6556942450016569,
+        "accuracy": 0.7942574257425743
+      },
+      "2024": {
+        "n": 15163,
+        "tp": 2867,
+        "fp": 655,
+        "fn": 2655,
+        "tn": 8986,
+        "precision": 0.8140261215218626,
+        "recall": 0.5191959434987323,
+        "f1": 0.6340114993365769,
+        "accuracy": 0.7817054672558201
+      }
+    }
+  },
+  "sensitivity": {
+    "rows": [
+      {
+        "parameter": "default",
+        "value": "default",
+        "exposed_ha": 12.381084102867574,
+        "veg_loss_ha": 18.199984145934454,
+        "potential_expansion_ha": 1.0443744245483113,
+        "recovery_ha": 15.754370346659725,
+        "parcels_exposed": 45,
+        "parcels_potential_expansion": 7,
+        "jaccard_exposed": 1.0,
+        "jaccard_potential": 1.0
+      },
+      {
+        "parameter": "ndvi.delta_max",
+        "value": -0.15,
+        "exposed_ha": 12.661084102867573,
+        "veg_loss_ha": 19.52693536904186,
+        "potential_expansion_ha": 1.0443744245483113,
+        "recovery_ha": 15.754370346659725,
+        "parcels_exposed": 45,
+        "parcels_potential_expansion": 7,
+        "jaccard_exposed": 0.9168421052631579,
+        "jaccard_potential": 0.9605263157894737
+      },
+      {
+        "parameter": "ndvi.delta_max",
+        "value": -0.2,
+        "exposed_ha": 12.381084102867574,
+        "veg_loss_ha": 18.199984145934454,
+        "potential_expansion_ha": 1.0443744245483113,
+        "recovery_ha": 15.754370346659725,
+        "parcels_exposed": 45,
+        "parcels_potential_expansion": 7,
+        "jaccard_exposed": 1.0,
+        "jaccard_potential": 1.0
+      },
+      {
+        "parameter": "ndvi.delta_max",
+        "value": -0.3,
+        "exposed_ha": 11.461084102867574,
+        "veg_loss_ha": 15.22064155108146,
+        "potential_expansion_ha": 0.9643744245483112,
+        "recovery_ha": 15.754370346659725,
+        "parcels_exposed": 44,
+        "parcels_potential_expansion": 6,
+        "jaccard_exposed": 0.7359357060849598,
+        "jaccard_potential": 0.8356164383561644
+      },
+      {
+        "parameter": "bsi.increase_min",
+        "value": 0.05,
+        "exposed_ha": 15.82095357853128,
+        "veg_loss_ha": 18.199984145934454,
+        "potential_expansion_ha": 1.684374424548311,
+        "recovery_ha": 15.754370346659725,
+        "parcels_exposed": 52,
+        "parcels_potential_expansion": 9,
+        "jaccard_exposed": 0.7701149425287356,
+        "jaccard_potential": 0.6239316239316239
+      },
+      {
+        "parameter": "bsi.increase_min",
+        "value": 0.1,
+        "exposed_ha": 12.381084102867574,
+        "veg_loss_ha": 18.199984145934454,
+        "potential_expansion_ha": 1.0443744245483113,
+        "recovery_ha": 15.754370346659725,
+        "parcels_exposed": 45,
+        "parcels_potential_expansion": 7,
+        "jaccard_exposed": 1.0,
+        "jaccard_potential": 1.0
+      },
+      {
+        "parameter": "bsi.increase_min",
+        "value": 0.15,
+        "exposed_ha": 9.584163569914296,
+        "veg_loss_ha": 18.199984145934454,
+        "potential_expansion_ha": 0.6,
+        "recovery_ha": 15.754370346659725,
+        "parcels_exposed": 35,
+        "parcels_potential_expansion": 4,
+        "jaccard_exposed": 0.7060849598163031,
+        "jaccard_potential": 0.4657534246575342
+      },
+      {
+        "parameter": "quarry.min_component_pixels",
+        "value": 1,
+        "exposed_ha": 12.381084102867574,
+        "veg_loss_ha": 18.199984145934454,
+        "potential_expansion_ha": 1.0843744245483113,
+        "recovery_ha": 15.754370346659725,
+        "parcels_exposed": 45,
+        "parcels_potential_expansion": 7,
+        "jaccard_exposed": 1.0,
+        "jaccard_potential": 0.9240506329113924
+      },
+      {
+        "parameter": "quarry.min_component_pixels",
+        "value": 2,
+        "exposed_ha": 12.381084102867574,
+        "veg_loss_ha": 18.199984145934454,
+        "potential_expansion_ha": 1.0443744245483113,
+        "recovery_ha": 15.754370346659725,
+        "parcels_exposed": 45,
+        "parcels_potential_expansion": 7,
+        "jaccard_exposed": 1.0,
+        "jaccard_potential": 1.0
+      },
+      {
+        "parameter": "quarry.min_component_pixels",
+        "value": 4,
+        "exposed_ha": 12.381084102867574,
+        "veg_loss_ha": 18.199984145934454,
+        "potential_expansion_ha": 0.7243744245483112,
+        "recovery_ha": 15.754370346659725,
+        "parcels_exposed": 45,
+        "parcels_potential_expansion": 4,
+        "jaccard_exposed": 1.0,
+        "jaccard_potential": 0.821917808219178
+      },
+      {
+        "parameter": "min_followup_obs",
+        "value": 1,
+        "exposed_ha": 12.381084102867574,
+        "veg_loss_ha": 18.199984145934454,
+        "potential_expansion_ha": 1.0443744245483113,
+        "recovery_ha": 15.754370346659725,
+        "parcels_exposed": 45,
+        "parcels_potential_expansion": 7,
+        "jaccard_exposed": 1.0,
+        "jaccard_potential": 1.0
+      },
+      {
+        "parameter": "min_followup_obs",
+        "value": 2,
+        "exposed_ha": 12.381084102867574,
+        "veg_loss_ha": 18.199984145934454,
+        "potential_expansion_ha": 1.0443744245483113,
+        "recovery_ha": 15.754370346659725,
+        "parcels_exposed": 45,
+        "parcels_potential_expansion": 7,
+        "jaccard_exposed": 1.0,
+        "jaccard_potential": 1.0
+      },
+      {
+        "parameter": "quarry.adjacency_distance_m",
+        "value": 20,
+        "exposed_ha": 12.381084102867574,
+        "veg_loss_ha": 18.199984145934454,
+        "potential_expansion_ha": 0.8443744245483112,
+        "recovery_ha": 15.754370346659725,
+        "parcels_exposed": 45,
+        "parcels_potential_expansion": 6,
+        "jaccard_exposed": 1.0,
+        "jaccard_potential": 0.7123287671232876
+      },
+      {
+        "parameter": "quarry.adjacency_distance_m",
+        "value": 40,
+        "exposed_ha": 12.381084102867574,
+        "veg_loss_ha": 18.199984145934454,
+        "potential_expansion_ha": 1.0443744245483113,
+        "recovery_ha": 15.754370346659725,
+        "parcels_exposed": 45,
+        "parcels_potential_expansion": 7,
+        "jaccard_exposed": 1.0,
+        "jaccard_potential": 1.0
+      },
+      {
+        "parameter": "quarry.adjacency_distance_m",
+        "value": 80,
+        "exposed_ha": 12.381084102867574,
+        "veg_loss_ha": 18.199984145934454,
+        "potential_expansion_ha": 1.0443744245483113,
+        "recovery_ha": 15.754370346659725,
+        "parcels_exposed": 45,
+        "parcels_potential_expansion": 7,
+        "jaccard_exposed": 1.0,
+        "jaccard_potential": 0.8390804597701149
+      },
+      {
+        "parameter": "quarry.adjacency_distance_m",
+        "value": 120,
+        "exposed_ha": 12.381084102867574,
+        "veg_loss_ha": 18.199984145934454,
+        "potential_expansion_ha": 1.0443744245483113,
+        "recovery_ha": 15.754370346659725,
+        "parcels_exposed": 45,
+        "parcels_potential_expansion": 7,
+        "jaccard_exposed": 1.0,
+        "jaccard_potential": 0.7849462365591398
+      }
+    ],
+    "pixel_area_ha": 0.04
+  },
+  "limitations": [
+    "B11(SWIR1)의 원본 해상도는 20m이며 NDVI+BSI 복합 분석은 20m 격자에서 수행했다. 10m NDVI 결과와 면적 정확도가 다르므로 동일 정밀도로 비교하지 않는다.",
+    "NDVI와 BSI만으로 채석장·도로·농경지·건설현장·나지를 확정 구분할 수 없다. 모든 유형은 '후보'이며 현장/고해상도 영상 검증이 필요하다.",
+    "채석장 참조 경계는 OpenStreetMap(비공인)이며 허가구역 전체를 감싸 내부에 산림 등 비노출지를 포함할 수 있다. 참조 폴리곤 면적/노출지 면적을 채석장 면적으로 해석하지 않는다.",
+    "참조 경계의 작성 시점을 알 수 없어 채석장 경계의 시계열 변화(면적 증감)는 산출하지 않았다.",
+    "식생 감소 면적과 노출지 증가 면적은 중복된다(노출지 증가 ⊂ 식생 감소 후보). 합산하여 전체 변화 면적으로 해석하지 않는다.",
+    "연도별 촬영일(DOY)·대기·센서 차이에 의한 BSI 계통 편이는 안정 픽셀 중앙값으로 근사 보정했으며 완전한 보정이 아니다.",
+    "농경지/벌채/산불/일시 나지/그림자/수분 영향은 지목·용도지역·토지피복 맥락 플래그로만 경고하며 자동으로 구분하지 못해 '판단 불확실 변화' 또는 후보로 남는다.",
+    "변화 탐지 자체의 정확도(혼동행렬)는 과거 시점 정답 자료가 없어 산출하지 못했다. 현재(2026) 노출/식생 상태에 대해서만 고해상도 영상 육안 판독(AI 보조, 표본 104개)으로 검증했으며, 변화 발생 시점·원인은 검증되지 않았다.",
+    "20m 픽셀 2개 미만(800㎡ 미만) 필지는 복합 지표 판단을 보류한다."
+  ],
+  "accuracy_assessment": {
+    "performed": false,
+    "scope": "변화 탐지(시점·원인) 정확도",
+    "reason": "과거 시점 정답 자료 없음 - 변화 탐지 혼동행렬 미산출",
+    "state_validation": "현재(2026) 노출/식생 상태만 육안 판독으로 검증: outputs/kr_rail_danyang/validation/visual_validation_summary.json"
+  }
+}

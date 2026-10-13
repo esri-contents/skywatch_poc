@@ -1,0 +1,39 @@
+﻿field,korean_alias,description,unit,values
+pnu,PNU,"필지고유번호 19자리(문자열, 앞자리 0 보존)",,
+ri,리,법정리 이름(매포리·하괴리 등). **지번은 리마다 중복되므로 지번 조회 시 리 또는 PNU로 특정해야 함**,,
+jibun,지번,산 여부와 본번-부번(예: 산 17-26),,
+address,주소,도로명이 아닌 지번 주소,,
+jimok,지목,"공부상 지목(지번 접미 약칭에서 추출, 현황과 다를 수 있음)",,전·답·대·임야·도로 등
+zoning,용도지역,VWorld 용도지역(면적 50% 이상 겹친 것),,
+area_m2,필지 면적,분석 AOI 안에 있는 필지 면적,㎡,
+screening_tier,확인 구분(코드),물건조사 1차 선별 구분,,FIRST_CHECK / RECOMMENDED / NO_CHANGE / UNDETERMINED
+screening_tier_ko,확인 구분,"먼저 확인=맨땅 증가 또는 식생 감소 지속, 확인 권장=식생 감소·회복 흔적, 변화 흔적 없음, 판단 보류=작은 필지·영상 부족",,먼저 확인/확인 권장/변화 흔적 없음/판단 보류
+chg_2016_2018,2016→2018 변화,해당 구간 영상 비교 결과,,맨땅 증가/식생 감소/식생 회복/변화 없음/판단 불가
+chg_2018_2020,2018→2020 변화,〃,,〃
+chg_2020_2022,2020→2022 변화,〃,,〃
+chg_2022_2024,2022→2024 변화,〃,,〃
+chg_2024_2026,2024→2026 변화,〃,,〃
+first_change_interval,최초 변화 관측 구간,변화 시점이 아니라 '처음 변화가 관측된 구간'(약 2년 간격),,예: 2018→2020
+summary_ko,한 줄 판단,쉬운 말로 요약한 판단 문장,,
+action_ko,권고,다음 행동 안내,,
+building_count,현재 건축물 수,"필지 안 도로명주소 건축물 수(가설건축물·비닐하우스 등 누락 가능, 현재 시점)",동,
+building_footprint_m2,현재 건축물 윤곽 합계,건축물 윤곽 면적 합(연면적 아님),㎡,
+robust_both_methods,두 방법 모두 확인,단일 장면과 다중 장면 중앙값 분석 모두 후보,,True/False
+agri_context,농경지 맥락,지목·산림입지도·영농여건불리농지·토지피복 중 하나라도 농경지 근거(경작 변동 가능),,True/False
+composite_type_ko,복합 변화 유형,NDVI+BSI 20m 기준 필지 유형,,노출지 증가 후보/식생 감소 후보/노출 지표 지속 후보/식생 회복 후보/식생 안정/판단 불확실 변화/자료 부족
+ndvi_change_type_ko,NDVI 변화 유형,NDVI 10m 기준 필지 유형,,
+quarry_context,채석장 맥락(코드),OSM 참조 채석장(비공인) 대비 위치·변화 관계,,POTENTIAL_QUARRY_EXPANSION 등
+quarry_context_ko,채석장 맥락,〃(한글),,
+dist_to_quarry_m,채석장 참조까지 거리,OSM 참조 채석장 폴리곤까지 최단거리,m,
+rail_distance_m,철도까지 거리,OSM 비공식 철도선까지 최단거리(공식 보상구역 아님),m,
+within_300m_rail,철도 300m 이내,철도(OSM) 300m 이내 여부,,True/False
+exposed_increase_m2,맨땅 증가 면적,NDVI 감소+BSI 증가(20m). 식생 감소 면적에 포함됨(합산 금지),㎡,
+veg_decline_m2,식생 감소 면적(20m),노출지 증가 포함,㎡,
+veg_recovery_m2,식생 회복 면적(20m),,㎡,
+ndvi10_decline_m2,식생 감소 면적(10m),"NDVI 10m 기준, 20m 값과 정확도가 다름",㎡,
+ndvi_2016,NDVI 2016 … 2026,필지 면적가중 평균 NDVI(연도별 6개 필드: ndvi_2016~ndvi_2026),-1~1,연도별 촬영일 상이(4~5월)
+bsi_2016,BSI 2016 … 2026,필지 면적가중 평균 BSI(연도별 6개 필드: bsi_2016~bsi_2026),-1~1,높을수록 노출·건조 지표
+priority_A_rank,A 순위,철도 인접 현장조사 검토 순위(없으면 비어 있음),,정수
+priority_B_rank,B 순위,채석장·노출지 변화 검토 순위(없으면 비어 있음),,정수
+confidence_ko,분석 신뢰도,NDVI+BSI 판정의 신뢰도,,높음/보통/낮음/판단 보류
+confusion_risk,혼동 위험,농경지 변동·시설·개발지·산림 관리 가능성 경고(세미콜론 구분),,FARMLAND_VARIATION_POSSIBLE 등

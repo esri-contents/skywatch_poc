@@ -26,3 +26,6 @@ pystac-client
 planetary-computer
 arcgis
 pytest
+
+scipy
+pillow

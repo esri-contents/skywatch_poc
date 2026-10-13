@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__</title>
+<style>
+:root{--bg:#f6f7f9;--panel:#fff;--ink:#19212b;--muted:#5d6877;--faint:#8b95a3;--line:#e2e6eb;--accent:#1f4e9c;--soft:#e9f0fb;
+  --t1:#c0392b;--t2:#e69a2e;--t3:#9fb4a6;--t4:#c9ced4;--exp:#c0392b;--loss:#e69a2e;--rec:#2f7fc0;--none:#cfd8d2;--na:#d6dadf}
+@media (prefers-color-scheme: dark){:root{--bg:#0f1318;--panel:#171d25;--ink:#e8ecf2;--muted:#a3adbb;--faint:#778293;--line:#2a333f;--accent:#7fb0ff;--soft:#1b2a44;
+  --t3:#51695a;--t4:#4a525d;--none:#3a4a40;--na:#444b55}}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:60px}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.75 "Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+.wrap{max-width:1280px;margin:0 auto;padding:0 24px}
+header{background:var(--panel);border-bottom:1px solid var(--line)}
+header .wrap{padding-top:24px;padding-bottom:20px}
+h1{font-size:26px;margin:0 0 6px;line-height:1.4}
+.sub{color:var(--muted);font-size:15px}
+nav{position:sticky;top:0;z-index:30;background:var(--panel);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;gap:2px;overflow:auto}
+nav a{padding:13px 14px;color:var(--muted);text-decoration:none;font-size:15px;white-space:nowrap;border-bottom:3px solid transparent}
+nav a.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:700}
+main{padding-top:24px;padding-bottom:70px}
+section{margin-bottom:42px}
+h2{font-size:22px;margin:0 0 6px}
+.lead{color:var(--muted);margin:0 0 16px}
+h3{font-size:17px;margin:0 0 8px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
+.big{background:var(--soft);border-radius:12px;padding:18px 22px;font-size:17px}
+.big b{color:var(--accent)}
+.grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:16px 0}
+@media (max-width:900px){.grid4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;border-top:5px solid var(--line)}
+.stat .n{font-size:34px;font-weight:700;line-height:1.1}
+.stat .l{font-size:15px;font-weight:700;margin-top:4px}
+.stat .d{font-size:13.5px;color:var(--muted)}
+.stat.t1{border-top-color:var(--t1)}.stat.t2{border-top-color:var(--t2)}.stat.t3{border-top-color:var(--t3)}.stat.t4{border-top-color:var(--t4)}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media (max-width:860px){.two{grid-template-columns:1fr}}
+ul.clean{margin:6px 0;padding-left:20px}ul.clean li{margin:6px 0}
+.yes{border-left:5px solid #2e8b57}.no{border-left:5px solid var(--t1)}
+.maprow{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:16px;align-items:start}
+@media (max-width:1060px){.maprow{grid-template-columns:1fr}}
+#mapwrap{position:relative;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#eef1f4;touch-action:none}
+@media (prefers-color-scheme: dark){#mapwrap{background:#0b0f14}}
+#map{display:block;width:100%;height:640px;cursor:grab}
+.zoom{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:5px}
+.zoom button{width:36px;height:36px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;font-size:18px;cursor:pointer}
+#tip{position:absolute;pointer-events:none;background:rgba(20,24,30,.93);color:#fff;font-size:13.5px;padding:6px 10px;border-radius:6px;display:none;white-space:nowrap;z-index:5}
+.bar{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;margin-bottom:10px;font-size:15px}
+.bar label{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
+.lg{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:10px;font-size:14px;color:var(--muted)}
+.lg i{display:inline-block;width:14px;height:14px;border-radius:3px;margin-right:5px;vertical-align:-2px}
+select,input[type=search]{font:inherit;font-size:15px;padding:6px 9px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:8px}
+#detail{position:sticky;top:66px;max-height:calc(100vh - 80px);overflow:auto}
+.tl{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin:10px 0}
+.tl div{border-radius:8px;padding:7px 4px;text-align:center;font-size:13.5px;line-height:1.35;color:#fff}
+.tl small{display:block;font-size:11.5px;opacity:.9}
+.s-exposed{background:var(--exp)}.s-veg_loss{background:var(--loss)}.s-recovery{background:var(--rec)}
+.s-none{background:var(--none);color:var(--ink)!important}.s-na{background:var(--na);color:var(--ink)!important}
+.verdict{background:var(--soft);border-radius:10px;padding:12px 14px;margin:10px 0;font-size:15.5px}
+.verdict .act{display:block;margin-top:6px;font-weight:700}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;font-size:14.5px;margin:8px 0}
+.kv dt{color:var(--muted)}.kv dd{margin:0;text-align:right}
+.tag{display:inline-block;padding:2px 10px;border-radius:999px;font-size:13px;color:#fff;margin-right:4px}
+table{border-collapse:collapse;width:100%;font-size:14.5px;background:var(--panel)}
+th,td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle}
+thead th{position:sticky;top:0;background:var(--panel);font-size:13.5px;color:var(--muted);border-bottom:2px solid var(--line)}
+tr.row{cursor:pointer}tr.row:hover td{background:var(--soft)}tr.row.on td{background:var(--soft);font-weight:700}
+.tablewrap{max-height:560px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+.chips{display:flex;gap:3px}.chips i{display:inline-block;width:16px;height:16px;border-radius:4px}
+.note{color:var(--muted);font-size:13.5px}
+.mini{border:1px solid var(--line);border-radius:8px;background:#fff;width:100%;height:auto}
+details{background:var(--panel);border:1px solid var(--line);border-radius:12px;margin:12px 0}
+details>summary{cursor:pointer;padding:14px 18px;font-weight:700;font-size:16px}
+details>.body{padding:0 18px 18px}
+.mono{font-family:Consolas,monospace;font-size:13px}
+footer{color:var(--muted);font-size:13px;padding:0 0 36px}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <h1>__TITLE__</h1>
+  <div class="sub">단양군 매포읍 매포리·하괴리 일대 · 2016~2026년 위성영상 6개 시점 비교 + 현재 건축물 윤곽</div>
+</div></header>
+<nav><div class="wrap"><a href="#s1">핵심 요약</a><a href="#s2">지도</a><a href="#s3">확인 대상 목록</a><a href="#s4">알 수 있는 것·없는 것</a><a href="#s5">용어·부록</a></div></nav>
+<main class="wrap">
+
+<section id="s1">
+  <h2>핵심 요약</h2>
+  <div class="big">이 자료는 <b>어느 필지를 먼저 확인해야 하는지</b> 알려주는 <b>1차 선별 자료</b>입니다.
+    위성영상(한 칸 10~20m)으로는 지장물의 위치·모양·크기나 연도별 생성·소멸을 직접 확인할 수 없습니다.
+    그래서 "땅의 겉모습이 크게 바뀐 필지"를 골라, 고해상도 영상·현장 확인이 필요한 곳을 좁히는 데 씁니다.</div>
+  <div class="grid4" id="stats"></div>
+  <div class="two">
+    <div class="card"><h3>이렇게 쓰세요</h3><ul class="clean">
+      <li><b>지도</b>에서 빨강(먼저 확인) 필지를 눌러 연도별 변화와 현재 건축물을 봅니다.</li>
+      <li><b>확인 대상 목록</b>에서 지번으로 찾거나 구분별로 걸러 봅니다.</li>
+      <li>선별된 필지는 고해상도 영상(예: 50cm급)이나 현장에서 지장물을 확인합니다.</li></ul></div>
+    <div class="card"><h3>이 자료의 건축물 윤곽은</h3><ul class="clean">
+      <li>VWorld 도로명주소건물 자료로, <b>현재 시점</b>의 건축물 위치·모양·면적입니다.</li>
+      <li>가설건축물, 비닐하우스, 축사, 창고, 담장, 수목 등은 <b>없을 수 있습니다</b>.</li>
+      <li>언제 지어졌는지(이력)는 이 자료에 없습니다.</li></ul></div>
+  </div>
+</section>
+
+<section id="s2">
+  <h2>지도</h2>
+  <p class="lead">필지 색은 확인 우선순위입니다. 필지를 누르면 오른쪽에 자세한 내용이 나옵니다.</p>
+  <div class="maprow">
+    <div class="card">
+      <div class="bar">
+        <label>보기 <select id="fTier"><option value="">모든 필지</option><option value="1">먼저 확인만</option><option value="2">확인 권장만</option><option value="12">확인 대상 전체(먼저+권장)</option></select></label>
+        <label><input type="checkbox" id="lyB" checked>현재 건축물 윤곽</label>
+        <label><input type="checkbox" id="lyR" checked>철도(OSM, 참고)</label>
+        <label><input type="checkbox" id="fRb">두 방법 모두 확인된 곳만</label>
+      </div>
+      <div id="mapwrap"><svg id="map" xmlns="http://www.w3.org/2000/svg"><g id="vp">
+        <g id="gP"></g><g id="gB" style="pointer-events:none"></g>
+        <path id="pAoi" fill="none" stroke="#111" stroke-width="3" vector-effect="non-scaling-stroke" style="pointer-events:none"/>
+        <path id="pRail" fill="none" stroke="#1f4e9c" stroke-width="2.5" stroke-dasharray="7 3" vector-effect="non-scaling-stroke" style="pointer-events:none"/>
+        <g id="gSel" style="pointer-events:none"></g></g></svg>
+        <div class="zoom"><button id="zin" title="확대">+</button><button id="zout" title="축소">−</button><button id="zfit" title="전체 보기">⌂</button></div><div id="tip"></div></div>
+      <div class="lg" id="legend"></div>
+      <p class="note" style="margin-top:8px">배경 지도가 없는 도면입니다. 마우스 휠로 확대·축소, 끌어서 이동합니다.</p>
+    </div>
+    <div class="card" id="detail"><h3>필지 카드</h3><p class="note">지도에서 필지를 누르거나 아래 목록에서 행을 선택하세요.</p></div>
+  </div>
+</section>
+
+<section id="s3">
+  <h2>확인 대상 목록</h2>
+  <p class="lead">변화 시기 칩: <span class="chips" style="display:inline-flex;vertical-align:middle" id="chipLegend"></span></p>
+  <div class="bar"><input type="search" id="q" placeholder="지번 또는 PNU 검색" size="22">
+    <label>구분 <select id="lTier"><option value="12">확인 대상(먼저+권장)</option><option value="1">먼저 확인</option><option value="2">확인 권장</option><option value="3">변화 흔적 없음</option><option value="4">판단 보류</option><option value="">전체</option></select></label>
+    <label><input type="checkbox" id="lBld">현재 건축물 있는 필지만</label><span class="note" id="cnt"></span></div>
+  <div class="tablewrap"><table><thead><tr><th>구분</th><th>지번</th><th>시기별 변화<br><span class="note">(구간 5칸)</span></th><th>현재 건축물</th><th>한 줄 판단</th></tr></thead><tbody id="tb"></tbody></table></div>
+</section>
+
+<section id="s4">
+  <h2>이 자료로 알 수 있는 것 · 없는 것</h2>
+  <div class="two">
+    <div class="card yes"><h3>알 수 있는 것</h3><ul class="clean">
+      <li>필지 땅의 겉모습(식생·맨땅)이 <b>어느 두 시점 사이에</b> 크게 바뀌었는지</li>
+      <li>현재 존재하는 <b>건축물의 위치·모양·면적</b>(도로명주소 건축물에 한함)</li>
+      <li>고해상도 확인이 <b>먼저 필요한 필지</b></li></ul></div>
+    <div class="card no"><h3>알 수 없는 것</h3><ul class="clean">
+      <li>지장물(건축물·공작물·수목 등)의 <b>정확한 위치·형태·규모</b></li>
+      <li>연도별 지장물의 <b>생성·변경·소멸 이력</b> (영상이 2년 간격이고 한 칸이 10~20m)</li>
+      <li>변화의 <b>원인</b>(건축, 토공, 벌채, 경작 등)과 보상 대상 여부</li></ul></div>
+  </div>
+  <div class="card" style="margin-top:16px"><h3>지장물 이력까지 확인하려면 (다음 단계)</h3><ul class="clean">
+    <li><b>고해상도 영상</b>(50cm급 위성 또는 항공사진)을 연도별로 확보해 이 목록의 <b>"먼저 확인"</b> 필지 주변만 판독합니다.</li>
+    <li>건축물대장(사용승인일 등)과 연결하면 건축물 생성 시기를 보강할 수 있습니다(공공데이터 이용 승인 필요).</li>
+    <li>현장 조사로 가설건축물·수목·공작물을 보완합니다.</li></ul></div>
+</section>
+
+<section id="s5">
+  <h2>용어 · 부록</h2>
+  <details open><summary>용어를 쉽게 풀면</summary><div class="body"><table>
+    <tr><th style="width:150px">식생 감소</th><td>풀·나무 같은 초록 식생이 뚜렷이 줄어든 흔적(땅이 드러나거나 시설이 들어선 경우 포함)</td></tr>
+    <tr><th>맨땅 증가</th><td>식생이 줄면서 맨땅·바위·포장 같은 노출 면이 함께 늘어난 흔적</td></tr>
+    <tr><th>식생 회복</th><td>맨땅이던 곳에 식생이 다시 생긴 흔적</td></tr>
+    <tr><th>변화 없음</th><td>비교한 두 시점 사이에 뚜렷한 변화 흔적이 없음(지장물이 없다는 뜻이 아님)</td></tr>
+    <tr><th>판단 불가</th><td>필지가 작거나(대략 400㎡ 미만) 구름 등으로 영상이 부족해 판단할 수 없음</td></tr>
+    <tr><th>먼저 확인</th><td>맨땅 증가가 관측되었거나 식생 감소가 이후에도 계속 유지된 필지</td></tr>
+    <tr><th>확인 권장</th><td>식생 감소·회복 흔적이 있으나 위 조건에는 못 미치는 필지</td></tr>
+    <tr><th>두 방법 모두 확인</th><td>한 장면 기준과 여러 장면 중앙값 기준 분석 모두에서 후보로 나온 필지(재현성이 높음)</td></tr>
+  </table></div></details>
+  <details><summary>분석 근거와 신뢰도 (전문가용)</summary><div class="body">
+    <p>Sentinel-2 위성영상 6개 시점(2016·2018·2020·2022·2024·2026, 4~5월)에서 NDVI(식생)·BSI(맨땅) 지수를 계산하고 필지(연속지적도 PNU) 단위로 집계했습니다.
+    현재 상태를 고해상도 영상으로 육안 확인한 결과 맨땅(비식생) 판정의 정밀도·재현율은 약 0.84였고(표본 104개, AI 보조 판독), 노출로 잘못 판정한 곳은 초지·농경지가 많았고, 놓친 곳은 BSI가 기준 부근인 나지·시설이었습니다.
+    변화가 <b>언제·왜</b> 일어났는지는 검증하지 못했습니다. 이 보고서의 "먼저 확인/확인 권장"은 이해하기 쉽게 만든 단순 기준이라, 상세 보고서의 후보 수와 숫자가 다를 수 있습니다.</p>
+    <p><a id="lnkDetail" href="#">상세 분석 보고서(전문가용) 열기 →</a></p></div></details>
+  <details><summary>데이터 출처</summary><div class="body"><ul class="clean">
+    <li>위성영상: Sentinel-2 L2A (Microsoft Planetary Computer)</li><li>필지: VWorld 연속지적도(PNU)</li>
+    <li>건축물 윤곽: VWorld 도로명주소건물(현재 시점)</li><li>철도선: OpenStreetMap(비공식, 참고용)</li></ul>
+    <p class="note" id="metaLine"></p></div></details>
+</section>
+</main>
+<div class="wrap"><footer>본 자료는 위성영상의 변화 흔적을 이용한 탐색적 선별 자료이며, 개별 지장물의 존재·규모·이력이나 토지보상 적격성을 확정하기 위한 자료가 아닙니다.
+  인터넷 없이 열리는 단일 HTML입니다.</footer></div>
+
+<script>
+const D=__DATA_JSON__, P=D.parcels, $=id=>document.getElementById(id), NS="http://www.w3.org/2000/svg";
+const TCOL={1:"#c0392b",2:"#e69a2e",3:"#9fb4a6",4:"#d3d7dc"};
+const SCOL={exposed:"#c0392b",veg_loss:"#e69a2e",recovery:"#2f7fc0",none:"#cfd8d2",na:"#d6dadf"};
+const fmt=(v,d=0)=>v==null?"—":Number(v).toLocaleString("ko-KR",{maximumFractionDigits:d,minimumFractionDigits:d});
+const C=D.counts;
+$("stats").innerHTML=[[1,"먼저 확인","맨땅 증가 또는 식생 감소 지속"],[2,"확인 권장","식생 감소·회복 흔적"],[3,"변화 흔적 없음","비교 시기에서 뚜렷한 변화 없음"],[4,"판단 보류","필지가 작거나 영상 부족"]]
+  .map(([t,l,d])=>`<div class="stat t${t}"><div class="n">${fmt(C[t])}</div><div class="l">${l}</div><div class="d">${d}</div></div>`).join("");
+$("metaLine").textContent=`분석 필지 ${fmt(D.n_parcels)}개, 현재 건축물 ${fmt(D.n_buildings)}동(그중 ${fmt(D.n_parcels_with_bld)}개 필지에 위치). 생성 ${D.generated}.`;
+$("lnkDetail").href=D.detail_report;
+$("chipLegend").innerHTML=Object.entries(D.status_ko).map(([k,v])=>`<span style="margin-right:10px"><i style="background:${SCOL[k]};display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px"></i> ${v}</span>`).join("");
+
+// 지도
+const svg=$("map");let view={x:D.bbox[0],y:D.bbox[1],w:D.bbox[2]-D.bbox[0],h:D.bbox[3]-D.bbox[1]};
+const apply=()=>svg.setAttribute("viewBox",`${view.x} ${view.y} ${view.w} ${view.h}`);
+function fit(pad=.04){const r=svg.getBoundingClientRect(),ar=r.width/r.height;let w=(D.bbox[2]-D.bbox[0])*(1+pad*2),h=(D.bbox[3]-D.bbox[1])*(1+pad*2);
+  if(w/h<ar)w=h*ar;else h=w/ar;const cx=(D.bbox[0]+D.bbox[2])/2,cy=(D.bbox[1]+D.bbox[3])/2;view={x:cx-w/2,y:cy-h/2,w,h};apply();}
+const zoomAt=(f,cx,cy)=>{view.x=cx-(cx-view.x)*f;view.y=cy-(cy-view.y)*f;view.w*=f;view.h*=f;apply();};
+const toS=e=>{const r=svg.getBoundingClientRect();return[view.x+(e.clientX-r.left)/r.width*view.w,view.y+(e.clientY-r.top)/r.height*view.h];};
+svg.addEventListener("wheel",e=>{e.preventDefault();const[x,y]=toS(e);zoomAt(e.deltaY<0?.8:1.25,x,y);},{passive:false});
+let drag=null,moved=false;
+svg.addEventListener("pointerdown",e=>{drag={cx:e.clientX,cy:e.clientY,vx:view.x,vy:view.y};moved=false;});
+window.addEventListener("pointermove",e=>{if(!drag)return;const r=svg.getBoundingClientRect(),dx=e.clientX-drag.cx,dy=e.clientY-drag.cy;
+  if(Math.abs(dx)+Math.abs(dy)>3)moved=true;view.x=drag.vx-dx/r.width*view.w;view.y=drag.vy-dy/r.height*view.h;apply();});
+window.addEventListener("pointerup",()=>drag=null);
+$("zin").onclick=()=>zoomAt(.7,view.x+view.w/2,view.y+view.h/2);$("zout").onclick=()=>zoomAt(1.4,view.x+view.w/2,view.y+view.h/2);$("zfit").onclick=()=>fit();
+$("pAoi").setAttribute("d",D.aoi_path);$("pRail").setAttribute("d",D.rail_path);
+const els=[];P.forEach((p,i)=>{const e=document.createElementNS(NS,"path");e.setAttribute("d",D.paths[i]);e.setAttribute("fill-rule","evenodd");e.setAttribute("fill",TCOL[p.tier]);
+  e.setAttribute("stroke","rgba(40,40,40,.45)");e.setAttribute("stroke-width",".6");e.setAttribute("vector-effect","non-scaling-stroke");e.dataset.i=i;$("gP").appendChild(e);els.push(e);});
+const bEls=D.b_paths.map(d=>{const e=document.createElementNS(NS,"path");e.setAttribute("d",d);e.setAttribute("fill","rgba(30,30,30,.55)");e.setAttribute("stroke","#000");
+  e.setAttribute("stroke-width","1");e.setAttribute("vector-effect","non-scaling-stroke");$("gB").appendChild(e);return e;});
+$("lyB").onchange=e=>$("gB").style.display=e.target.checked?"":"none";
+$("lyR").onchange=e=>$("pRail").style.display=e.target.checked?"":"none";
+function show(p){const f=$("fTier").value;if(f==="12"&&!(p.tier===1||p.tier===2))return false;if(f&&f!=="12"&&String(p.tier)!==f)return false;if($("fRb").checked&&!p.rb)return false;return true;}
+function recolor(){els.forEach((e,i)=>{const ok=show(P[i]);e.setAttribute("fill-opacity",ok?1:.12);e.style.pointerEvents=ok?"":"none";});}
+["fTier","fRb"].forEach(id=>$(id).onchange=()=>{recolor();renderList();});
+$("legend").innerHTML=[[1,"먼저 확인"],[2,"확인 권장"],[3,"변화 흔적 없음"],[4,"판단 보류"]].map(([t,l])=>`<span><i style="background:${TCOL[t]}"></i>${l}</span>`).join("")+`<span><i style="background:rgba(30,30,30,.55);border:1px solid #000"></i>현재 건축물 윤곽</span>`;
+const tip=$("tip");
+$("gP").addEventListener("pointermove",e=>{const t=e.target;if(t.dataset.i==null){tip.style.display="none";return;}const p=P[+t.dataset.i],r=$("mapwrap").getBoundingClientRect();
+  tip.textContent=`${p.j||"-"} · ${D.tier_ko[p.tier]}${p.nb?` · 건축물 ${p.nb}동`:""}`;tip.style.left=(e.clientX-r.left+12)+"px";tip.style.top=(e.clientY-r.top+12)+"px";tip.style.display="block";});
+$("gP").addEventListener("pointerleave",()=>tip.style.display="none");
+$("gP").addEventListener("click",e=>{if(moved)return;const t=e.target;if(t.dataset.i!=null)select(+t.dataset.i,false);});
+
+// 필지 카드
+let selI=null;
+function miniMap(i){const p=P[i];const sp=els[i];const bb=sp.getBBox();const pad=Math.max(bb.width,bb.height)*.25+8;
+  const vb=[bb.x-pad,bb.y-pad,bb.width+pad*2,bb.height+pad*2];
+  const bs=(p.bi||[]).map(b=>`<path d="${D.b_paths[b]}" fill="rgba(192,57,43,.35)" stroke="#7a1f16" stroke-width="${vb[2]/220}"/>`).join("");
+  const others=D.b_paths.map((d,k)=>(p.bi||[]).includes(k)?"":`<path d="${d}" fill="#ddd" stroke="#aaa" stroke-width="${vb[2]/400}"/>`).join("");
+  return `<svg class="mini" viewBox="${vb.join(" ")}" preserveAspectRatio="xMidYMid meet" style="aspect-ratio:${(vb[2]/vb[3]).toFixed(2)};max-height:280px">
+    <path d="${D.paths[i]}" fill="rgba(31,78,156,.10)" stroke="#1f4e9c" stroke-width="${vb[2]/150}" fill-rule="evenodd"/>${others}${bs}</svg>`;}
+function select(i,zoom){selI=i;const p=P[i];$("gSel").innerHTML="";const sp=document.createElementNS(NS,"path");sp.setAttribute("d",D.paths[i]);
+  sp.setAttribute("fill","none");sp.setAttribute("stroke","#000");sp.setAttribute("stroke-width","3.5");sp.setAttribute("vector-effect","non-scaling-stroke");sp.setAttribute("fill-rule","evenodd");$("gSel").appendChild(sp);
+  if(zoom){const bb=sp.getBBox(),pad=Math.max(bb.width,bb.height,80)*1.2,r=svg.getBoundingClientRect();let w=bb.width+pad*2,h=bb.height+pad*2;const ar=r.width/r.height;
+    if(w/h<ar)w=h*ar;else h=w/ar;view={x:bb.x+bb.width/2-w/2,y:bb.y+bb.height/2-h/2,w,h};apply();}
+  const tl=p.st.map((s,k)=>`<div class="s-${s}">${D.status_ko[s]}<small>${D.years[k]}→${D.years[k+1]}</small></div>`).join("");
+  const blds=(p.bi||[]).map(b=>{const n=D.b_names[b],f=D.b_floors[b];return `<li>${n&&n!=="null"?n:"(이름 없음)"} · 윤곽 약 ${fmt(D.b_fp[b])}㎡${f?` · 지상 ${f}층`:""}</li>`;}).join("");
+  $("detail").innerHTML=`<h3>${p.j||"-"} <span class="tag" style="background:${TCOL[p.tier]}">${D.tier_ko[p.tier]}</span>${p.rb?'<span class="tag" style="background:#2e8b57">두 방법 모두 확인</span>':""}</h3>
+    <div class="note mono">PNU ${p.pnu||"—"}</div><div class="note">${p.ad||""}</div>
+    <div class="verdict">${p.head}<br>${p.bld}<span class="act">→ ${p.act}</span></div>
+    <h3 style="font-size:15px">시기별 변화</h3><div class="tl">${tl}</div>
+    <h3 style="font-size:15px">필지와 현재 건축물</h3>${miniMap(i)}
+    <p class="note" style="margin:4px 0">파란 선=필지, 빨강=이 필지의 건축물 윤곽, 회색=주변 건축물</p>
+    ${blds?`<ul class="clean">${blds}</ul>`:""}
+    <dl class="kv"><dt>필지 면적(AOI 내)</dt><dd>${fmt(p.a)} ㎡</dd><dt>지목</dt><dd>${p.jm||"—"}</dd>
+      <dt>철도(OSM)까지</dt><dd>${p.rd==null?"—":fmt(p.rd)+" m"}</dd>
+      ${p.ag?"<dt>참고</dt><dd>농경지 맥락 — 경작 변동일 수 있음</dd>":""}
+      ${p.qc&&["POTENTIAL_QUARRY_EXPANSION","QUARRY_INTERNAL_CHANGE","EXPOSED_SURFACE_CHANGE"].includes(p.qc)?"<dt>참고</dt><dd>채석장 인근 노출지 변화</dd>":""}</dl>
+    <p class="note">위성영상 기반 선별 결과이며 지장물의 존재·규모·이력을 확정하지 않습니다.</p>`;
+  document.querySelectorAll("#tb tr.row").forEach(tr=>tr.classList.toggle("on",+tr.dataset.i===i));}
+
+// 목록
+function renderList(){const f=$("lTier").value,q=$("q").value.trim(),onlyB=$("lBld").checked;
+  let idx=P.map((p,i)=>i).filter(i=>{const p=P[i];if(f==="12"&&!(p.tier===1||p.tier===2))return false;if(f&&f!=="12"&&String(p.tier)!==f)return false;
+    if(onlyB&&!p.nb)return false;if($("fRb").checked&&!p.rb)return false;if(q&&!((p.j||"").includes(q)||(p.pnu||"").includes(q)))return false;return true;});
+  idx.sort((a,b)=>P[a].tier-P[b].tier||(P[b].sc||0)-(P[a].sc||0));
+  $("cnt").textContent=`${idx.length.toLocaleString()}개 필지`;
+  $("tb").innerHTML=idx.slice(0,500).map(i=>{const p=P[i];return `<tr class="row" data-i="${i}"><td><span class="tag" style="background:${TCOL[p.tier]}">${D.tier_ko[p.tier]}</span></td>
+    <td><b>${p.j||"—"}</b><div class="note mono">${p.pnu||""}</div></td>
+    <td><span class="chips">${p.st.map((s,k)=>`<i style="background:${SCOL[s]}" title="${D.years[k]}→${D.years[k+1]} ${D.status_ko[s]}"></i>`).join("")}</span></td>
+    <td>${p.nb?`${p.nb}동 · ${fmt(p.bf)}㎡`:"—"}</td><td>${p.head}</td></tr>`;}).join("")||`<tr><td colspan="5" class="note">조건에 맞는 필지가 없습니다.</td></tr>`;}
+["lTier","lBld"].forEach(id=>$(id).onchange=renderList);$("q").oninput=renderList;
+$("tb").addEventListener("click",e=>{const tr=e.target.closest("tr.row");if(!tr)return;select(+tr.dataset.i,true);$("s2").scrollIntoView({behavior:"smooth"});});
+
+recolor();renderList();window.addEventListener("load",()=>fit());window.addEventListener("resize",()=>fit());
+const secs=[...document.querySelectorAll("main section")],links=[...document.querySelectorAll("nav a")];
+window.addEventListener("scroll",()=>{let cur=secs[0].id;secs.forEach(s=>{if(s.getBoundingClientRect().top<120)cur=s.id;});links.forEach(a=>a.classList.toggle("on",a.getAttribute("href")==="#"+cur));},{passive:true});
+</script>
+</body>
+</html>

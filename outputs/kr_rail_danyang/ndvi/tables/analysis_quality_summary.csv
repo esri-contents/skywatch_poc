@@ -1,0 +1,41 @@
+﻿구분,항목,값
+필지 품질 상태,LOW_PIXEL_COUNT,1427
+필지 품질 상태,VALID,686
+필지 품질 상태,LOW_COVERAGE,13
+필지 품질 상태,CLOUD_CONTAMINATION,3
+필지 품질 상태,GEOMETRY_WARNING,2
+필지 품질 상태,NOT_EVALUABLE,2
+필지 변화 유형,INSUFFICIENT_DATA,1432
+필지 변화 유형,STABLE_NON_VEGETATION,218
+필지 변화 유형,STABLE_VEGETATION,205
+필지 변화 유형,RECOVERY,107
+필지 변화 유형,GRADUAL_DECLINE,68
+필지 변화 유형,DECLINE_UNCONFIRMED,42
+필지 변화 유형,PERSISTENT_DECLINE,32
+필지 변화 유형,FLUCTUATING,19
+필지 변화 유형,TEMPORARY_DECLINE,10
+분석 신뢰도,NONE,1432
+분석 신뢰도,HIGH,686
+분석 신뢰도,LOW,13
+분석 신뢰도,MEDIUM,2
+연도별 유효 픽셀 비율(격자),2016,0.9429
+연도별 AOI 내 유효 면적비,2016,0.9829
+연도별 유효 픽셀 비율(격자),2018,0.9381
+연도별 AOI 내 유효 면적비,2018,0.9786
+연도별 유효 픽셀 비율(격자),2020,0.9442
+연도별 AOI 내 유효 면적비,2020,0.988
+연도별 유효 픽셀 비율(격자),2022,0.9527
+연도별 AOI 내 유효 면적비,2022,0.9969
+연도별 유효 픽셀 비율(격자),2024,0.9522
+연도별 AOI 내 유효 면적비,2024,0.9976
+연도별 유효 픽셀 비율(격자),2026,0.9479
+연도별 AOI 내 유효 면적비,2026,0.9891
+검증 지표,n_parcels,2133
+검증 지표,decline_area_exceeds_evaluable,0
+검증 지표,evaluable_exceeds_analysis_area,0
+검증 지표,pixel_weight_area_vs_polygon_area_max_abs_err_m2,4.124135557503905e-07
+검증 지표,pixel_weight_area_vs_polygon_area_max_rel_err,7.114053790502339e-10
+검증 지표,ndvi_mean_in_range,True
+검증 지표,pnu_string_preserved_leading_zero_count,0
+검증 지표,pnu_unique,True
+검증 지표,class_area_sum_mismatch,0

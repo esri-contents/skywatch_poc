@@ -1,0 +1,105 @@
+{
+  "pipeline": "src.ndvi.pipeline",
+  "version": "1.0",
+  "started_at": "2026-10-13T11:33:23+09:00",
+  "project": "kr_rail_danyang",
+  "options": {
+    "offline": false,
+    "cadastre": null,
+    "fetch_cadastre": false,
+    "report_only": false,
+    "force": true,
+    "dry_run": false
+  },
+  "skywatch_api_called": false,
+  "steps": {
+    "ndvi": {
+      "status": "OK",
+      "detail": "6개 연도, grid 489x385, EPSG:5186 10m"
+    },
+    "pixel_change": {
+      "status": "OK",
+      "detail": "감소 픽셀 8229"
+    },
+    "cadastre": {
+      "status": "OK",
+      "detail": "VWorld WFS(api.vworld.kr) lp_pa_cbnd_bubun"
+    },
+    "parcel_stats": {
+      "status": "OK",
+      "detail": "필지 2133개"
+    },
+    "report": {
+      "status": "OK",
+      "detail": "outputs\\kr_rail_danyang\\ndvi\\report\\kr_rail_danyang_ndvi_parcel_report.html"
+    }
+  },
+  "outputs": [
+    "outputs\\kr_rail_danyang\\ndvi\\rasters\\ndvi_2016.tif",
+    "outputs\\kr_rail_danyang\\ndvi\\rasters\\valid_2016.tif",
+    "outputs\\kr_rail_danyang\\ndvi\\rasters\\ndvi_2018.tif",
+    "outputs\\kr_rail_danyang\\ndvi\\rasters\\valid_2018.tif",
+    "outputs\\kr_rail_danyang\\ndvi\\rasters\\ndvi_2020.tif",
+    "outputs\\kr_rail_danyang\\ndvi\\rasters\\valid_2020.tif",
+    "outputs\\kr_rail_danyang\\ndvi\\rasters\\ndvi_2022.tif",
+    "outputs\\kr_rail_danyang\\ndvi\\rasters\\valid_2022.tif",
+    "outputs\\kr_rail_danyang\\ndvi\\rasters\\ndvi_2024.tif",
+    "outputs\\kr_rail_danyang\\ndvi\\rasters\\valid_2024.tif",
+    "outputs\\kr_rail_danyang\\ndvi\\rasters\\ndvi_2026.tif",
+    "outputs\\kr_rail_danyang\\ndvi\\rasters\\valid_2026.tif",
+    "outputs\\kr_rail_danyang\\ndvi\\rasters\\delta_ndvi_2016_2018.tif",
+    "outputs\\kr_rail_danyang\\ndvi\\rasters\\decline_candidate_2016_2018.tif",
+    "outputs\\kr_rail_danyang\\ndvi\\rasters\\delta_ndvi_2018_2020.tif",
+    "outputs\\kr_rail_danyang\\ndvi\\rasters\\decline_candidate_2018_2020.tif",
+    "outputs\\kr_rail_danyang\\ndvi\\rasters\\delta_ndvi_2020_2022.tif",
+    "outputs\\kr_rail_danyang\\ndvi\\rasters\\decline_candidate_2020_2022.tif",
+    "outputs\\kr_rail_danyang\\ndvi\\rasters\\delta_ndvi_2022_2024.tif",
+    "outputs\\kr_rail_danyang\\ndvi\\rasters\\decline_candidate_2022_2024.tif",
+    "outputs\\kr_rail_danyang\\ndvi\\rasters\\delta_ndvi_2024_2026.tif",
+    "outputs\\kr_rail_danyang\\ndvi\\rasters\\decline_candidate_2024_2026.tif",
+    "outputs\\kr_rail_danyang\\ndvi\\rasters\\delta_ndvi_2016_2026.tif",
+    "outputs\\kr_rail_danyang\\ndvi\\rasters\\decline_candidate_2016_2026.tif",
+    "outputs\\kr_rail_danyang\\ndvi\\rasters\\persistence_class.tif",
+    "outputs\\kr_rail_danyang\\ndvi\\rasters\\persistent_decline.tif",
+    "outputs\\kr_rail_danyang\\ndvi\\rasters\\change_frequency.tif",
+    "outputs\\kr_rail_danyang\\ndvi\\rasters\\evaluable_mask.tif",
+    "outputs\\kr_rail_danyang\\ndvi\\rasters\\n_valid_obs.tif",
+    "outputs\\kr_rail_danyang\\ndvi\\tables\\parcel_ndvi_timeseries.csv",
+    "outputs\\kr_rail_danyang\\ndvi\\tables\\parcel_change_summary.csv",
+    "outputs\\kr_rail_danyang\\ndvi\\tables\\priority_parcels.csv",
+    "outputs\\kr_rail_danyang\\ndvi\\vectors\\parcel_ndvi_stats.gpkg",
+    "outputs\\kr_rail_danyang\\ndvi\\vectors\\parcel_ndvi_stats.geojson",
+    "outputs\\kr_rail_danyang\\ndvi\\vectors\\parcel_change_types.gpkg",
+    "outputs\\kr_rail_danyang\\ndvi\\vectors\\parcel_change_types.geojson",
+    "outputs\\kr_rail_danyang\\ndvi\\vectors\\priority_parcels.gpkg",
+    "outputs\\kr_rail_danyang\\ndvi\\vectors\\priority_parcels.geojson",
+    "outputs\\kr_rail_danyang\\ndvi\\tables\\analysis_quality_summary.csv",
+    "outputs\\kr_rail_danyang\\ndvi\\metadata\\analysis_metadata.json",
+    "outputs\\kr_rail_danyang\\ndvi\\metadata\\sensitivity_analysis.json",
+    "outputs\\kr_rail_danyang\\ndvi\\vectors\\railway_used.geojson",
+    "outputs\\kr_rail_danyang\\ndvi\\vectors\\aoi.geojson",
+    "outputs\\kr_rail_danyang\\ndvi\\report\\kr_rail_danyang_ndvi_parcel_report.html",
+    "outputs\\kr_rail_danyang\\ndvi\\report\\static\\ndvi_by_year.png",
+    "outputs\\kr_rail_danyang\\ndvi\\report\\static\\parcel_decline_ratio.png",
+    "outputs\\kr_rail_danyang\\ndvi\\report\\static\\parcel_priority_score.png",
+    "outputs\\kr_rail_danyang\\ndvi\\report\\static\\parcel_change_types.png",
+    "outputs\\kr_rail_danyang\\ndvi\\report\\static\\top_parcels_ndvi_timeseries.png",
+    "outputs\\kr_rail_danyang\\ndvi\\report\\kr_rail_danyang_ndvi_static_report.html"
+  ],
+  "status": "SUCCESS",
+  "inputs": {
+    "project_yaml": "config\\projects\\kr_rail_danyang.yaml",
+    "aoi": "data/projects/kr_rail_danyang/aoi/danyang_master_aoi.geojson",
+    "railway": "data/projects/kr_rail_danyang/aoi/osm_railway.geojson",
+    "sentinel2": [
+      "data\\projects\\kr_rail_danyang\\raw\\sentinel2\\s2_2016_2016-05-08.tif",
+      "data\\projects\\kr_rail_danyang\\raw\\sentinel2\\s2_2018_2018-04-28.tif",
+      "data\\projects\\kr_rail_danyang\\raw\\sentinel2\\s2_2020_2020-04-29.tif",
+      "data\\projects\\kr_rail_danyang\\raw\\sentinel2\\s2_2022_2022-05-04.tif",
+      "data\\projects\\kr_rail_danyang\\raw\\sentinel2\\s2_2024_2024-05-03.tif",
+      "data\\projects\\kr_rail_danyang\\raw\\sentinel2\\s2_2026_2026-05-06.tif"
+    ]
+  },
+  "input_signature": "91feb48ec3cb5b3a328aa174d14b405f54a5f6a7644dc13a989d5bf31a39e5bd",
+  "finished_at": "2026-10-13T11:33:50+09:00"
+}

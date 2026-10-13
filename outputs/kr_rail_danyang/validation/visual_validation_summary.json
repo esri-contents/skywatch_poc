@@ -1,0 +1,119 @@
+{
+  "method": "stratified random sample of 20m pixels (n=12 per class, seed 20260513) inside AOI; visual interpretation of VWorld Satellite z19 chips",
+  "labeler": "AI-assisted visual interpretation (single analyst), not field survey",
+  "caveat": "기준 영상은 촬영 시점을 알 수 없는 VWorld 현재 고해상도 위성영상이며, 판독은 AI 보조 육안 판독(현장 조사 아님)이다. 분석 최종 시점(2026) 노출/식생 상태의 일치만 검증하며 변화 발생 시점·원인은 검증하지 못한다. 20m 상자 안 혼합 지표는 UNCLEAR로 제외했고, 표본은 층별 12개 층화추출이라 정확도는 모집단 값이 아니다.",
+  "n_samples": 108,
+  "label_counts": {
+    "BARE": 35,
+    "BUILT": 19,
+    "UNCLEAR": 4,
+    "VEG_LOW": 14,
+    "VEG_TREE": 27,
+    "WATER": 9
+  },
+  "predictor": "NDVI20_2026 <= 0.25 and BSI_2026 >= 0.0 (exposed state)",
+  "confusion_exposed_state_2026": {
+    "n": 104,
+    "tp": 46,
+    "fp": 9,
+    "fn": 8,
+    "tn": 41,
+    "precision": 0.8363636363636363,
+    "recall": 0.8518518518518519,
+    "f1": 0.8440366972477065,
+    "overall_accuracy": 0.8365384615384616,
+    "per_stratum": {
+      "POTENTIAL_QUARRY_EXPANSION": {
+        "n": 11,
+        "visually_exposed": 9,
+        "pred_exposed": 9,
+        "labels": {
+          "BARE": 6,
+          "BUILT": 3,
+          "VEG_TREE": 2
+        }
+      },
+      "EXPOSED_SURFACE_CHANGE": {
+        "n": 12,
+        "visually_exposed": 10,
+        "pred_exposed": 12,
+        "labels": {
+          "BUILT": 2,
+          "BARE": 8,
+          "VEG_LOW": 2
+        }
+      },
+      "QUARRY_INTERNAL_CHANGE": {
+        "n": 11,
+        "visually_exposed": 9,
+        "pred_exposed": 9,
+        "labels": {
+          "BUILT": 2,
+          "VEG_LOW": 1,
+          "BARE": 7,
+          "VEG_TREE": 1
+        }
+      },
+      "VEGETATION_LOSS": {
+        "n": 12,
+        "visually_exposed": 9,
+        "pred_exposed": 9,
+        "labels": {
+          "BUILT": 6,
+          "VEG_TREE": 2,
+          "BARE": 3,
+          "WATER": 1
+        }
+      },
+      "PERSISTENT_EXPOSED_SURFACE": {
+        "n": 12,
+        "visually_exposed": 10,
+        "pred_exposed": 11,
+        "labels": {
+          "BUILT": 4,
+          "VEG_LOW": 2,
+          "BARE": 6
+        }
+      },
+      "VEGETATION_RECOVERY": {
+        "n": 12,
+        "visually_exposed": 1,
+        "pred_exposed": 1,
+        "labels": {
+          "VEG_TREE": 6,
+          "VEG_LOW": 5,
+          "BARE": 1
+        }
+      },
+      "UNCERTAIN_CHANGE": {
+        "n": 11,
+        "visually_exposed": 0,
+        "pred_exposed": 1,
+        "labels": {
+          "VEG_TREE": 3,
+          "WATER": 8
+        }
+      },
+      "STABLE_VEGETATION": {
+        "n": 12,
+        "visually_exposed": 0,
+        "pred_exposed": 0,
+        "labels": {
+          "VEG_TREE": 11,
+          "VEG_LOW": 1
+        }
+      },
+      "NO_SIGNIFICANT_CHANGE": {
+        "n": 11,
+        "visually_exposed": 6,
+        "pred_exposed": 3,
+        "labels": {
+          "BUILT": 2,
+          "VEG_TREE": 2,
+          "BARE": 4,
+          "VEG_LOW": 3
+        }
+      }
+    }
+  }
+}

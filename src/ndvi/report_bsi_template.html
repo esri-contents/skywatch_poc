@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__</title>
+<style>
+:root{
+  --bg:#f4f5f7; --panel:#fff; --ink:#18202b; --muted:#5b6675; --faint:#8a94a3; --line:#e1e5ea; --line2:#eef0f3;
+  --accent:#1f4e9c; --accent-soft:#e8effa; --warn-bg:#fff6e8; --warn:#9a5b00; --sel:#111;
+  --ok:#1b7f4b; --ok-bg:#e3f4ea; --mid:#9a6b00; --mid-bg:#fff1cf; --low:#b3261e; --low-bg:#fde7e5;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0f1318; --panel:#171d25; --ink:#e8ecf2; --muted:#a3adbb; --faint:#778293; --line:#2a333f; --line2:#222a34;
+  --accent:#7fb0ff; --accent-soft:#1b2a44; --warn-bg:#3a2a12; --warn:#f6b45f; --sel:#fff;
+  --ok:#6fd49b; --ok-bg:#16301f; --mid:#f1c15a; --mid-bg:#3a2f12; --low:#ff8a80; --low-bg:#3a1a18;}}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:56px}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.7 "Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+a{color:var(--accent)}
+.wrap{max-width:1360px;margin:0 auto;padding:0 28px}
+header{background:var(--panel);border-bottom:1px solid var(--line)}
+header .wrap{padding-top:26px;padding-bottom:20px}
+header h1{margin:0 0 6px;font-size:26px;line-height:1.35;letter-spacing:-.01em}
+.sub{color:var(--muted);font-size:14px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.chip{background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:3px 12px;font-size:12.5px}
+.notice{margin:18px 0 0;padding:12px 16px;background:var(--warn-bg);border-left:4px solid var(--warn);border-radius:6px;font-size:14px;color:var(--ink)}
+.notice b{color:var(--warn)}
+nav{position:sticky;top:0;z-index:30;background:var(--panel);border-bottom:1px solid var(--line)}
+nav .wrap{display:flex;gap:2px;overflow:auto}
+nav a{padding:12px 14px;color:var(--muted);text-decoration:none;font-size:14px;white-space:nowrap;border-bottom:3px solid transparent}
+nav a:hover{color:var(--accent)}
+nav a.on{color:var(--accent);border-bottom-color:var(--accent);font-weight:700}
+main{padding-top:26px;padding-bottom:70px}
+section{margin-bottom:44px}
+h2{font-size:21px;margin:0 0 4px;letter-spacing:-.01em}
+h2 + .lead{color:var(--muted);margin:0 0 16px;font-size:14px}
+h3{font-size:16px;margin:26px 0 10px}
+h4{font-size:14px;margin:0 0 6px;color:var(--muted);font-weight:700}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+.note{color:var(--muted);font-size:13px;line-height:1.6}
+/* 요약 */
+.concl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:16px}
+@media (max-width:980px){.concl{grid-template-columns:1fr}}
+.concl .card{border-top:4px solid var(--accent)}
+.concl .q{font-size:12.5px;color:var(--muted);font-weight:700;margin-bottom:4px}
+.concl .a{font-size:17px;font-weight:700;line-height:1.5;margin-bottom:6px}
+.concl p{margin:0;font-size:13.5px;color:var(--muted)}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:1000px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi,.mini{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+.kl{font-size:12.5px;color:var(--muted)}.kv2{font-size:27px;font-weight:700;margin:2px 0;letter-spacing:-.02em}.ks{font-size:12.5px;color:var(--faint);line-height:1.4}
+.cards3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:10px 0 14px}
+@media (max-width:700px){.cards3{grid-template-columns:1fr}}
+.howto{margin-top:16px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:980px){.howto{grid-template-columns:1fr}}
+.howto .card{background:var(--accent-soft);border-color:transparent}
+.howto b{color:var(--accent)}
+/* 지도 */
+.maprow{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:16px;align-items:start}
+@media (max-width:1100px){.maprow{grid-template-columns:1fr}}
+.ctrl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 18px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--line2)}
+@media (max-width:640px){.ctrl{grid-template-columns:1fr}}
+.ctrl fieldset{border:0;margin:0;padding:0;min-width:0}
+.ctrl legend{font-size:12px;font-weight:700;color:var(--muted);padding:0;margin-bottom:5px}
+.row{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:13.5px}
+.row label{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
+select{font:inherit;font-size:13.5px;padding:4px 6px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:6px;max-width:100%}
+#mapwrap{position:relative;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#eef1f4;touch-action:none}
+@media (prefers-color-scheme: dark){#mapwrap{background:#0b0f14}}
+#map{display:block;width:100%;height:680px;cursor:grab}
+.zoom{position:absolute;right:10px;top:10px;display:flex;flex-direction:column;gap:5px}
+.zoom button{width:34px;height:34px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:6px;font-size:17px;cursor:pointer}
+#tip{position:absolute;pointer-events:none;background:rgba(20,24,30,.93);color:#fff;font-size:12.5px;padding:6px 9px;border-radius:6px;display:none;white-space:nowrap;z-index:5}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:12.5px;color:var(--muted);align-items:center}
+.legend i{display:inline-block;width:13px;height:13px;border-radius:3px;margin-right:5px;vertical-align:-2px;border:1px solid rgba(0,0,0,.2)}
+.ramp{display:inline-block;width:130px;height:10px;border-radius:3px;vertical-align:middle;margin:0 6px;border:1px solid rgba(0,0,0,.2)}
+/* 표 */
+table.kv,table.grid{border-collapse:collapse;width:100%;background:var(--panel);font-size:13.5px}
+table.kv th{width:30%;text-align:left;vertical-align:top;color:var(--muted);font-weight:500;padding:7px 10px;border-bottom:1px solid var(--line2)}
+table.kv td{padding:7px 10px;border-bottom:1px solid var(--line2);word-break:break-word}
+table.grid th,table.grid td{padding:8px 10px;border-bottom:1px solid var(--line2);text-align:left;vertical-align:middle}
+table.grid tbody tr:nth-child(even) td{background:rgba(127,127,127,.045)}
+table.grid thead th{background:var(--panel);color:var(--muted);font-weight:700;font-size:12.5px;border-bottom:2px solid var(--line);position:sticky;top:0;white-space:nowrap}
+table.grid .num,.num{text-align:right;font-variant-numeric:tabular-nums}
+table.grid tr.grp td{background:var(--accent-soft)!important;color:var(--accent);font-weight:700;font-size:12.5px}
+table.grid tr.base td{font-weight:700}
+.tablewrap{max-height:540px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+tr.row{cursor:pointer}tr.row:hover td{background:var(--accent-soft)!important}tr.row.on td{background:var(--accent-soft)!important;font-weight:700}
+.mono{font-family:Consolas,monospace;font-size:12.5px}
+.tag{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;color:#fff;white-space:nowrap}
+.pill{display:inline-block;min-width:44px;text-align:center;padding:1px 8px;border-radius:999px;font-size:12.5px;font-weight:700}
+.pill.ok{background:var(--ok-bg);color:var(--ok)}.pill.mid{background:var(--mid-bg);color:var(--mid)}.pill.low{background:var(--low-bg);color:var(--low)}
+.mbar{display:inline-block;width:90px;height:8px;background:var(--line);border-radius:4px;overflow:hidden;vertical-align:middle;margin-right:8px}
+.mbar b{display:block;height:100%;background:var(--accent)}
+.bar{height:8px;background:var(--line);border-radius:4px;overflow:hidden}.bar>b{display:block;height:100%}
+/* 상세 */
+#detail{position:sticky;top:64px;max-height:calc(100vh - 80px);overflow:auto}
+#detail h3{margin:0 0 4px;font-size:18px}
+.sec{margin-top:14px;padding-top:12px;border-top:1px solid var(--line2)}
+.dl{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;font-size:13.5px;margin:6px 0}
+.dl dt{color:var(--muted)}.dl dd{margin:0;text-align:right}
+.callout{background:var(--accent-soft);border-radius:8px;padding:9px 12px;margin:10px 0;font-size:13.5px}
+.callout.warn{background:var(--warn-bg);color:var(--ink)}
+/* 탭/비교/사례 */
+.tabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.tabs button{padding:8px 14px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;cursor:pointer;font:inherit;font-size:14px}
+.tabs button.on{background:var(--accent);color:#fff;border-color:var(--accent);font-weight:700}
+.cmp{position:relative;display:inline-block;max-width:100%;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.cmp img{display:block;image-rendering:pixelated;width:min(100%,600px);height:auto}
+.cmp .top{position:absolute;left:0;top:0}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(440px,1fr));gap:18px}
+@media (max-width:560px){.two{grid-template-columns:1fr}}
+.case{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:16px}
+.case h3{margin:0 0 4px;font-size:17px}
+.panels{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:12px 0}
+@media (max-width:900px){.panels{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.panels figure{margin:0}.panels svg{width:100%;height:auto;border:1px solid var(--line);border-radius:4px;background:#fff}
+.panels figcaption{font-size:12px;color:var(--muted);margin-top:3px}
+details{background:var(--panel);border:1px solid var(--line);border-radius:10px;margin:12px 0}
+details>summary{cursor:pointer;padding:12px 16px;font-weight:700;font-size:15px;list-style:none}
+details>summary::-webkit-details-marker{display:none}
+details>summary:before{content:"▸";display:inline-block;width:18px;color:var(--accent)}
+details[open]>summary:before{content:"▾"}
+details>.body{padding:0 16px 16px}
+ul{padding-left:20px;margin:6px 0}li{margin:5px 0}
+footer{color:var(--muted);font-size:12.5px;padding:0 0 36px}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <h1>__TITLE__</h1>
+  <div class="sub">충청북도 단양군 매포읍 매포리·하괴리 일대 · Sentinel-2 NDVI(10m)·BSI(20m) + 연속지적도 · 한국철도공단 보고용 탐색적 분석(PoC)</div>
+  <div class="chips" id="chips"></div>
+  <div class="notice"><b>이 보고서의 한계</b> — __NOTICE__
+    분석 AOI는 잠정 행정경계, 철도선은 OSM(비공식), 채석장 경계는 OSM(비공인)이며 공식 보상구역이 아닙니다. 모든 유형은 <b>검토 후보</b>입니다.</div>
+</div></header>
+<nav><div class="wrap">
+  <a href="#s1">한눈에 보기</a><a href="#s2">지도 · 필지</a><a href="#s3">시기별 비교</a><a href="#s4">우선 검토</a>
+  <a href="#s5">대표 사례</a><a href="#s6">신뢰도 · 근거</a>
+</div></nav>
+<main class="wrap">
+
+<section id="s1">
+  <h2>한눈에 보기</h2>
+  <p class="lead">핵심 결론 3가지와 주요 수치입니다. 모든 값은 이번 분석 산출물에서 계산되었습니다.</p>
+  <div class="concl" id="concl"></div>
+  <div class="kpis" id="kpis"></div>
+  <div class="howto">
+    <div class="card"><h4>🗺 어떻게 읽나</h4>지도에서 필지를 <b>클릭</b>하면 오른쪽에 연도별 NDVI·BSI 변화, 면적, 채석장 인접성, 신뢰도가 나옵니다.</div>
+    <div class="card"><h4>🎯 어디부터 보나</h4><b>우선 검토</b> 탭의 A(철도 인접)·B(채석장·노출지) 목록에서 행을 누르면 지도로 이동합니다. <b>강건 후보</b>는 재현성이 높은 후보입니다.</div>
+    <div class="card"><h4>⚠ 무엇을 조심하나</h4>NDVI·BSI만으로는 채석장·시설·농경지·나지를 확정 구분할 수 없습니다. 현장 또는 고해상도 영상으로 확인하세요.</div>
+  </div>
+</section>
+
+<section id="s2">
+  <h2>지도 · 필지 상세</h2>
+  <p class="lead">영상과 필지 색을 바꿔 보고, 필지를 클릭해 근거를 확인합니다. (배경 지도 없음, EPSG:5186, 마우스 휠로 확대)</p>
+  <div class="maprow">
+    <div class="card">
+      <div class="ctrl">
+        <fieldset><legend>① 배경 영상</legend>
+          <div class="row"><select id="fam" aria-label="영상 계열">
+            <option value="none">(없음)</option><option value="ndvi">NDVI · 식생(10m)</option><option value="bsi">BSI · 노출지(20m)</option>
+            <option value="dndvi">ΔNDVI · 식생 변화량(20m)</option><option value="dbsi">ΔBSI · 노출 변화량(20m)</option></select>
+            <select id="famSel" aria-label="연도/구간"></select></div></fieldset>
+        <fieldset><legend>② 후보 오버레이</legend>
+          <div class="row"><select id="ovl" aria-label="후보 오버레이"><option value="">(없음)</option></select></div></fieldset>
+        <fieldset><legend>③ 필지 색상</legend>
+          <div class="row"><select id="metric" aria-label="필지 색상">
+            <option value="ct">복합 변화 유형(NDVI+BSI)</option><option value="qc">채석장 관련 분류</option>
+            <option value="dr10">식생 감소 비율(NDVI 10m)</option><option value="er">노출지 증가 비율(20m)</option>
+            <option value="dB">ΔBSI(첫→마지막)</option><option value="dN">ΔNDVI(첫→마지막)</option>
+            <option value="As">A. 철도 인접 우선순위 점수</option><option value="Bs">B. 채석장·노출지 점수</option></select></div></fieldset>
+        <fieldset><legend>④ 표시 레이어</legend>
+          <div class="row"><label><input type="checkbox" id="lyParcel" checked>필지</label><label><input type="checkbox" id="lyRail" checked>철도(OSM)</label>
+            <label><input type="checkbox" id="lyQuarry" checked>채석장 참조(OSM)</label><label><input type="checkbox" id="lyAoi" checked>AOI</label></div></fieldset>
+        <fieldset style="grid-column:1/-1"><legend>⑤ 필터 — 조건에 맞지 않는 필지는 흐리게 표시 <span id="filtCnt" class="note"></span></legend>
+          <div class="row">
+            <label>복합 유형 <select id="fCt"><option value="">전체</option></select></label>
+            <label>채석장 맥락 <select id="fQc"><option value="">전체</option></select></label>
+            <label><input type="checkbox" id="fA">A 후보만</label><label><input type="checkbox" id="fB">B 후보만</label>
+            <label><input type="checkbox" id="fRb">강건 후보만</label><label><input type="checkbox" id="fNoAg">농경지 맥락 제외</label>
+          </div></fieldset>
+      </div>
+      <div id="mapwrap">
+        <svg id="map" xmlns="http://www.w3.org/2000/svg"><g id="vp">
+          <g id="gFam"></g><g id="gParcels"></g><g id="gOvl" style="pointer-events:none"></g>
+          <path id="pQuarry" fill="rgba(127,106,82,.10)" stroke="#7f6a52" stroke-width="2" stroke-dasharray="2 4" vector-effect="non-scaling-stroke" style="pointer-events:none"/>
+          <path id="pAoi" fill="none" stroke="#111" stroke-width="3" vector-effect="non-scaling-stroke" style="pointer-events:none"/>
+          <path id="pRail" fill="none" stroke="#1f4e9c" stroke-width="2.5" stroke-dasharray="7 3" vector-effect="non-scaling-stroke" style="pointer-events:none"/>
+          <g id="gSel" style="pointer-events:none"></g></g></svg>
+        <div class="zoom"><button id="zin" title="확대">+</button><button id="zout" title="축소">−</button><button id="zfit" title="전체 보기">⌂</button></div>
+        <div id="tip"></div>
+      </div>
+      <div class="legend" id="legend"></div><div class="legend" id="legend2"></div>
+      <p class="note" style="margin-top:10px">점선 갈색 영역은 OSM 채석장 참조 경계(비공인, 허가구역 전체일 수 있음)입니다. 회색 필지는 800㎡ 미만 등 해상도 한계로 판단을 보류한 필지입니다.</p>
+    </div>
+    <div class="card" id="detail"><h3>필지 상세</h3><p class="note">지도에서 필지를 클릭하거나 <b>우선 검토</b> 표의 행을 선택하세요.</p></div>
+  </div>
+</section>
+
+<section id="s3">
+  <h2>시기별 비교</h2>
+  <p class="lead">같은 장소의 두 시점을 슬라이더로 비교합니다. 약 2년 간격의 관측이라 변화가 언제 일어났는지는 알 수 없습니다.</p>
+  <div class="two">
+    <div class="card">
+      <div class="row" style="margin-bottom:10px">
+        <label>지표 <select id="cmpF"><option value="ndvi">NDVI(10m)</option><option value="bsi">BSI(20m)</option></select></label>
+        <label>이전 <select id="cmpA"></select></label><label>이후 <select id="cmpB"></select></label>
+        <label style="flex:1;min-width:150px">좌↔우 <input type="range" id="cmpS" min="0" max="100" value="50" style="flex:1"></label>
+      </div>
+      <div class="cmp"><img id="imgA" alt="이전"><img id="imgB" class="top" alt="이후"></div>
+      <p class="note">왼쪽=이전, 오른쪽=이후. 픽셀 격자가 보이는 해상도이며 건축물 단위 판독용이 아닙니다.</p>
+    </div>
+    <div class="card"><h4>AOI 평균 NDVI · BSI와 촬영일</h4>
+      <svg id="aoiChart" viewBox="0 0 540 260" style="width:100%"></svg>
+      <div class="tablewrap" style="max-height:230px;margin-top:8px"><table class="grid" id="sceneTbl"><thead><tr><th>연도</th><th>촬영일</th><th>위성</th><th>Scene ID</th><th>Baseline</th></tr></thead><tbody></tbody></table></div>
+      <p class="note">2018·2020년은 AOI 전체 NDVI가 낮습니다. 다중 장면 합성에서도 같아 단일 장면 오류가 아니라 해당 연도 이른 봄 식생 위상 차이로 보이며, 변화량은 연도쌍별 중앙값 편이를 보정했습니다.</p></div>
+  </div>
+</section>
+
+<section id="s4">
+  <h2>우선 검토 필지</h2>
+  <p class="lead">두 목록은 목적이 달라 따로 순위를 매겼습니다. 행을 누르면 지도로 이동합니다. 위쪽 <b>지도 필터</b>가 이 표에도 적용됩니다.</p>
+  <div class="tabs"><button id="tabA" class="on">A. 철도 인접 현장조사 검토</button><button id="tabB">B. 채석장 및 노출지 변화 검토</button></div>
+  <p class="note" id="tabNote"></p>
+  <div class="tablewrap"><table class="grid" id="tbl"><thead></thead><tbody></tbody></table></div>
+</section>
+
+<section id="s5">
+  <h2>대표 사례</h2>
+  <p class="lead">실제 분석 필지에서 규칙으로 선택한 5가지 사례입니다. 위 두 줄은 이전→이후 NDVI(10m), 아래 두 줄은 BSI(20m)이며 검은 윤곽이 해당 필지입니다.</p>
+  <div id="cases"></div>
+</section>
+
+<section id="s6">
+  <h2>신뢰도 · 근거</h2>
+  <p class="lead">이 결과를 얼마나 믿어도 되는지, 어떤 기준으로 만들었는지 정리했습니다.</p>
+  <div class="card" id="validation"></div>
+
+  <details><summary>임계값을 바꾸면 결과가 얼마나 달라지나 (민감도)</summary><div class="body">
+    <div class="tablewrap" id="sens"></div></div></details>
+  <details><summary>적용한 판정 기준 (초기 탐색용 가설)</summary><div class="body"><div id="thr"></div></div></details>
+  <details><summary>방법 요약</summary><div class="body"><ul>
+    <li><b>BSI</b> = ((SWIR+RED) − (NIR+BLUE)) / ((SWIR+RED) + (NIR+BLUE)); SWIR=B11(20m), RED=B04, NIR=B08, BLUE=B02. 10m 밴드는 20m로 2×2 평균(4/4 유효), B11은 보간하지 않음.</li>
+    <li>NDVI·BSI는 이미 offset이 제거된 동일 장면 값을 사용하고 offset을 재적용하지 않음. NoData·구름 마스크는 결측으로 두며 변화 없음으로 취급하지 않음.</li>
+    <li>변화 유형: 식생 감소 / 노출지 증가(NDVI↓+BSI↑) / 노출 지속 / 식생 회복(NDVI↑+BSI↓) / 안정 식생 / 불확실(상충·수체 의심). 변화 시점은 추정하지 않고 최초 관측 구간만 표기.</li>
+    <li>채석장 확장 의심: 참조 폴리곤에 40m 이내로 연결된 노출지 증가 성분(2픽셀 이상). 채석 활동의 확정이 아니며 면적 변화 이력은 산출하지 않음.</li>
+    <li>필지 통계: 필지∩픽셀 교차 면적 가중. NDVI(10m)와 복합(20m) 면적은 해상도가 달라 같은 정확도로 비교하지 않음. 식생 감소 ⊃ 노출지 증가(합산 금지).</li></ul></div></details>
+  <details open><summary>알려진 한계</summary><div class="body"><div id="limits"></div></div></details>
+  <details><summary>NDVI 분석(1차)의 한계</summary><div class="body"><div id="blimits"></div></div></details>
+  <details><summary>입력 자료 · 출처</summary><div class="body">
+    <h4>B11(SWIR) 확보 결과 — 기존 분석 장면과 동일한 Scene ID</h4><div class="tablewrap" id="swir"></div>
+    <h4 style="margin-top:16px">채석장 참조자료</h4><div id="quarry"></div>
+    <h4 style="margin-top:16px">데이터 품질</h4><div id="qa"></div></div></details>
+</section>
+</main>
+<div class="wrap"><footer>이 보고서는 외부 CDN·인터넷 없이 열리는 단일 HTML입니다. 정적 대체본: kr_rail_danyang_ndvi_bsi_quarry_static_report.html</footer></div>
+
+<script>
+const D=__DATA_JSON__; const B=__BLOCKS__;
+const $=id=>document.getElementById(id), NS="http://www.w3.org/2000/svg", P=D.parcels, S=D.summary;
+$("kpis").innerHTML=B.kpi; $("swir").innerHTML=B.swir; $("sens").innerHTML=B.sens; $("thr").innerHTML=B.thresholds;
+$("quarry").innerHTML=B.quarry; $("qa").innerHTML=B.qa; $("limits").innerHTML=B.limits; $("blimits").innerHTML=B.base_limits;
+$("sceneTbl").querySelector("tbody").innerHTML=B.scenes; $("validation").innerHTML=B.validation;
+const fmt=(v,d=0)=>v==null?"—":Number(v).toLocaleString("ko-KR",{maximumFractionDigits:d,minimumFractionDigits:d});
+const f2=v=>v==null?"—":Number(v).toFixed(2);
+
+// ---- 한글 변환
+const FLAG_KO={VALID:"양호",LOW_PIXEL_COUNT:"소형 필지(10m)",LOW_COVERAGE:"유효 관측 부족",CLOUD_CONTAMINATION:"구름·마스크 영향",GEOMETRY_WARNING:"경계 경고",
+  NOT_EVALUABLE:"평가 불가",LOW_PIXEL_COUNT_20M:"소형 필지(20m)",LOW_COVERAGE_20M:"유효 관측 부족(20m)",WATER_SUSPECT:"수체 의심"};
+const koFlags=s=>!s?"—":s.split(";").map(x=>x.startsWith("BSI_YEAR_MISSING")?"BSI 연도 누락":(FLAG_KO[x]||x)).join(" · ");
+const RISK_KO={FARMLAND_VARIATION_POSSIBLE:"농경지 변동 가능",BUILT_OR_DEVELOPED_CONTEXT:"시설·개발지 맥락",FOREST_MANAGEMENT_OR_CLEARING_POSSIBLE:"산림 관리·벌채 가능"};
+const koRisk=s=>!s?"없음":s.split(";").map(x=>RISK_KO[x]||x).join(" · ");
+const CONF_KO={HIGH:"높음",MEDIUM:"보통",LOW:"낮음",NONE:"판단 보류"};
+const PS_KO={PERSISTENT:"지속",UNCONFIRMED:"지속성 미확인",TEMPORARY:"일시적(회복)",NONE:"감소 없음",NOT_EVALUABLE:"평가 불가"};
+const TIER_COL={"상":"#b2182b","중":"#ef8a62","하":"#f4c542"};
+
+// ---- 상단 요약
+$("chips").innerHTML=[`분석 기간 ${D.years[0]}–${D.years[D.years.length-1]}(${D.years.length}개 연도)`,"Sentinel-2 L2A","NDVI 10m · BSI 20m",`필지 ${fmt(S.n_parcels)}개(PNU)`,"EPSG:5186"].map(t=>`<span class="chip">${t}</span>`).join("");
+const vf=S.vf_f1!=null?`현재 상태를 고해상도 영상으로 육안 확인한 결과 노출 판정 F1 ${f2(S.vf_f1)}(표본 ${S.vf_n}개)`:"육안 검증 미수행";
+const rb=S.cmp_robust!=null?`다중 장면 합성으로 다시 계산해도 재현된 강건 후보 ${S.cmp_robust}개`:"합성 비교 미수행";
+$("concl").innerHTML=`
+ <div class="card"><div class="q">① 어디가 바뀌었나</div><div class="a">노출지 증가 후보 ${S.aoi_exposed_ha.toFixed(1)} ha · ${fmt(S.n_exposed)}개 필지</div>
+   <p>식생이 줄고 노출 지표(BSI)가 함께 늘어난 곳입니다. 식생 감소 후보는 ${S.aoi_veg_decline_ha.toFixed(1)} ha(노출지 증가 포함), 식생 회복 후보는 ${S.aoi_recovery_ha.toFixed(1)} ha입니다.</p></div>
+ <div class="card"><div class="q">② 채석장과 관련이 있나</div><div class="a">채석장 확장 의심 ${fmt(S.n_potential_expansion)}개 필지 · ${S.aoi_potential_expansion_ha.toFixed(2)} ha</div>
+   <p>OSM 참조 채석장(비공인)과 공간적으로 이어진 노출지 증가입니다. 채석 활동의 확정이 아니며 참조 경계 내부 변화는 ${fmt(S.n_quarry_internal)}개 필지입니다.</p></div>
+ <div class="card"><div class="q">③ 얼마나 믿을 수 있나</div><div class="a">${S.vf_f1!=null?`육안 확인 F1 ${f2(S.vf_f1)} · 강건 후보 ${S.cmp_robust}개`:"검증 자료 부족"}</div>
+   <p>${vf}. ${rb}. 변화 <u>원인</u>은 검증하지 못했고, 노출 오판은 초지·농경지가 많았고 놓친 곳은 BSI가 기준 부근인 나지·시설이 주된 오류였습니다.</p></div>`;
+
+// ---- 지도
+const svg=$("map"),vp=$("vp");
+let view={x:D.bbox[0],y:D.bbox[1],w:D.bbox[2]-D.bbox[0],h:D.bbox[3]-D.bbox[1]};
+const applyView=()=>svg.setAttribute("viewBox",`${view.x} ${view.y} ${view.w} ${view.h}`);
+function fit(pad=.04){const r=svg.getBoundingClientRect(),ar=r.width/r.height;let w=(D.bbox[2]-D.bbox[0])*(1+pad*2),h=(D.bbox[3]-D.bbox[1])*(1+pad*2);
+  if(w/h<ar)w=h*ar;else h=w/ar;const cx=(D.bbox[0]+D.bbox[2])/2,cy=(D.bbox[1]+D.bbox[3])/2;view={x:cx-w/2,y:cy-h/2,w,h};applyView();}
+const zoomAt=(f,cx,cy)=>{view.x=cx-(cx-view.x)*f;view.y=cy-(cy-view.y)*f;view.w*=f;view.h*=f;applyView();};
+const toSvg=e=>{const r=svg.getBoundingClientRect();return[view.x+(e.clientX-r.left)/r.width*view.w,view.y+(e.clientY-r.top)/r.height*view.h];};
+svg.addEventListener("wheel",e=>{e.preventDefault();const[x,y]=toSvg(e);zoomAt(e.deltaY<0?.8:1.25,x,y);},{passive:false});
+let drag=null,moved=false;
+svg.addEventListener("pointerdown",e=>{drag={cx:e.clientX,cy:e.clientY,vx:view.x,vy:view.y};moved=false;});
+window.addEventListener("pointermove",e=>{if(!drag)return;const r=svg.getBoundingClientRect(),dx=e.clientX-drag.cx,dy=e.clientY-drag.cy;
+  if(Math.abs(dx)+Math.abs(dy)>3)moved=true;view.x=drag.vx-dx/r.width*view.w;view.y=drag.vy-dy/r.height*view.h;applyView();});
+window.addEventListener("pointerup",()=>drag=null);
+$("zin").onclick=()=>zoomAt(.7,view.x+view.w/2,view.y+view.h/2);$("zout").onclick=()=>zoomAt(1.4,view.x+view.w/2,view.y+view.h/2);$("zfit").onclick=()=>fit();
+$("pAoi").setAttribute("d",D.aoi_path);$("pRail").setAttribute("d",D.rail_path);$("pQuarry").setAttribute("d",D.quarry_paths.join(""));
+$("lyParcel").onchange=e=>{$("gParcels").style.display=e.target.checked?"":"none";};
+$("lyRail").onchange=e=>{$("pRail").style.display=e.target.checked?"":"none";};
+$("lyQuarry").onchange=e=>{$("pQuarry").style.display=e.target.checked?"":"none";};
+$("lyAoi").onchange=e=>{$("pAoi").style.display=e.target.checked?"":"none";};
+function addImg(parent,href,g,op){const im=document.createElementNS(NS,"image");im.setAttribute("href",href);im.setAttribute("x",g.x);im.setAttribute("y",g.y);
+  im.setAttribute("width",g.w);im.setAttribute("height",g.h);im.setAttribute("preserveAspectRatio","none");im.style.imageRendering="pixelated";im.setAttribute("opacity",op);parent.appendChild(im);}
+const labelsOf=f=>f==="ndvi"||f==="bsi"?D.years:D.intervals;
+function famOptions(){const f=$("fam").value,s=$("famSel");s.innerHTML="";if(f==="none"){s.disabled=true;return;}s.disabled=false;
+  labelsOf(f).forEach((l,i)=>{const o=document.createElement("option");o.value=i;o.textContent=l;s.appendChild(o);});s.value=labelsOf(f).length-1;}
+function drawFam(){const f=$("fam").value,g=$("gFam");g.innerHTML="";if(f==="none"){$("gParcels").style.opacity=1;legend();return;}
+  const i=+$("famSel").value;let href,grid=D.g20;
+  if(f==="ndvi"){href=D.layers.ndvi[i];grid=D.g10;}else if(f==="bsi")href=D.layers.bsi[i];else href=D.layers[f][D.intervals[i]];
+  addImg(g,href,grid,.95);$("gParcels").style.opacity=.25;legend();}
+$("fam").onchange=()=>{famOptions();drawFam();};$("famSel").onchange=drawFam;
+Object.entries(D.layers.overlay).forEach(([k,v])=>{const o=document.createElement("option");o.value=k;o.textContent=v.label;$("ovl").appendChild(o);});
+$("ovl").onchange=()=>{const g=$("gOvl");g.innerHTML="";const k=$("ovl").value;if(k)addImg(g,D.layers.overlay[k].png,D.g20,.9);legend();};
+
+const hex=c=>"#"+c.map(v=>Math.round(v).toString(16).padStart(2,"0")).join("");
+const lerp=(a,b,t)=>a.map((v,i)=>v+(b[i]-v)*t);
+const ramp=(st,t)=>{t=Math.max(0,Math.min(1,t));const n=st.length-1,i=Math.min(n-1,Math.floor(t*n));return lerp(st[i],st[i+1],t*n-i);};
+const SEQ=[[255,247,236],[253,212,158],[252,141,89],[215,48,31],[127,0,0]],PRI=[[255,255,204],[254,217,118],[253,141,60],[227,26,28],[128,0,38]];
+const DIV=[[178,24,43],[239,138,98],[247,247,247],[103,169,207],[33,102,172]],DIV_BSI=[[33,102,172],[103,169,207],[247,247,247],[239,138,98],[178,24,43]];
+const GREY="#e3e6e9";
+function colorOf(p,m){
+  if(m==="ct")return D.comp_colors[p.ct]||GREY; if(m==="qc")return D.q_colors[p.qc]||GREY;
+  if(p.t10==="INSUFFICIENT_DATA"&&(m==="dr10"||m==="dN"))return GREY;
+  if(m==="dr10")return p.dr10==null?GREY:hex(ramp(SEQ,p.dr10/.5));
+  if(m==="er")return p.ev20==null||p.er==null||p.ct==="INSUFFICIENT_DATA"?GREY:hex(ramp(SEQ,p.er/.5));
+  if(m==="dB")return p.dB==null||p.ct==="INSUFFICIENT_DATA"?GREY:hex(ramp(DIV_BSI,(p.dB+.3)/.6));
+  if(m==="dN")return p.dN==null?GREY:hex(ramp(DIV,1-(p.dN+.4)/.8));
+  if(m==="As")return p.Ar==null?"#eef0f2":hex(ramp(PRI,p.As/100));
+  if(m==="Bs")return p.Br==null?"#eef0f2":hex(ramp(PRI,p.Bs/100));return GREY;}
+const els=[];P.forEach((p,i)=>{const e=document.createElementNS(NS,"path");e.setAttribute("d",D.paths[i]);e.setAttribute("fill-rule","evenodd");
+  e.setAttribute("stroke","rgba(40,40,40,.5)");e.setAttribute("stroke-width",".6");e.setAttribute("vector-effect","non-scaling-stroke");e.dataset.i=i;$("gParcels").appendChild(e);els.push(e);});
+function passes(p){const c=$("fCt").value,q=$("fQc").value;if(c&&p.ct!==c)return false;if(q&&p.qc!==q)return false;
+  if($("fA").checked&&p.Ar==null)return false;if($("fB").checked&&p.Br==null)return false;
+  if($("fRb").checked&&!p.rb)return false;if($("fNoAg").checked&&p.agc)return false;return true;}
+function legend(){const m=$("metric").value,L=$("legend");const sw=(c,t)=>`<span><i style="background:${c}"></i>${t}</span>`;
+  const rp=(st,a,b)=>`<span>${a}<span class="ramp" style="background:linear-gradient(90deg,${st.map(c=>hex(c)).join(",")})"></span>${b}</span>`;let h="";
+  if(m==="ct")h=Object.entries(D.comp_colors).map(([k,c])=>sw(c,D.comp_ko[k])).join("");
+  if(m==="qc")h=Object.entries(D.q_colors).map(([k,c])=>sw(c,D.q_ko[k])).join("");
+  if(m==="dr10"||m==="er")h=rp(SEQ,"0%","50%+")+sw(GREY,"판단 보류");
+  if(m==="dB")h=rp(DIV_BSI,"−0.3","+0.3 (BSI 증가)");if(m==="dN")h=rp(DIV,"+0.4","−0.4 (NDVI 감소)");
+  if(m==="As"||m==="Bs")h=rp(PRI,"0","100")+sw("#eef0f2","검토 후보 아님");L.innerHTML="<b>필지</b> "+h;
+  const o=$("ovl").value,f=$("fam").value;let h2="";
+  if(o)h2+="<b>후보</b> "+Object.entries(D.layers.overlay[o].legend).map(([c,t])=>sw(c,t)).join("");
+  if(f==="ndvi")h2+=" <b>NDVI</b> "+rp([[215,48,39],[254,224,139],[26,152,80]],"0","0.9");
+  if(f==="bsi")h2+=" <b>BSI</b> "+rp([[255,255,229],[254,196,79],[140,45,4]],"−0.35","0.25");
+  if(f==="dndvi")h2+=" <b>ΔNDVI</b> "+rp([[178,24,43],[247,247,247],[33,102,172]],"−0.6","+0.6");
+  if(f==="dbsi")h2+=" <b>ΔBSI</b> "+rp([[33,102,172],[247,247,247],[178,24,43]],"−0.3","+0.3");
+  $("legend2").innerHTML=h2;}
+function recolor(){const m=$("metric").value;let n=0;els.forEach((e,i)=>{const p=P[i],ok=passes(p);if(ok)n++;e.setAttribute("fill",colorOf(p,m));e.setAttribute("fill-opacity",ok?1:.1);e.style.pointerEvents=ok?"":"none";});
+  $("filtCnt").textContent=`(표시 ${n.toLocaleString()} / ${P.length.toLocaleString()}개)`;legend();}
+[...new Set(P.map(p=>p.ct))].forEach(k=>{const o=document.createElement("option");o.value=k;o.textContent=D.comp_ko[k]||k;$("fCt").appendChild(o);});
+[...new Set(P.map(p=>p.qc))].forEach(k=>{const o=document.createElement("option");o.value=k;o.textContent=D.q_ko[k]||k;$("fQc").appendChild(o);});
+["metric","fCt","fQc","fA","fB","fRb","fNoAg"].forEach(id=>$(id).onchange=()=>{recolor();renderTable();});
+const tip=$("tip");
+$("gParcels").addEventListener("pointermove",e=>{const t=e.target;if(t.dataset.i==null){tip.style.display="none";return;}const p=P[+t.dataset.i],r=$("mapwrap").getBoundingClientRect();
+  tip.textContent=`${p.j||"-"} · ${p.ctk} · ${D.q_ko[p.qc]||p.qc}`;tip.style.left=(e.clientX-r.left+12)+"px";tip.style.top=(e.clientY-r.top+12)+"px";tip.style.display="block";});
+$("gParcels").addEventListener("pointerleave",()=>tip.style.display="none");
+$("gParcels").addEventListener("click",e=>{if(moved)return;const t=e.target;if(t.dataset.i!=null)select(+t.dataset.i,false);});
+
+// ---- 필지 상세
+let selI=null;
+function lineChart(series,lo,hi,colors,names,aoi){const W=380,H=150,l=36,r=8,t=8,b=22,ys=D.years;const xs=i=>l+(W-l-r)*i/(ys.length-1),yv=v=>t+(H-t-b)*(1-(v-lo)/(hi-lo));
+  let s=`<svg viewBox="0 0 ${W} ${H}" style="width:100%">`;const step=(hi-lo)>1?.2:.1;
+  for(let v=Math.ceil(lo/step)*step;v<=hi+1e-9;v+=step)s+=`<line x1="${l}" x2="${W-r}" y1="${yv(v)}" y2="${yv(v)}" stroke="currentColor" opacity=".12"/><text x="${l-4}" y="${yv(v)+3}" text-anchor="end" font-size="9.5" fill="currentColor" opacity=".7">${v.toFixed(1)}</text>`;
+  ys.forEach((y,i)=>s+=`<text x="${xs(i)}" y="${H-7}" text-anchor="middle" font-size="9.5" fill="currentColor" opacity=".7">${y}</text>`);
+  const line=(arr,c,dash)=>{let d="",pen=false;arr.forEach((v,i)=>{if(v==null){pen=false;return;}d+=(pen?"L":"M")+xs(i)+","+yv(v);pen=true;});return `<path d="${d}" fill="none" stroke="${c}" stroke-width="2" ${dash?'stroke-dasharray="4 3"':''}/>`;};
+  s+=line(aoi,"#8a94a3",true);series.forEach((a,k)=>{s+=line(a,colors[k],false);a.forEach((v,i)=>{if(v!=null)s+=`<circle cx="${xs(i)}" cy="${yv(v)}" r="3" fill="${colors[k]}"><title>${names[k]} ${ys[i]}: ${v}</title></circle>`;});});
+  s+=names.map((n,k)=>`<text x="${W-r}" y="${t+9+k*11}" text-anchor="end" font-size="9.5" fill="${colors[k]}">— ${n}</text>`).join("")+`<text x="${W-r}" y="${t+9+names.length*11}" text-anchor="end" font-size="9.5" fill="#8a94a3">-- AOI 평균</text></svg>`;return s;}
+function select(i,zoom){selI=i;const p=P[i];$("gSel").innerHTML="";const sp=document.createElementNS(NS,"path");sp.setAttribute("d",D.paths[i]);
+  sp.setAttribute("fill","none");sp.setAttribute("stroke","var(--sel)");sp.setAttribute("stroke-width","3");sp.setAttribute("vector-effect","non-scaling-stroke");sp.setAttribute("fill-rule","evenodd");$("gSel").appendChild(sp);
+  if(zoom){const bb=sp.getBBox(),pad=Math.max(bb.width,bb.height,80)*1.2,r=svg.getBoundingClientRect();let w=bb.width+pad*2,h=bb.height+pad*2;const ar=r.width/r.height;
+    if(w/h<ar)w=h*ar;else h=w/ar;view={x:bb.x+bb.width/2-w/2,y:bb.y+bb.height/2-h/2,w,h};applyView();}
+  const col=D.comp_colors[p.ct]||"#888",qcol=D.q_colors[p.qc]||"#888";
+  const insufficient=p.ct==="INSUFFICIENT_DATA";
+  const summary=insufficient?"20m 해상도로는 판단하기 어려운 소형 필지입니다(800㎡ 미만 등)."
+    :`${p.ctk} · ${D.q_ko[p.qc]||p.qc} · 신뢰도 ${CONF_KO[p.cc]||p.cc}`;
+  const warn=[];if(p.wr)warn.push(p.wr);if(p.cr)warn.push("혼동 위험: "+koRisk(p.cr));
+  const bar=(v,c)=>`<div class="bar"><b style="width:${v||0}%;background:${c}"></b></div>`;
+  $("detail").innerHTML=`
+  <h3>${p.j||"-"}</h3>
+  <div class="note mono">PNU ${p.pnu||"—"}</div><div class="note">${p.ad||""}</div>
+  <div style="margin:8px 0"><span class="tag" style="background:${col}">${p.ctk}</span> <span class="tag" style="background:${qcol}">${D.q_ko[p.qc]||p.qc}</span>
+    ${p.rb?'<span class="tag" style="background:#1b7f4b">강건 후보</span>':""}</div>
+  <div class="callout">${summary}</div>
+  ${warn.length?`<div class="callout warn">⚠ ${warn.join("<br>⚠ ")}</div>`:""}
+  <div class="sec"><h4>면적</h4><dl class="dl">
+    <dt>필지 면적(전체 / AOI 내)</dt><dd>${fmt(p.at)} ㎡ / ${fmt(p.a)} ㎡</dd>
+    <dt>평가 가능 면적(20m)</dt><dd>${fmt(p.ev20)} ㎡</dd>
+    <dt>식생 감소(20m)</dt><dd>${fmt(p.vd)} ㎡ (${p.dr20==null?"—":(p.dr20*100).toFixed(1)+"%"})</dd>
+    <dt>└ 노출지 증가 (감소에 포함)</dt><dd>${fmt(p.ex)} ㎡ (${p.er==null?"—":(p.er*100).toFixed(1)+"%"})</dd>
+    <dt>식생 회복 / 노출 지속 / 불확실</dt><dd>${fmt(p.rc)} / ${fmt(p.pe)} / ${fmt(p.un)} ㎡</dd>
+    <dt>채석장 확장 의심</dt><dd>${fmt(p.pq)} ㎡</dd>
+    <dt>NDVI 감소(10m) · 유형</dt><dd>${fmt(p.dl10)} ㎡ · ${p.t10k}</dd></dl></div>
+  <div class="sec"><h4>변화</h4><dl class="dl">
+    <dt>최초 관측 구간(20m / 10m)</dt><dd>${p.fi||"—"} / ${p.fi10?p.fi10.replace("_","→"):"—"}</dd>
+    <dt>ΔNDVI(10m) / ΔBSI(20m)</dt><dd>${p.dN==null?"—":p.dN.toFixed(3)} / ${p.dB==null?"—":p.dB.toFixed(3)}</dd></dl>
+    <div class="note">NDVI 시계열(10m 면적가중 평균)</div>${lineChart([p.n,p.n20],-.1,.9,["#1f4e9c","#2f9e6a"],["NDVI 10m","NDVI 20m"],D.aoi_mean_ndvi)}
+    <div class="note">BSI 시계열(20m)</div>${lineChart([p.b],-.4,.3,["#8c6d46"],["BSI 20m"],D.aoi_mean_bsi)}
+    <table class="grid"><thead><tr><th></th>${D.years.map(y=>`<th class="num">${y}</th>`).join("")}</tr></thead><tbody>
+     <tr><td>NDVI</td>${p.n.map(v=>`<td class="num">${v==null?"—":v.toFixed(2)}</td>`).join("")}</tr>
+     <tr><td>BSI</td>${p.b.map(v=>`<td class="num">${v==null?"—":v.toFixed(2)}</td>`).join("")}</tr></tbody></table></div>
+  <div class="sec"><h4>위치 맥락</h4><dl class="dl">
+    <dt>채석장 참조까지 거리</dt><dd>${p.qd==null?"—":fmt(p.qd)+" m"}${p.qa?" (인접)":""}${p.qo>0?` · 참조와 ${(p.qo*100).toFixed(0)}% 중첩`:""}</dd>
+    <dt>철도(OSM) 최단거리</dt><dd>${p.rd==null?"—":fmt(p.rd)+" m"}${p.rt?" (터널 구간)":""}</dd>
+    <dt>지목 / 용도지역</dt><dd>${p.jm||"—"} / ${p.zn||"—"}</dd>
+    <dt>농경지 맥락 근거</dt><dd>${p.ag||"없음"}</dd></dl></div>
+  <div class="sec"><h4>분석 품질</h4><dl class="dl">
+    <dt>신뢰도(복합 / NDVI)</dt><dd>${CONF_KO[p.cc]||p.cc} / ${CONF_KO[p.cf10]||p.cf10}</dd>
+    <dt>품질 플래그</dt><dd>${koFlags(p.cq)}</dd>
+    <dt>다중 장면 합성 재현</dt><dd>${p.rb?"단일·합성 모두 후보":"해당 없음/일부만"}</dd></dl></div>
+  <div class="sec"><h4>검토 우선순위</h4><dl class="dl">
+    <dt>A. 철도 인접 ${p.Ar?`#${p.Ar}`:"(후보 아님)"}</dt><dd>${p.As==null?"—":p.As.toFixed(1)}점</dd>
+    <dt>　감소 · 지속성 · 철도</dt><dd>${p.As1==null?"—":p.As1.toFixed(0)} · ${p.As2==null?"—":p.As2.toFixed(0)} · ${p.As3==null?"—":p.As3.toFixed(0)}</dd>
+    <dt>B. 채석장·노출지 ${p.Br?`#${p.Br}`:"(후보 아님)"}</dt><dd>${p.Bs==null?"—":p.Bs.toFixed(1)}점</dd>
+    <dt>　노출 · 채석장 연계 · 지속</dt><dd>${p.Bs1==null?"—":p.Bs1.toFixed(0)} · ${p.Bs2==null?"—":p.Bs2.toFixed(0)} · ${p.Bs3==null?"—":p.Bs3.toFixed(0)}</dd></dl>
+    <div class="note">식생·노출 지표 변화 후보이며 건축물·지장물·채석 활동·보상 대상 여부를 확정하지 않습니다. 추가 영상 검증이 필요합니다.</div></div>`;
+  document.querySelectorAll("#tbl tr.row").forEach(tr=>tr.classList.toggle("on",+tr.dataset.i===i));}
+
+// ---- 우선 검토 표
+let tab="A",sortK=null,sortDir=1;
+const COLS={A:[["Ar","순위"],["j","지번"],["pnu","PNU"],["dout","감소 면적(㎡, 채석장 밖)"],["dr10","감소 비율"],["ps","지속성"],["fi10","최초 관측 구간"],["rd","철도 거리(m)"],["As","점수"],["q10","품질"]],
+ B:[["Br","순위"],["j","지번"],["pnu","PNU"],["ex","노출지 증가(㎡)"],["er","노출 비율"],["qc","채석장 맥락"],["qd","참조까지(m)"],["fi","최초 관측 구간"],["Bs","점수"],["cc","신뢰도"],["cr","혼동 위험"]]};
+function cell(k,p){let v=p[k];if(v==null||v==="")return k==="cr"?"없음":"—";if(k==="dr10"||k==="er")return(v*100).toFixed(1)+"%";if(k==="ps")return PS_KO[v]||v;if(k==="qc")return D.q_ko[v]||v;
+  if(k==="fi10")return v.replace("_","→");if(k==="As"||k==="Bs")return v.toFixed(1);if(k==="cc")return CONF_KO[v]||v;if(k==="cr")return koRisk(v);if(k==="q10")return koFlags(v);
+  if(typeof v==="number")return fmt(v);return v;}
+const NUMK=new Set(["Ar","Br","dout","dr10","rd","As","ex","er","qd","Bs"]);
+function renderTable(){const rk=tab==="A"?"Ar":"Br";if(!sortK||!COLS[tab].some(c=>c[0]===sortK))sortK=rk;
+  $("tabNote").textContent=tab==="A"?"철도(OSM, 비공식) 인접성 + 채석장 참조 폴리곤 내부 변화를 제외한 NDVI 식생 감소 면적 기준입니다. 열 제목을 누르면 정렬됩니다."
+    :"NDVI+BSI 노출지 증가 면적, 참조 채석장과의 공간 연계, 노출 지속성 기준입니다. 철도 거리는 점수에 넣지 않았고 채석장 내부 변화도 목록에 남깁니다.";
+  $("tbl").querySelector("thead").innerHTML="<tr>"+COLS[tab].map(c=>`<th data-k="${c[0]}" class="${NUMK.has(c[0])?"num":""}">${c[1]}${sortK===c[0]?(sortDir>0?" ▲":" ▼"):""}</th>`).join("")+"</tr>";
+  let idx=P.map((p,i)=>i).filter(i=>P[i][rk]!=null&&passes(P[i]));
+  idx.sort((a,b)=>{let x=P[a][sortK],y=P[b][sortK];if(x==null&&y==null)return 0;if(x==null)return 1;if(y==null)return -1;return(x<y?-1:x>y?1:0)*sortDir;});
+  $("tbl").querySelector("tbody").innerHTML=idx.length?idx.slice(0,400).map(i=>{const p=P[i];return`<tr class="row${i===selI?" on":""}" data-i="${i}">`+COLS[tab].map(c=>`<td class="${NUMK.has(c[0])?"num":""}${c[0]==="pnu"?" mono":""}">${cell(c[0],p)}</td>`).join("")+"</tr>";}).join("")
+    :`<tr><td colspan="${COLS[tab].length}" class="note">조건에 맞는 필지가 없습니다. 지도 필터를 완화해 보세요.</td></tr>`;}
+$("tbl").querySelector("thead").addEventListener("click",e=>{const th=e.target.closest("th");const k=th&&th.dataset.k;if(!k)return;if(sortK===k)sortDir*=-1;else{sortK=k;sortDir=["Ar","Br","pnu","j","rd","qd"].includes(k)?1:-1;}renderTable();});
+$("tbl").querySelector("tbody").addEventListener("click",e=>{const tr=e.target.closest("tr.row");if(!tr)return;select(+tr.dataset.i,true);$("s2").scrollIntoView({behavior:"smooth"});});
+$("tabA").onclick=()=>{tab="A";sortK=null;sortDir=1;$("tabA").classList.add("on");$("tabB").classList.remove("on");renderTable();};
+$("tabB").onclick=()=>{tab="B";sortK=null;sortDir=1;$("tabB").classList.add("on");$("tabA").classList.remove("on");renderTable();};
+
+// ---- 시기별 비교
+function fillCmp(){[$("cmpA"),$("cmpB")].forEach(s=>{s.innerHTML="";D.years.forEach((y,i)=>{const o=document.createElement("option");o.value=i;o.textContent=y;s.appendChild(o);});});$("cmpA").value=0;$("cmpB").value=D.years.length-1;}
+function cmp(){const L=D.layers[$("cmpF").value];$("imgA").src=L[+$("cmpA").value];$("imgB").src=L[+$("cmpB").value];$("imgB").style.clipPath=`inset(0 0 0 ${$("cmpS").value}%)`;}
+["cmpF","cmpA","cmpB"].forEach(id=>$(id).onchange=cmp);$("cmpS").oninput=cmp;fillCmp();cmp();
+(function(){const W=540,H=260,l=40,r=12,t=14,b=34,n=D.years.length,xs=i=>l+(W-l-r)*(i+.5)/n,lo=-.3,hi=.7,yv=v=>t+(H-t-b)*(1-(v-lo)/(hi-lo));let s="";
+  for(let v=-.2;v<=hi+1e-9;v+=.2)s+=`<line x1="${l}" x2="${W-r}" y1="${yv(v)}" y2="${yv(v)}" stroke="currentColor" opacity=".12"/><text x="${l-5}" y="${yv(v)+3}" text-anchor="end" font-size="10.5" fill="currentColor" opacity=".7">${v.toFixed(1)}</text>`;
+  const ln=a=>a.map((v,i)=>v==null?"":`${i?"L":"M"}${xs(i)},${yv(v)}`).join("");
+  s+=`<path d="${ln(D.aoi_mean_ndvi)}" stroke="#4a9d5b" fill="none" stroke-width="2.2"/><path d="${ln(D.aoi_mean_bsi)}" stroke="#8c6d46" fill="none" stroke-width="2.2" stroke-dasharray="5 3"/>`;
+  D.years.forEach((y,i)=>{s+=`<circle cx="${xs(i)}" cy="${yv(D.aoi_mean_ndvi[i])}" r="3.8" fill="#4a9d5b"/><circle cx="${xs(i)}" cy="${yv(D.aoi_mean_bsi[i])}" r="3.8" fill="#8c6d46"/><text x="${xs(i)}" y="${H-17}" text-anchor="middle" font-size="11" fill="currentColor">${y}</text><text x="${xs(i)}" y="${H-4}" text-anchor="middle" font-size="9.5" fill="currentColor" opacity=".7">${D.scenes[i].date.slice(5)}</text>`;});
+  s+=`<text x="${l+6}" y="${t+11}" font-size="11" fill="#4a9d5b">— AOI 평균 NDVI(10m)</text><text x="${l+6}" y="${t+25}" font-size="11" fill="#8c6d46">-- AOI 평균 BSI(20m)</text>`;$("aoiChart").innerHTML=s;})();
+
+// ---- 대표 사례
+function caseHTML(c){if(c.empty)return`<div class="case"><h3>${c.title}</h3><p class="note">해당 사례 없음 — ${c.why}</p></div>`;
+  const a=c.areas;const idxp=P.findIndex(p=>p.pnu===c.pnu);
+  const panels=c.panels.map(p=>`<figure><svg viewBox="0 0 ${p.w} ${p.h}"><image href="${p.png}" x="0" y="0" width="${p.w}" height="${p.h}" preserveAspectRatio="none" style="image-rendering:pixelated"/>
+   <path d="${p.d}" fill="none" stroke="#111" stroke-width="${Math.max(p.w,p.h)/90}"/></svg><figcaption>${p.label}</figcaption></figure>`).join("");
+  return`<div class="case"><h3>${c.title}</h3><div class="note">선정 규칙: ${c.why}</div>
+  <p style="margin:8px 0 0"><b>${c.jibun}</b> · <span class="mono">PNU ${c.pnu}</span> · ${c.addr||""} ${idxp>=0?`<a href="#s2" onclick="select(${idxp},true);return true">지도에서 보기 →</a>`:""}</p>
+  <div class="panels">${panels}</div>
+  <table class="kv"><tr><th>주요 변화 관측 구간</th><td>${c.interval.replace("_","→")} <span class="note">(약 2년 사이 언제인지는 알 수 없음)</span></td></tr>
+  <tr><th>NDVI / BSI 변화(첫→마지막)</th><td>ΔNDVI ${c.ndvi_first_last==null?"—":c.ndvi_first_last.toFixed(3)} (10m) · ΔBSI ${c.bsi_first_last==null?"—":c.bsi_first_last.toFixed(3)} (20m)</td></tr>
+  <tr><th>변화 면적</th><td>NDVI 감소(10m) ${fmt(a.ndvi10_decline)}㎡ · [20m] 식생 감소 ${fmt(a.veg_decline_20m)}㎡ ⊃ 노출지 증가 ${fmt(a.exposed_20m)}㎡ · 회복 ${fmt(a.recovery_20m)}㎡ <span class="note">(필지 ${fmt(a.area_in_aoi_m2)}㎡, 합산 금지)</span></td></tr>
+  <tr><th>변화 유형</th><td>${c.ntype}(NDVI) · ${c.ctype}(NDVI+BSI) · ${D.q_ko[c.qctx]||c.qctx}</td></tr>
+  <tr><th>해석과 불확실성</th><td>${c.interp} 신뢰도 ${CONF_KO[c.conf]||c.conf} · 품질 ${koFlags(c.flags)}.</td></tr>
+  <tr><th>필요한 후속 검증</th><td>${c.followup}</td></tr></table></div>`;}
+$("cases").innerHTML=D.cases.map(caseHTML).join("");
+
+// ---- 초기화
+famOptions();recolor();renderTable();
+window.addEventListener("load",()=>fit());window.addEventListener("resize",()=>fit());
+const secs=[...document.querySelectorAll("main section")],links=[...document.querySelectorAll("nav a")];
+window.addEventListener("scroll",()=>{let cur=secs[0].id;secs.forEach(s=>{if(s.getBoundingClientRect().top<120)cur=s.id;});links.forEach(a=>a.classList.toggle("on",a.getAttribute("href")==="#"+cur));},{passive:true});
+</script>
+</body>
+</html>

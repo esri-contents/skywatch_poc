@@ -509,3 +509,96 @@ publish할 때는 위 GPKG/GeoJSON을 입력으로 쓸 수 있다(자격증명�
 기입하면 같은 파이프라인이 입력으로 받는다. 단 50cm에서는 `resolution_m`, `min_component_area_m2`,
 morphology/SSIM/ECC 파라미터를 별도 project config에서 다시 정해야 한다(10m 파라미터 그대로 사용 불가).
 SkyWatch Content Store 주문/다운로드 provider는 구현하지 않았다.
+
+
+## 단양 Sentinel-2 NDVI · BSI · 연속지적도 필지 변화 모니터링 (`src/ndvi`)
+
+기존 `multitemporal_pipeline`(10m 변화 Screening)과 **독립적으로** 동작하는 Rasterio + GeoPandas 기반 파이프라인이다
+(ArcGIS Pro/arcpy 불필요, SkyWatch/유료 API 호출 없음). 기존 ArcPy 파이프라인과 기존 산출물은 수정하지 않는다.
+
+> 본 분석은 Sentinel-2 10m/20m 위성영상의 식생·노출지 지수 변화를 활용한 탐색적 분석이며, 개별 건축물의 신축·철거,
+> 지장물 존재 여부, 채석 활동 또는 토지보상 적격성을 확정하기 위한 자료가 아니다.
+
+### 실행
+
+```bash
+# 1) NDVI(10m) + 연속지적도 필지 통계 + 우선순위 + 보고서 (기존 로컬 Sentinel-2 사용, 지적도 캐시 사용)
+python -m src.ndvi.pipeline --project config/projects/kr_rail_danyang.yaml
+
+# 2) + BSI(B11, 20m) 복합 변화탐지 + 채석장 관련 후보 + 확장 보고서
+python -m src.ndvi.pipeline --project config/projects/kr_rail_danyang.yaml \
+    --enable-bsi --enable-quarry-analysis --generate-report
+```
+
+| 옵션 | 의미 |
+|---|---|
+| `--offline` | 네트워크 미사용(지적도/B11/채석장 참조는 로컬 캐시만) |
+| `--cadastre <file>` | 로컬 연속지적도(GPKG/GeoJSON/SHP, `pnu`·`jibun` 컬럼) 사용 |
+| `--fetch-cadastre` | VWorld WFS에서 지적도 재수집(`.env`의 `VWORLD_API_KEY` 필요, 키는 출력하지 않음) |
+| `--report-only` / `--force` / `--dry-run` | 보고서만 재생성 / 입력 동일해도 재계산 / 입력 점검만 |
+| `--enable-bsi` | **같은 Scene ID**의 B11을 확보(로컬 캐시 우선, 없으면 Planetary Computer STAC·무료)하고 BSI·복합 분석 수행 |
+| `--enable-quarry-analysis` | OSM `landuse=quarry` 참조 폴리곤 기반 채석장 관련 후보 분류(없으면 보류) |
+| `--generate-report` | 확장 HTML(+정적 대체본) 생성 |
+| `--refresh-reference` | 채석장 참조자료(OSM Overpass) 재수집 |
+
+B11을 받지 못한 연도는 `UNAVAILABLE`로 기록되고 해당 연도 BSI/복합 결과는 생성하지 않는다(허위 데이터 생성 안 함).
+
+### 산출물 (`outputs/kr_rail_danyang/`)
+
+| 경로 | 내용 |
+|---|---|
+| `ndvi/rasters/` | `ndvi_YYYY.tif`(10m), `delta_ndvi_A_B.tif`, `decline_candidate_A_B.tif`, `persistence_class.tif` 등 |
+| `ndvi/tables/` | `parcel_ndvi_timeseries.csv`, `parcel_change_summary.csv`, `priority_parcels.csv`, `analysis_quality_summary.csv` |
+| `ndvi/vectors/` | `parcel_ndvi_stats`, `parcel_change_types`, `priority_parcels` (.gpkg/.geojson) |
+| `ndvi/report/` | `kr_rail_danyang_ndvi_parcel_report.html`(오프라인 단일 HTML), 정적 대체본 |
+| `bsi/rasters/` | `bsi_YYYY.tif`(20m), `ndvi20_YYYY.tif`, `mndwi_YYYY.tif`, `delta_bsi_A_B.tif`, `delta_ndvi20_A_B.tif`, `composite_change_type.tif`, `quarry_class.tif` 등 |
+| `bsi/vectors/` | `vegetation_loss_candidates`, `exposed_surface_candidates`, `quarry_expansion_candidates`, `vegetation_recovery_candidates`, `parcel_ndvi_bsi_stats`, `quarry_reference_osm` |
+| `bsi/tables/` | `parcel_ndvi_bsi_timeseries.csv`, `parcel_composite_summary.csv`, `priority_A_rail_adjacent_review.csv`, `priority_B_quarry_exposed_review.csv`, `change_type_summary.csv`, `sensitivity_composite.csv` |
+| `bsi/report/` | `kr_rail_danyang_ndvi_bsi_quarry_report.html`(오프라인 단일 HTML), 정적 대체본 |
+| `*/metadata/` | `analysis_metadata.json`, `bsi_metadata.json`, `run_manifest.json`(성공/실패, 입력, 설정) |
+
+모든 CSV는 UTF-8 BOM. PNU는 문자열(19자리)로 보존한다.
+
+### 데이터 입력/설정
+
+- 입력 영상: `data/projects/kr_rail_danyang/raw/sentinel2/s2_YYYY_*.tif` (B02/B03/B04/B08, offset 이미 제거) + `outputs/.../reports/scene_selection.json`.
+- B11 캐시: `data/projects/kr_rail_danyang/raw/sentinel2_swir/` (`swir_provenance.json`에 scene_id, 촬영시각, baseline, offset 기록).
+- 연속지적도: `data/projects/kr_rail_danyang/cadastre/` (VWorld `lp_pa_cbnd_bubun`이 PNU 보유 전체 필지, `bonbun`은 PNU가 없어 커버리지 QA 전용).
+- 채석장 참조: `data/projects/kr_rail_danyang/reference/` (OSM, ODbL, 비공인).
+- 모든 임계값/가중치: `config/projects/kr_rail_danyang.yaml`의 `ndvi:` / `bsi:` 섹션(초기 탐색용 가설).
+- Windows에서 시스템 `PROJ_LIB`이 PostGIS를 가리키는 문제는 `src/ndvi/__init__.py`가 프로세스 안에서만 우회한다.
+
+### 테스트
+
+```bash
+python -m pytest -q          # 기존 + tests/test_ndvi_pipeline.py + tests/test_bsi_quarry.py
+```
+
+자세한 데이터 출처/한계: `docs/ndvi_bsi_data_sources_and_limitations.md`, 검증 결과: `docs/ndvi_bsi_validation_report.md`.
+
+### 향후 SkyWatch 영상 추가 시
+
+`config`의 `imagery.provider: local_geotiff` + `local_files`로 고해상도 영상을 기존 `multitemporal_pipeline`에 넣어 우선 검토 필지(`priority_*.csv`)
+주변 ROI에서 건축물·지장물 단위 판독을 수행한다. 공식 철도 선형/사업구역이 제공되면 `ndvi.railway.official_boundary_path`로 OSM 선형을 대체한다.
+
+### 한계 보완 도구 (2차)
+
+```bash
+# 계절 창 다중 장면 중앙값 합성 입력으로 같은 분석을 다시 실행하고 단일 장면과 비교(강건 후보 산출)
+python -m src.ndvi.pipeline --project config/projects/kr_rail_danyang.yaml \
+    --enable-bsi --enable-quarry-analysis --generate-report --composite-analysis
+```
+
+- 합성 영상/출처: `data/projects/kr_rail_danyang/raw/sentinel2_composite*/`, `composite_provenance_YYYY.json`
+- 합성 결과/비교: `outputs/kr_rail_danyang/composite/` (`tables/comparison_summary.json`, `robust_candidates.csv`)
+- 맥락 자료: `data/projects/kr_rail_danyang/context/` (VWorld 용도지역·영농여건불리농지·산림입지도, IO LULC 2017~2024)
+- 육안 판독 검증: `outputs/kr_rail_danyang/validation/` (표본, 몽타주, 판독 라벨, `visual_validation_summary.json`). 판독은 AI 보조이며 현장 조사가 아니다.
+- 자세한 결과와 남은 한계: `docs/ndvi_bsi_validation_report.md` 9장.
+
+### 쉬운 물건조사 1차 선별 보고서
+
+`--enable-bsi` 실행 시 함께 생성된다. 위성영상 변화 흔적으로 "어느 필지를 먼저 확인할지"만 알려주며, 지장물의 위치·형태·규모나 연도별 이력은 확인하지 못한다(고해상도 영상 필요).
+
+- 보고서: `outputs/kr_rail_danyang/bsi/report/kr_rail_danyang_survey_screening_report.html`
+- 필지별 표: `outputs/kr_rail_danyang/bsi/tables/survey_screening_parcels.csv`
+- 현재 건축물 윤곽(VWorld 도로명주소건물): `outputs/kr_rail_danyang/bsi/vectors/buildings_current_spbd.gpkg`

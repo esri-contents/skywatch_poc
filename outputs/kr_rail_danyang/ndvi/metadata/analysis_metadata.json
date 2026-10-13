@@ -1,0 +1,763 @@
+{
+  "title": "Sentinel-2 NDVI 및 연속지적도 기반 철도사업 주변 필지별 토지피복 변화 모니터링",
+  "generated_at": "2026-10-13T11:33:39+09:00",
+  "environment": {
+    "python": "3.12.10",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "libs": {
+      "numpy": "2.5.2",
+      "pandas": "3.0.5",
+      "rasterio": "1.5.1",
+      "geopandas": "1.1.4",
+      "shapely": "2.1.2",
+      "pyproj": "3.8.0"
+    }
+  },
+  "grid": {
+    "epsg": 5186,
+    "res_m": 10.0,
+    "shape": [
+      489,
+      385
+    ],
+    "transform": [
+      10.0,
+      0.0,
+      316890.0,
+      0.0,
+      -10.0,
+      493980.0
+    ]
+  },
+  "scenes": [
+    {
+      "year": 2016,
+      "date": "2016-05-08",
+      "scene_id": "S2A_MSIL2A_20160508T022702_R003_T52SDG_20210211T092928",
+      "platform": "Sentinel-2A",
+      "processing_baseline": "02.12",
+      "boa_offset_removed_dn": 0,
+      "scene_cloud_cover_pct": 6.91,
+      "aoi_clear_fraction": 0.9827,
+      "file": "s2_2016_2016-05-08.tif"
+    },
+    {
+      "year": 2018,
+      "date": "2018-04-28",
+      "scene_id": "S2A_MSIL2A_20180428T021611_R003_T52SDF_20201013T033603",
+      "platform": "Sentinel-2A",
+      "processing_baseline": "02.12",
+      "boa_offset_removed_dn": 0,
+      "scene_cloud_cover_pct": 1.46,
+      "aoi_clear_fraction": 0.9784,
+      "file": "s2_2018_2018-04-28.tif"
+    },
+    {
+      "year": 2020,
+      "date": "2020-04-29",
+      "scene_id": "S2B_MSIL2A_20200429T020649_R103_T52SDG_20200922T143841",
+      "platform": "Sentinel-2B",
+      "processing_baseline": "02.12",
+      "boa_offset_removed_dn": 0,
+      "scene_cloud_cover_pct": 7.5,
+      "aoi_clear_fraction": 0.9878,
+      "file": "s2_2020_2020-04-29.tif"
+    },
+    {
+      "year": 2022,
+      "date": "2022-05-04",
+      "scene_id": "S2A_MSIL2A_20220504T020701_R103_T52SDF_20220504T164654",
+      "platform": "Sentinel-2A",
+      "processing_baseline": "04.00",
+      "boa_offset_removed_dn": 1000,
+      "scene_cloud_cover_pct": 0.35,
+      "aoi_clear_fraction": 0.9968,
+      "file": "s2_2022_2022-05-04.tif"
+    },
+    {
+      "year": 2024,
+      "date": "2024-05-03",
+      "scene_id": "S2A_MSIL2A_20240503T020651_R103_T52SDG_20240503T072226",
+      "platform": "Sentinel-2A",
+      "processing_baseline": "05.10",
+      "boa_offset_removed_dn": 1000,
+      "scene_cloud_cover_pct": 0.3,
+      "aoi_clear_fraction": 0.9976,
+      "file": "s2_2024_2024-05-03.tif"
+    },
+    {
+      "year": 2026,
+      "date": "2026-05-06",
+      "scene_id": "S2C_MSIL2A_20260506T021601_R003_T52SDG_20260506T055524",
+      "platform": "Sentinel-2C",
+      "processing_baseline": "05.12",
+      "boa_offset_removed_dn": 1000,
+      "scene_cloud_cover_pct": 0.01,
+      "aoi_clear_fraction": 0.9891,
+      "file": "s2_2026_2026-05-06.tif"
+    }
+  ],
+  "ndvi_method": "NDVI=(B08-B04)/(B08+B04), 밴드는 GeoTIFF band description으로 판별. 반사율=DN/10000, BOA offset은 scene_selection.json 기준 이미 제거됨(재적용 안 함). 원본 0값(NoData/SCL 마스크)은 NaN. UTM52N->EPSG:5186 nearest 재투영.",
+  "thresholds": {
+    "profiles": {
+      "default": {
+        "before_min": 0.35,
+        "after_max": 0.2,
+        "delta_max": -0.2,
+        "recovery_ndvi": 0.35
+      },
+      "conservative": {
+        "before_min": 0.45,
+        "after_max": 0.15,
+        "delta_max": -0.3,
+        "recovery_ndvi": 0.3
+      },
+      "relaxed": {
+        "before_min": 0.3,
+        "after_max": 0.25,
+        "delta_max": -0.15,
+        "recovery_ndvi": 0.4
+      }
+    },
+    "min_followup_obs": 1,
+    "min_valid_obs_pixel": 4,
+    "parcel_quality": {
+      "min_effective_pixels": 4,
+      "min_evaluable_fraction": 0.8,
+      "min_year_valid_fraction": 0.5,
+      "min_valid_years": 4
+    },
+    "classification": {
+      "decline_ratio_min": 0.1,
+      "decline_area_min_m2": 300,
+      "recovery_delta_min": 0.1,
+      "stable_delta_abs_max": 0.1,
+      "fluctuation_std_min": 0.1,
+      "vegetation_mean_ndvi_min": 0.35,
+      "first_change_min_area_m2": 200
+    },
+    "priority": {
+      "weights": {
+        "decline_ratio": 0.4,
+        "persistence": 0.35,
+        "rail_proximity": 0.25
+      },
+      "decline_ratio_full_score": 0.5,
+      "persistence_scores": {
+        "PERSISTENT": 100,
+        "UNCONFIRMED": 50,
+        "TEMPORARY": 30,
+        "NONE": 0
+      },
+      "rail_full_score_distance_m": 0,
+      "rail_zero_score_distance_m": 500,
+      "min_decline_area_m2": 300,
+      "review_types": [
+        "PERSISTENT_DECLINE",
+        "DECLINE_UNCONFIRMED"
+      ],
+      "tiers": {
+        "high": 60,
+        "medium": 40
+      }
+    },
+    "note": "초기 탐색용 가설이며 검증된 임계값이 아님"
+  },
+  "raster_qa": {
+    "native_grid": {
+      "identical_native_grid": true,
+      "per_year": [
+        {
+          "year": 2016,
+          "epsg": 32652,
+          "shape": [
+            480,
+            374
+          ],
+          "res": [
+            10.0,
+            10.0
+          ],
+          "transform": [
+            10.0,
+            0.0,
+            438980.0,
+            0.0,
+            -10.0,
+            4099170.0
+          ],
+          "nodata": 0.0,
+          "dtype": "uint16",
+          "descriptions": [
+            "B02",
+            "B03",
+            "B04",
+            "B08"
+          ]
+        },
+        {
+          "year": 2018,
+          "epsg": 32652,
+          "shape": [
+            480,
+            374
+          ],
+          "res": [
+            10.0,
+            10.0
+          ],
+          "transform": [
+            10.0,
+            0.0,
+            438980.0,
+            0.0,
+            -10.0,
+            4099170.0
+          ],
+          "nodata": 0.0,
+          "dtype": "uint16",
+          "descriptions": [
+            "B02",
+            "B03",
+            "B04",
+            "B08"
+          ]
+        },
+        {
+          "year": 2020,
+          "epsg": 32652,
+          "shape": [
+            480,
+            374
+          ],
+          "res": [
+            10.0,
+            10.0
+          ],
+          "transform": [
+            10.0,
+            0.0,
+            438980.0,
+            0.0,
+            -10.0,
+            4099170.0
+          ],
+          "nodata": 0.0,
+          "dtype": "uint16",
+          "descriptions": [
+            "B02",
+            "B03",
+            "B04",
+            "B08"
+          ]
+        },
+        {
+          "year": 2022,
+          "epsg": 32652,
+          "shape": [
+            480,
+            374
+          ],
+          "res": [
+            10.0,
+            10.0
+          ],
+          "transform": [
+            10.0,
+            0.0,
+            438980.0,
+            0.0,
+            -10.0,
+            4099170.0
+          ],
+          "nodata": 0.0,
+          "dtype": "uint16",
+          "descriptions": [
+            "B02",
+            "B03",
+            "B04",
+            "B08"
+          ]
+        },
+        {
+          "year": 2024,
+          "epsg": 32652,
+          "shape": [
+            480,
+            374
+          ],
+          "res": [
+            10.0,
+            10.0
+          ],
+          "transform": [
+            10.0,
+            0.0,
+            438980.0,
+            0.0,
+            -10.0,
+            4099170.0
+          ],
+          "nodata": 0.0,
+          "dtype": "uint16",
+          "descriptions": [
+            "B02",
+            "B03",
+            "B04",
+            "B08"
+          ]
+        },
+        {
+          "year": 2026,
+          "epsg": 32652,
+          "shape": [
+            480,
+            374
+          ],
+          "res": [
+            10.0,
+            10.0
+          ],
+          "transform": [
+            10.0,
+            0.0,
+            438980.0,
+            0.0,
+            -10.0,
+            4099170.0
+          ],
+          "nodata": 0.0,
+          "dtype": "uint16",
+          "descriptions": [
+            "B02",
+            "B03",
+            "B04",
+            "B08"
+          ]
+        }
+      ]
+    },
+    "per_year": {
+      "2016": {
+        "date": "2016-05-08",
+        "scene_id": "S2A_MSIL2A_20160508T022702_R003_T52SDG_20210211T092928",
+        "platform": "Sentinel-2A",
+        "processing_baseline": "02.12",
+        "boa_offset_removed_dn_recorded": 0,
+        "offset_policy": "scene_selection.json에 기록된 값은 이미 제거됨 - 재적용하지 않음",
+        "red_band_index_1based": 3,
+        "nir_band_index_1based": 4,
+        "band_order": [
+          "B02",
+          "B03",
+          "B04",
+          "B08"
+        ],
+        "scene_cloud_cover_pct": 6.91,
+        "aoi_clear_fraction": 0.9827,
+        "valid_pixels": 177507,
+        "grid_pixels": 188265,
+        "valid_fraction_of_grid": 0.9428571428571428,
+        "ndvi_min": -0.1014823392033577,
+        "ndvi_max": 0.9021791815757751,
+        "ndvi_median": 0.5761961936950684,
+        "ndvi_p05": 0.010101030580699444,
+        "ndvi_p95": 0.8131101727485657,
+        "red_dn_p0.5": 296.0,
+        "reflectance_over_warn_fraction": 0.0
+      },
+      "2018": {
+        "date": "2018-04-28",
+        "scene_id": "S2A_MSIL2A_20180428T021611_R003_T52SDF_20201013T033603",
+        "platform": "Sentinel-2A",
+        "processing_baseline": "02.12",
+        "boa_offset_removed_dn_recorded": 0,
+        "offset_policy": "scene_selection.json에 기록된 값은 이미 제거됨 - 재적용하지 않음",
+        "red_band_index_1based": 3,
+        "nir_band_index_1based": 4,
+        "band_order": [
+          "B02",
+          "B03",
+          "B04",
+          "B08"
+        ],
+        "scene_cloud_cover_pct": 1.46,
+        "aoi_clear_fraction": 0.9784,
+        "valid_pixels": 176616,
+        "grid_pixels": 188265,
+        "valid_fraction_of_grid": 0.9381244522348817,
+        "ndvi_min": -0.19485659897327423,
+        "ndvi_max": 0.8644286394119263,
+        "ndvi_median": 0.45681923627853394,
+        "ndvi_p05": 0.007204379886388779,
+        "ndvi_p95": 0.7290441989898682,
+        "red_dn_p0.5": 344.07501220703125,
+        "reflectance_over_warn_fraction": 0.0
+      },
+      "2020": {
+        "date": "2020-04-29",
+        "scene_id": "S2B_MSIL2A_20200429T020649_R103_T52SDG_20200922T143841",
+        "platform": "Sentinel-2B",
+        "processing_baseline": "02.12",
+        "boa_offset_removed_dn_recorded": 0,
+        "offset_policy": "scene_selection.json에 기록된 값은 이미 제거됨 - 재적용하지 않음",
+        "red_band_index_1based": 3,
+        "nir_band_index_1based": 4,
+        "band_order": [
+          "B02",
+          "B03",
+          "B04",
+          "B08"
+        ],
+        "scene_cloud_cover_pct": 7.5,
+        "aoi_clear_fraction": 0.9878,
+        "valid_pixels": 177753,
+        "grid_pixels": 188265,
+        "valid_fraction_of_grid": 0.9441638116484742,
+        "ndvi_min": -0.9604743123054504,
+        "ndvi_max": 0.8294398784637451,
+        "ndvi_median": 0.38723406195640564,
+        "ndvi_p05": -0.010333158075809479,
+        "ndvi_p95": 0.706345796585083,
+        "red_dn_p0.5": 211.0,
+        "reflectance_over_warn_fraction": 0.0
+      },
+      "2022": {
+        "date": "2022-05-04",
+        "scene_id": "S2A_MSIL2A_20220504T020701_R103_T52SDF_20220504T164654",
+        "platform": "Sentinel-2A",
+        "processing_baseline": "04.00",
+        "boa_offset_removed_dn_recorded": 1000,
+        "offset_policy": "scene_selection.json에 기록된 값은 이미 제거됨 - 재적용하지 않음",
+        "red_band_index_1based": 3,
+        "nir_band_index_1based": 4,
+        "band_order": [
+          "B02",
+          "B03",
+          "B04",
+          "B08"
+        ],
+        "scene_cloud_cover_pct": 0.35,
+        "aoi_clear_fraction": 0.9968,
+        "valid_pixels": 179361,
+        "grid_pixels": 188265,
+        "valid_fraction_of_grid": 0.9527049637479086,
+        "ndvi_min": -0.3011435866355896,
+        "ndvi_max": 0.900237500667572,
+        "ndvi_median": 0.5214163064956665,
+        "ndvi_p05": 0.018482476472854614,
+        "ndvi_p95": 0.8103527426719666,
+        "red_dn_p0.5": 238.0,
+        "reflectance_over_warn_fraction": 0.0
+      },
+      "2024": {
+        "date": "2024-05-03",
+        "scene_id": "S2A_MSIL2A_20240503T020651_R103_T52SDG_20240503T072226",
+        "platform": "Sentinel-2A",
+        "processing_baseline": "05.10",
+        "boa_offset_removed_dn_recorded": 1000,
+        "offset_policy": "scene_selection.json에 기록된 값은 이미 제거됨 - 재적용하지 않음",
+        "red_band_index_1based": 3,
+        "nir_band_index_1based": 4,
+        "band_order": [
+          "B02",
+          "B03",
+          "B04",
+          "B08"
+        ],
+        "scene_cloud_cover_pct": 0.3,
+        "aoi_clear_fraction": 0.9976,
+        "valid_pixels": 179273,
+        "grid_pixels": 188265,
+        "valid_fraction_of_grid": 0.9522375375136112,
+        "ndvi_min": -0.1803278774023056,
+        "ndvi_max": 0.9016854166984558,
+        "ndvi_median": 0.5943348407745361,
+        "ndvi_p05": 0.02625572681427002,
+        "ndvi_p95": 0.8329731225967407,
+        "red_dn_p0.5": 254.0,
+        "reflectance_over_warn_fraction": 0.0
+      },
+      "2026": {
+        "date": "2026-05-06",
+        "scene_id": "S2C_MSIL2A_20260506T021601_R003_T52SDG_20260506T055524",
+        "platform": "Sentinel-2C",
+        "processing_baseline": "05.12",
+        "boa_offset_removed_dn_recorded": 1000,
+        "offset_policy": "scene_selection.json에 기록된 값은 이미 제거됨 - 재적용하지 않음",
+        "red_band_index_1based": 3,
+        "nir_band_index_1based": 4,
+        "band_order": [
+          "B02",
+          "B03",
+          "B04",
+          "B08"
+        ],
+        "scene_cloud_cover_pct": 0.01,
+        "aoi_clear_fraction": 0.9891,
+        "valid_pixels": 178447,
+        "grid_pixels": 188265,
+        "valid_fraction_of_grid": 0.9478501049053196,
+        "ndvi_min": -0.4739583432674408,
+        "ndvi_max": 0.9392297267913818,
+        "ndvi_median": 0.5914634466171265,
+        "ndvi_p05": -0.007117219734936953,
+        "ndvi_p95": 0.8658981323242188,
+        "red_dn_p0.5": 187.0,
+        "reflectance_over_warn_fraction": 0.0
+      }
+    },
+    "offset_consistency": {
+      "metadata_issues": [],
+      "red_dn_p0.5_by_year": {
+        "2016": 296.0,
+        "2018": 344.07501220703125,
+        "2020": 211.0,
+        "2022": 238.0,
+        "2024": 254.0,
+        "2026": 187.0
+      },
+      "red_dn_p0.5_spread": 157.07501220703125,
+      "note": "p0.5 spread이 ~1000 DN에 근접하면 offset 불일치 의심. 기록된 offset 제거를 신뢰하되 값을 병기한다."
+    },
+    "acquisition": {
+      "day_of_year_by_year": {
+        "2016": 129,
+        "2018": 118,
+        "2020": 120,
+        "2022": 124,
+        "2024": 124,
+        "2026": 126
+      },
+      "day_of_year_range_days": 11,
+      "platforms": [
+        "Sentinel-2A",
+        "Sentinel-2B",
+        "Sentinel-2C"
+      ],
+      "note": "촬영일(DOY) 편차와 센서(S2A/S2B/S2C) 차이는 NDVI 변화량에 계절/센서 편향을 만들 수 있으며 보정하지 않았다."
+    },
+    "adjacent_year_ndvi_correlation": {
+      "2016_2018": 0.9246934112575458,
+      "2018_2020": 0.9315945836237944,
+      "2020_2022": 0.8931490941638698,
+      "2022_2024": 0.9558367669622103,
+      "2024_2026": 0.9629906390606182
+    },
+    "grid": {
+      "epsg": 5186,
+      "res_m": 10.0,
+      "shape": [
+        489,
+        385
+      ],
+      "transform": [
+        10.0,
+        0.0,
+        316890.0,
+        0.0,
+        -10.0,
+        493980.0
+      ]
+    }
+  },
+  "cadastre": {
+    "status": "ok",
+    "source": "VWorld WFS(api.vworld.kr) lp_pa_cbnd_bubun",
+    "layers": [
+      "lp_pa_cbnd_bubun",
+      "lp_pa_cbnd_bonbun"
+    ],
+    "notes": [],
+    "retrieved_file_mtime": "2026-10-13T10:15:58",
+    "qa": {
+      "n_raw": 6969,
+      "warnings": [],
+      "source_crs": "EPSG:4326",
+      "jibun_vs_pnu_mismatch": 0,
+      "pnu_missing": 0,
+      "pnu_bad_format": 0,
+      "invalid_geometry_repaired": 12,
+      "empty_or_nonpolygon_dropped": 0,
+      "duplicate_pnu_removed": 0,
+      "n_after_dedup": 6969,
+      "n_in_aoi": 2133,
+      "area_in_aoi_sum_m2": 6082071.606527304,
+      "aoi_area_m2": 6080147.063888505,
+      "aoi_covered_fraction_by_parcels": 0.9999253574607383,
+      "parcel_overlap_area_m2": 2378.380254732445,
+      "bonbun_coverage": {
+        "bonbun_features_in_aoi": 822,
+        "bonbun_area_in_aoi_m2": 6079732.431032916,
+        "bonbun_not_covered_by_pnu_parcels_m2": 54.24180690437731,
+        "bonbun_not_covered_fraction": 8.921742448320527e-06,
+        "interpretation": "bonbun 레이어에는 PNU가 없어 필지로 쓰지 않았다. 미커버 면적이 크면 PNU 필지 누락을 의심한다."
+      }
+    },
+    "gosi_attr": {
+      "year": "2025",
+      "month": "01",
+      "note": "속성 gosi_year/month(공시지가 기준 시점). 지적경계 데이터의 정확한 갱신일과 동일하다고 단정할 수 없음."
+    },
+    "temporal_caveat": "현재 시점 연속지적도를 과거 영상에 중첩한 분석이며 과거 필지 분할·합병 이력을 재현하지 않는다."
+  },
+  "railway": {
+    "kind": "OSM_UNOFFICIAL",
+    "path": "data/projects/kr_rail_danyang/aoi/osm_railway.geojson",
+    "n_features_all": 121,
+    "n_features_used": 105,
+    "length_km": 50.57605967323829,
+    "note": "OSM 기반 비공식 철도선. 공식 철도사업구역/보상구역이 아니며 법적 근거로 쓸 수 없는 참고 지표."
+  },
+  "aoi": {
+    "path": "data/projects/kr_rail_danyang/aoi/danyang_master_aoi.geojson",
+    "status": "provisional",
+    "source": "VWorld Data API LT_C_ADRI_INFO (법정리 경계) - 매포읍 매포리 + 하괴리 dissolve",
+    "summary": {
+      "aoi_area_m2": 6080147.063888505,
+      "aoi_evaluable_area_m2": 6020594.23378019,
+      "aoi_decline_area_m2": 268727.65885943105,
+      "aoi_persistent_decline_area_m2": 147063.10769060475,
+      "aoi_decline_ratio": 0.04463474009785629,
+      "per_year_aoi_ndvi_mean": {
+        "2016": 0.464755966936177,
+        "2018": 0.3951279132934785,
+        "2020": 0.3355516665049625,
+        "2022": 0.4591691726041856,
+        "2024": 0.4768276560741225,
+        "2026": 0.4801220705986865
+      },
+      "per_year_aoi_valid_fraction": {
+        "2016": 0.9828636022547315,
+        "2018": 0.9786390342864051,
+        "2020": 0.9880438265256994,
+        "2022": 0.9968586286155084,
+        "2024": 0.9976273216104676,
+        "2026": 0.9890627645513774
+      }
+    }
+  },
+  "sensitivity": {
+    "default": {
+      "thresholds": {
+        "before_min": 0.35,
+        "after_max": 0.2,
+        "delta_max": -0.2,
+        "recovery_ndvi": 0.35
+      },
+      "decline_pixels": 8229,
+      "decline_area_m2": 822900.0,
+      "persistent_area_m2": 448300.0,
+      "temporary_area_m2": 208800.0,
+      "unconfirmed_area_m2": 165800.0,
+      "repeated_decline_pixels": 299,
+      "jaccard_vs_default": 1.0,
+      "aoi_decline_area_m2": 268727.65885943105,
+      "aoi_persistent_area_m2": 147063.10769060475,
+      "aoi_evaluable_area_m2": 6020594.23378019,
+      "parcel_level": {
+        "type_counts": {
+          "INSUFFICIENT_DATA": 1432,
+          "STABLE_NON_VEGETATION": 218,
+          "STABLE_VEGETATION": 205,
+          "RECOVERY": 107,
+          "GRADUAL_DECLINE": 68,
+          "DECLINE_UNCONFIRMED": 42,
+          "PERSISTENT_DECLINE": 32,
+          "FLUCTUATING": 19,
+          "TEMPORARY_DECLINE": 10
+        },
+        "parcels_with_decline": 662,
+        "parcels_persistent_decline": 32
+      }
+    },
+    "conservative": {
+      "thresholds": {
+        "before_min": 0.45,
+        "after_max": 0.15,
+        "delta_max": -0.3,
+        "recovery_ndvi": 0.3
+      },
+      "decline_pixels": 2829,
+      "decline_area_m2": 282900.0,
+      "persistent_area_m2": 148000.0,
+      "temporary_area_m2": 54800.0,
+      "unconfirmed_area_m2": 80100.0,
+      "repeated_decline_pixels": 17,
+      "jaccard_vs_default": 0.3437841779074007,
+      "aoi_decline_area_m2": 124066.56565115605,
+      "aoi_persistent_area_m2": 60269.444925511845,
+      "aoi_evaluable_area_m2": 6020594.23378019,
+      "parcel_level": {
+        "type_counts": {
+          "INSUFFICIENT_DATA": 1432,
+          "STABLE_NON_VEGETATION": 229,
+          "STABLE_VEGETATION": 208,
+          "RECOVERY": 110,
+          "GRADUAL_DECLINE": 75,
+          "DECLINE_UNCONFIRMED": 32,
+          "FLUCTUATING": 30,
+          "PERSISTENT_DECLINE": 15,
+          "TEMPORARY_DECLINE": 2
+        },
+        "parcels_with_decline": 271,
+        "parcels_persistent_decline": 15
+      }
+    },
+    "relaxed": {
+      "thresholds": {
+        "before_min": 0.3,
+        "after_max": 0.25,
+        "delta_max": -0.15,
+        "recovery_ndvi": 0.4
+      },
+      "decline_pixels": 15845,
+      "decline_area_m2": 1584500.0,
+      "persistent_area_m2": 888500.0,
+      "temporary_area_m2": 432800.0,
+      "unconfirmed_area_m2": 263200.0,
+      "repeated_decline_pixels": 1204,
+      "jaccard_vs_default": 0.5193436415272957,
+      "aoi_decline_area_m2": 463785.9104154597,
+      "aoi_persistent_area_m2": 262515.4952058921,
+      "aoi_evaluable_area_m2": 6020594.23378019,
+      "parcel_level": {
+        "type_counts": {
+          "INSUFFICIENT_DATA": 1432,
+          "STABLE_VEGETATION": 196,
+          "STABLE_NON_VEGETATION": 186,
+          "RECOVERY": 103,
+          "PERSISTENT_DECLINE": 81,
+          "GRADUAL_DECLINE": 53,
+          "DECLINE_UNCONFIRMED": 48,
+          "TEMPORARY_DECLINE": 21,
+          "FLUCTUATING": 13
+        },
+        "parcels_with_decline": 1016,
+        "parcels_persistent_decline": 81
+      }
+    }
+  },
+  "parcel_validation": {
+    "n_parcels": 2133,
+    "decline_area_exceeds_evaluable": 0,
+    "evaluable_exceeds_analysis_area": 0,
+    "pixel_weight_area_vs_polygon_area_max_abs_err_m2": 4.124135557503905e-07,
+    "pixel_weight_area_vs_polygon_area_max_rel_err": 7.114053790502339e-10,
+    "ndvi_mean_in_range": true,
+    "pnu_string_preserved_leading_zero_count": 0,
+    "pnu_unique": true,
+    "class_area_sum_mismatch": 0
+  },
+  "limitations": [
+    "Sentinel-2 10m 영상의 NDVI 변화를 이용한 탐색적 분석이며 개별 건축물의 신축·철거, 지장물 존재 여부, 토지보상 적격성을 확정하지 않는다.",
+    "분석 AOI는 법정리 행정경계 기반 잠정 경계이며 공식 철도사업구역/보상구역이 아니다.",
+    "철도선은 OpenStreetMap 기반 비공식 자료이다. 철도 거리는 참고 지표이며 보상 대상 선정 근거가 아니다.",
+    "연속지적도는 확보 시점의 필지 경계를 과거 영상에 중첩한 것이며 과거 필지 분할·합병 이력을 반영하지 않는다.",
+    "관측 시점 간격이 약 2년이므로 변화 발생 시점은 추정하지 않고 최초 관측 구간만 제시한다.",
+    "채석장 운영, 농경지 경작/수확, 벌채, 그림자, 수분·대기 상태 및 촬영일(DOY)·센서 차이로 인한 오탐 가능성이 있다.",
+    "10m 픽셀은 소형 필지에서 인접 피복과 혼합되며, 면적가중 통계로 경계 기여를 보정해도 혼합 반응 자체는 제거되지 않는다.",
+    "임계값·가중치는 검증된 과학적/행정적 기준이 아니라 초기 탐색용 설정값이다.",
+    "NDVI 보정(촬영일/센서 상대 정규화)은 수행하지 않았다."
+  ]
+}

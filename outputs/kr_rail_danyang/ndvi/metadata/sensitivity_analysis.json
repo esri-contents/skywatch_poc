@@ -1,0 +1,101 @@
+{
+  "default": {
+    "thresholds": {
+      "before_min": 0.35,
+      "after_max": 0.2,
+      "delta_max": -0.2,
+      "recovery_ndvi": 0.35
+    },
+    "decline_pixels": 8229,
+    "decline_area_m2": 822900.0,
+    "persistent_area_m2": 448300.0,
+    "temporary_area_m2": 208800.0,
+    "unconfirmed_area_m2": 165800.0,
+    "repeated_decline_pixels": 299,
+    "jaccard_vs_default": 1.0,
+    "aoi_decline_area_m2": 268727.65885943105,
+    "aoi_persistent_area_m2": 147063.10769060475,
+    "aoi_evaluable_area_m2": 6020594.23378019,
+    "parcel_level": {
+      "type_counts": {
+        "INSUFFICIENT_DATA": 1432,
+        "STABLE_NON_VEGETATION": 218,
+        "STABLE_VEGETATION": 205,
+        "RECOVERY": 107,
+        "GRADUAL_DECLINE": 68,
+        "DECLINE_UNCONFIRMED": 42,
+        "PERSISTENT_DECLINE": 32,
+        "FLUCTUATING": 19,
+        "TEMPORARY_DECLINE": 10
+      },
+      "parcels_with_decline": 662,
+      "parcels_persistent_decline": 32
+    }
+  },
+  "conservative": {
+    "thresholds": {
+      "before_min": 0.45,
+      "after_max": 0.15,
+      "delta_max": -0.3,
+      "recovery_ndvi": 0.3
+    },
+    "decline_pixels": 2829,
+    "decline_area_m2": 282900.0,
+    "persistent_area_m2": 148000.0,
+    "temporary_area_m2": 54800.0,
+    "unconfirmed_area_m2": 80100.0,
+    "repeated_decline_pixels": 17,
+    "jaccard_vs_default": 0.3437841779074007,
+    "aoi_decline_area_m2": 124066.56565115605,
+    "aoi_persistent_area_m2": 60269.444925511845,
+    "aoi_evaluable_area_m2": 6020594.23378019,
+    "parcel_level": {
+      "type_counts": {
+        "INSUFFICIENT_DATA": 1432,
+        "STABLE_NON_VEGETATION": 229,
+        "STABLE_VEGETATION": 208,
+        "RECOVERY": 110,
+        "GRADUAL_DECLINE": 75,
+        "DECLINE_UNCONFIRMED": 32,
+        "FLUCTUATING": 30,
+        "PERSISTENT_DECLINE": 15,
+        "TEMPORARY_DECLINE": 2
+      },
+      "parcels_with_decline": 271,
+      "parcels_persistent_decline": 15
+    }
+  },
+  "relaxed": {
+    "thresholds": {
+      "before_min": 0.3,
+      "after_max": 0.25,
+      "delta_max": -0.15,
+      "recovery_ndvi": 0.4
+    },
+    "decline_pixels": 15845,
+    "decline_area_m2": 1584500.0,
+    "persistent_area_m2": 888500.0,
+    "temporary_area_m2": 432800.0,
+    "unconfirmed_area_m2": 263200.0,
+    "repeated_decline_pixels": 1204,
+    "jaccard_vs_default": 0.5193436415272957,
+    "aoi_decline_area_m2": 463785.9104154597,
+    "aoi_persistent_area_m2": 262515.4952058921,
+    "aoi_evaluable_area_m2": 6020594.23378019,
+    "parcel_level": {
+      "type_counts": {
+        "INSUFFICIENT_DATA": 1432,
+        "STABLE_VEGETATION": 196,
+        "STABLE_NON_VEGETATION": 186,
+        "RECOVERY": 103,
+        "PERSISTENT_DECLINE": 81,
+        "GRADUAL_DECLINE": 53,
+        "DECLINE_UNCONFIRMED": 48,
+        "TEMPORARY_DECLINE": 21,
+        "FLUCTUATING": 13
+      },
+      "parcels_with_decline": 1016,
+      "parcels_persistent_decline": 81
+    }
+  }
+}

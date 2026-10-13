@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__</title>
+<style>
+:root{
+  --bg:#f5f6f8; --panel:#fff; --ink:#1c2430; --muted:#5d6877; --line:#dde2e8; --accent:#1f4e9c;
+  --warn-bg:#fff4e5; --warn:#b45309; --sel:#111;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#12161c; --panel:#1b222b; --ink:#e6eaf0; --muted:#9aa6b5; --line:#2c3642; --accent:#7fb0ff;
+         --warn-bg:#3a2a12; --warn:#f6b45f; --sel:#fff; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.55 "Malgun Gothic","Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+header{background:var(--panel);border-bottom:1px solid var(--line);padding:18px 24px}
+header h1{margin:0 0 4px;font-size:21px;line-height:1.35}
+header .sub{color:var(--muted);font-size:13px}
+.notice{margin:12px 24px 0;padding:10px 14px;background:var(--warn-bg);border-left:4px solid var(--warn);border-radius:4px;font-size:13px}
+nav{position:sticky;top:0;z-index:20;background:var(--panel);border-bottom:1px solid var(--line);padding:0 24px;display:flex;gap:4px;overflow:auto}
+nav a{padding:10px 12px;color:var(--muted);text-decoration:none;font-size:13px;white-space:nowrap}
+nav a:hover{color:var(--accent)}
+main{padding:20px 24px 60px;max-width:1500px;margin:0 auto}
+section{margin-bottom:34px}
+h2{font-size:17px;margin:0 0 12px;padding-left:10px;border-left:4px solid var(--accent)}
+h3{font-size:14px;margin:18px 0 8px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.kl{font-size:12px;color:var(--muted)} .kv2{font-size:26px;font-weight:700;margin:2px 0} .ks{font-size:12px;color:var(--muted)}
+.qa{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:10px;margin-top:14px}
+.qa div{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 14px}
+.qa p{margin:4px 0 0;color:var(--muted);font-size:13px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px}
+.maprow{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px;align-items:start}
+@media (max-width:1000px){.maprow{grid-template-columns:1fr}}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin-bottom:8px;font-size:13px}
+.toolbar label{display:inline-flex;gap:5px;align-items:center;cursor:pointer}
+.toolbar select{font:inherit;padding:2px 4px;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:4px}
+#mapwrap{position:relative;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#eef1f4;touch-action:none}
+#map{display:block;width:100%;height:640px;cursor:grab}
+#map.drag{cursor:grabbing}
+@media (prefers-color-scheme: dark){#mapwrap{background:#0f1318}}
+.zoom{position:absolute;right:8px;top:8px;display:flex;flex-direction:column;gap:4px}
+.zoom button{width:30px;height:30px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:4px;font-size:16px;cursor:pointer}
+#tip{position:absolute;pointer-events:none;background:rgba(20,24,30,.92);color:#fff;font-size:12px;padding:5px 8px;border-radius:4px;display:none;white-space:nowrap;z-index:5}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;font-size:12px;color:var(--muted);align-items:center}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:4px;vertical-align:-1px;border:1px solid rgba(0,0,0,.2)}
+.ramp{display:inline-block;width:140px;height:10px;border-radius:2px;vertical-align:middle;margin:0 6px;border:1px solid rgba(0,0,0,.2)}
+.note{color:var(--muted);font-size:12px}
+table.kv,table.grid{border-collapse:collapse;width:100%;background:var(--panel)}
+table.kv th{width:30%;text-align:left;vertical-align:top;color:var(--muted);font-weight:500;padding:5px 8px;border-bottom:1px solid var(--line)}
+table.kv td{padding:5px 8px;border-bottom:1px solid var(--line);word-break:break-all}
+table.grid th,table.grid td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+table.grid thead th{position:sticky;top:0;background:var(--panel);color:var(--muted);font-weight:600;cursor:pointer}
+.tablewrap{max-height:520px;overflow:auto;border:1px solid var(--line);border-radius:6px}
+tr.row{cursor:pointer} tr.row:hover td{background:rgba(31,78,156,.08)} tr.row.on td{background:rgba(31,78,156,.18)}
+.mono{font-family:Consolas,monospace;font-size:12px}
+.tag{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11px;color:#fff;white-space:nowrap}
+.bar{height:8px;background:var(--line);border-radius:4px;overflow:hidden}
+.bar>b{display:block;height:100%;background:var(--accent)}
+#detail h3{margin-top:0}
+.dl{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:13px;margin:8px 0}
+.dl dt{color:var(--muted)} .dl dd{margin:0;text-align:right}
+.cmp{position:relative;display:inline-block;max-width:100%;border:1px solid var(--line)}
+.cmp img{display:block;image-rendering:pixelated;width:min(100%,640px);height:auto}
+.cmp .top{position:absolute;left:0;top:0}
+.minis{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.minis figure{margin:0} .minis img{width:100%;image-rendering:pixelated;border:1px solid var(--line)}
+.minis figcaption{font-size:12px;color:var(--muted)}
+ul{padding-left:20px} li{margin:3px 0}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:16px}
+footer{color:var(--muted);font-size:12px;padding:0 24px 30px;max-width:1500px;margin:0 auto}
+</style>
+</head>
+<body>
+<header>
+  <h1>__TITLE__</h1>
+  <div class="sub">충청북도 단양군 매포읍 매포리·하괴리 일대 · Sentinel-2 L2A 10m · 한국철도공단 보고용 탐색적 분석(PoC)</div>
+</header>
+<div class="notice"><b>필수 주의사항</b> — __NOTICE__<br>
+  분석 AOI는 법정리 경계 기반 잠정 경계이며 공식 철도 보상구역이 아닙니다. 철도선은 OpenStreetMap 자료(비공식)이고, 연속지적도는 확보한 기준 시점의 필지 경계입니다.
+  관측 시점 사이에는 약 2년의 간격이 있으며 채석장·농경지·그림자·계절 변동 등에 따른 오탐 가능성이 있습니다.</div>
+<nav>
+  <a href="#s1">1 요약</a><a href="#s2">2 공간 개관·필지 상세</a><a href="#s4">3 시계열 비교</a>
+  <a href="#s5">4 우선 검토 필지</a><a href="#s6">5 방법론·한계</a>
+</nav>
+<main>
+<section id="s1">
+  <h2>Section 1. Executive Summary</h2>
+  <div class="kpis" id="kpis"></div>
+  <div id="qa"></div>
+  <p class="note" id="summaryNote"></p>
+</section>
+
+<section id="s2">
+  <h2>Section 2–3. Spatial Overview &amp; Parcel Detail</h2>
+  <div class="maprow">
+    <div class="card">
+      <div class="toolbar">
+        <label>색상 기준
+          <select id="metric">
+            <option value="dr">식생 감소 비율</option>
+            <option value="d">NDVI 변화량(첫→마지막 관측)</option>
+            <option value="ps">변화 지속성</option>
+            <option value="s">현장조사 우선순위 점수</option>
+            <option value="t">변화 유형</option>
+          </select></label>
+        <label><input type="checkbox" id="lyNdvi"> NDVI 영상
+          <select id="ndviYear"></select></label>
+        <label><input type="checkbox" id="lyDecl"> 감소 픽셀</label>
+        <label><input type="checkbox" id="lyParcel" checked> 필지</label>
+        <label><input type="checkbox" id="lyRail" checked> OSM 철도</label>
+        <label><input type="checkbox" id="lyAoi" checked> AOI</label>
+      </div>
+      <div id="mapwrap">
+        <svg id="map" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="필지별 변화 지도">
+          <g id="vp">
+            <g id="gNdvi"></g><g id="gParcels"></g><g id="gDecl" style="pointer-events:none"></g><g id="gSel" style="pointer-events:none"></g>
+            <path id="pAoi" fill="none" stroke="#111" stroke-width="3" vector-effect="non-scaling-stroke"/>
+            <path id="pRail" fill="none" stroke="#1f4e9c" stroke-width="2.5" stroke-dasharray="7 3" vector-effect="non-scaling-stroke"/>
+          </g>
+        </svg>
+        <div class="zoom"><button id="zin" title="확대">+</button><button id="zout" title="축소">−</button><button id="zfit" title="전체">⌂</button></div>
+        <div id="tip"></div>
+      </div>
+      <div class="legend" id="legend"></div>
+      <p class="note">베이스맵 없이 EPSG:5186 좌표를 그대로 그린 오프라인 지도입니다. 10m 해상도 영상이므로 확대해도 건축물 단위 판독은 할 수 없습니다.
+        회색 필지는 소형·결측으로 판단을 보류한 필지입니다.</p>
+    </div>
+    <div class="card" id="detail"><h3>필지 상세</h3><p class="note">지도에서 필지를 클릭하거나 Section 5 표의 행을 선택하세요.</p></div>
+  </div>
+</section>
+
+<section id="s4">
+  <h2>Section 4. Temporal Analysis</h2>
+  <div class="two">
+    <div class="card">
+      <div class="toolbar">
+        <label>이전 <select id="cmpA"></select></label>
+        <label>이후 <select id="cmpB"></select></label>
+        <label style="flex:1;min-width:160px">슬라이더 <input type="range" id="cmpS" min="0" max="100" value="50" style="flex:1"></label>
+      </div>
+      <div class="cmp" id="cmp"><img id="imgA" alt="이전"><img id="imgB" class="top" alt="이후"></div>
+      <p class="note">Swipe 비교: 왼쪽은 '이전', 오른쪽은 '이후' 연도 NDVI입니다(Sentinel-2 10m, RdYlGn 0~0.9). 픽셀 격자가 보이는 해상도이며 건축물 판독용이 아닙니다.</p>
+    </div>
+    <div class="card">
+      <h3>AOI 평균 NDVI와 촬영일</h3>
+      <svg id="aoiChart" viewBox="0 0 520 250" style="width:100%"></svg>
+      <table class="grid" id="aoiYear"><thead><tr><th>연도</th><th>촬영 DOY</th><th>AOI 평균 NDVI</th><th>AOI 유효 면적(%)</th></tr></thead><tbody></tbody></table>
+      <p class="note">촬영일(DOY) 차이는 최대 11일입니다. AOI 전체가 같이 오르내리는 연도(예: 이른 봄 촬영)는 식생 위상 차이일 수 있어, 평균 기반 유형 판정은 AOI 평균 대비 상대값을 사용했습니다.</p>
+    </div>
+  </div>
+  <h3>연도별 NDVI 공간분포</h3>
+  <div class="minis" id="minis"></div>
+</section>
+
+<section id="s5">
+  <h2>Section 5. Priority Parcels (현장조사 우선 검토 필지)</h2>
+  <div class="toolbar">
+    <label>검토 대상만 <input type="checkbox" id="onlyReview" checked></label>
+    <label>품질 <select id="qFilter"><option value="">전체</option><option value="VALID">VALID만</option></select></label>
+    <span class="note" id="cnt"></span>
+  </div>
+  <div class="tablewrap"><table class="grid" id="tbl"><thead><tr>
+    <th data-k="rk">우선순위</th><th data-k="pnu">PNU</th><th data-k="j">지번</th><th data-k="dl">변화 면적(㎡)</th>
+    <th data-k="dr">감소 비율(%)</th><th data-k="ps">변화 지속성</th><th data-k="fc">최초 관측 구간</th><th data-k="rd">철도 거리(m)</th>
+    <th data-k="s">점수</th><th data-k="q">품질 플래그</th></tr></thead><tbody></tbody></table></div>
+  <p class="note">점수는 감소 비율·지속성·철도 인접성의 가중 합(초기 탐색용 가중치)이며 행정적 판단 기준이 아닙니다. 열 제목을 누르면 정렬됩니다.</p>
+</section>
+
+<section id="s6">
+  <h2>Section 6. Methodology &amp; Limitations</h2>
+  <div class="two">
+    <div>
+      <h3>방법</h3>
+      <ul>
+        <li><b>NDVI = (NIR − RED) / (NIR + RED)</b>, Sentinel-2 L2A B08(NIR)·B04(RED). 밴드는 GeoTIFF band description으로 판별.</li>
+        <li>반사율 = DN/10000. BOA offset은 이미 제거된 값(장면 메타데이터 기준)이라 재적용하지 않음. NoData/SCL 마스크 픽셀은 결측 유지.</li>
+        <li>UTM 52N → EPSG:5186, 10m 공통 격자로 nearest 재투영.</li>
+        <li><b>식생 감소 픽셀</b>: 이전 NDVI ≥ 기준, 이후 NDVI ≤ 기준, ΔNDVI ≤ 기준(연속 연도쌍). 임계값은 아래 표(초기 탐색용 가설).</li>
+        <li><b>지속성</b>: 마지막 감소 이후 유효 관측이 있고 회복 기준 미만 유지 → 지속, 회복 기준 이상 → 일시적, 후속 관측 없음 → 지속성 미확인. 변화 시점은 추정하지 않고 최초 관측 구간만 표기.</li>
+        <li><b>필지 통계</b>: 필지(AOI 내 부분)와 픽셀의 교차 면적을 정확히 계산해 면적가중 평균·중앙값·감소 면적을 산출(경계 픽셀은 겹친 면적만 반영).</li>
+        <li><b>우선순위 점수</b>: 감소 비율 40% + 지속성 35% + 철도 인접성 25% (모두 0~100 정규화, 설정으로 변경 가능).</li>
+      </ul>
+      <div id="profiles"></div>
+      <h3>임계값 민감도</h3><div id="sens"></div>
+      <p class="note">기준에 따라 결과가 크게 달라지므로(Jaccard 참고) 특정 필지의 목록 포함 여부는 임계값에 민감합니다.</p>
+    </div>
+    <div>
+      <h3>한계</h3><div id="limits"></div>
+      <h3>향후 고해상도 영상 확장</h3>
+      <ul>
+        <li>SkyWatch 50cm 등 고해상도 영상이 확보되면 우선 검토 필지 주변 ROI에 대해 건축물·지장물 단위 판독을 수행(Sentinel-2는 후보 선별 용도).</li>
+        <li>공식 철도사업구역/선형이 제공되면 설정의 <span class="mono">ndvi.railway.official_boundary_path</span>만 지정해 OSM 선형을 대체.</li>
+        <li>필지 소유·지목 정보와 현장조사 결과를 결합해 우선순위 가중치를 보정.</li>
+      </ul>
+    </div>
+  </div>
+  <h3>입력 영상</h3><div class="tablewrap" id="scenes"></div>
+  <div class="two">
+    <div><h3>연속지적도</h3><div id="cad"></div></div>
+    <div><h3>철도 자료</h3><div id="rail"></div><h3>검증 지표</h3><div id="valid"></div></div>
+  </div>
+  <h3>분석 메타데이터</h3><div id="meta"></div>
+</section>
+</main>
+<footer>이 보고서는 외부 CDN·인터넷 없이 열립니다(단일 HTML, 베이스맵 없음). 정적 대체본: kr_rail_danyang_ndvi_static_report.html</footer>
+
+<script>
+const D = __DATA_JSON__;
+const B = __STATIC_BLOCKS__;
+const $ = id => document.getElementById(id);
+const NS = "http://www.w3.org/2000/svg";
+const P = D.parcels;
+
+// ---------- static blocks
+$("kpis").innerHTML = B.kpi; $("qa").innerHTML = B.qa;
+$("profiles").innerHTML = B.profiles; $("sens").innerHTML = B.sens; $("limits").innerHTML = B.limits;
+$("scenes").innerHTML = B.scenes; $("cad").innerHTML = B.cad; $("rail").innerHTML = B.rail;
+$("valid").innerHTML = B.valid; $("meta").innerHTML = B.meta;
+$("aoiYear").querySelector("tbody").innerHTML = B.aoi_year;
+$("summaryNote").textContent = "모든 수치는 분석 산출물(GeoPackage/래스터)에서 계산되었습니다. '분석 가능 필지'는 10m 영상으로 평가할 수 있는 필지(자료 부족 제외)입니다.";
+
+// ---------- helpers
+const fmt = (v, d=0) => v==null ? "—" : Number(v).toLocaleString("ko-KR",{maximumFractionDigits:d,minimumFractionDigits:d});
+const PS_KO = {PERSISTENT:"지속", UNCONFIRMED:"지속성 미확인", TEMPORARY:"일시적(회복)", NONE:"감소 없음", NOT_EVALUABLE:"평가 불가"};
+const TIER_COL = {"상":"#b2182b","중":"#ef8a62","하":"#f4c542"};
+function lerp(a,b,t){return a.map((v,i)=>Math.round(v+(b[i]-v)*t));}
+function ramp(stops,t){t=Math.max(0,Math.min(1,t));const n=stops.length-1;const i=Math.min(n-1,Math.floor(t*n));return lerp(stops[i],stops[i+1],t*n-i);}
+const hex = c => "#"+c.map(v=>v.toString(16).padStart(2,"0")).join("");
+const SEQ_RED = [[255,247,236],[253,212,158],[252,141,89],[215,48,31],[127,0,0]];
+const SEQ_PRI = [[255,255,204],[254,217,118],[253,141,60],[227,26,28],[128,0,38]];
+const DIV = [[140,81,10],[216,179,101],[245,245,245],[128,205,193],[1,102,94]];
+const GREY = "#dfe3e7";
+
+// ---------- map
+const svg = $("map"), vp = $("vp");
+let view = {x:D.bbox[0], y:D.bbox[1], w:D.bbox[2]-D.bbox[0], h:D.bbox[3]-D.bbox[1]};
+function applyView(){ svg.setAttribute("viewBox", `${view.x} ${view.y} ${view.w} ${view.h}`); }
+function fit(pad=0.04){
+  const r = svg.getBoundingClientRect(); const ar = r.width/r.height;
+  let w = (D.bbox[2]-D.bbox[0])*(1+pad*2), h = (D.bbox[3]-D.bbox[1])*(1+pad*2);
+  if (w/h < ar) w = h*ar; else h = w/ar;
+  const cx=(D.bbox[0]+D.bbox[2])/2, cy=(D.bbox[1]+D.bbox[3])/2;
+  view={x:cx-w/2,y:cy-h/2,w,h}; applyView();
+}
+function zoomAt(f,cx,cy){ // cx,cy: svg coords
+  view.x = cx-(cx-view.x)*f; view.y = cy-(cy-view.y)*f; view.w*=f; view.h*=f; applyView();
+}
+function toSvg(ev){ const r=svg.getBoundingClientRect(); return [view.x+(ev.clientX-r.left)/r.width*view.w, view.y+(ev.clientY-r.top)/r.height*view.h]; }
+svg.addEventListener("wheel", e=>{e.preventDefault(); const [x,y]=toSvg(e); zoomAt(e.deltaY<0?0.8:1.25,x,y);},{passive:false});
+let drag=null, moved=false;
+svg.addEventListener("pointerdown", e=>{drag={cx:e.clientX,cy:e.clientY,vx:view.x,vy:view.y}; moved=false; svg.classList.add("drag");});
+window.addEventListener("pointermove", e=>{
+  if(!drag) return; const r=svg.getBoundingClientRect();
+  const dx=e.clientX-drag.cx, dy=e.clientY-drag.cy; if(Math.abs(dx)+Math.abs(dy)>3) moved=true;
+  view.x = drag.vx - dx/r.width*view.w; view.y = drag.vy - dy/r.height*view.h; applyView();
+});
+window.addEventListener("pointerup", ()=>{drag=null; svg.classList.remove("drag");});
+$("zin").onclick=()=>zoomAt(0.7,view.x+view.w/2,view.y+view.h/2);
+$("zout").onclick=()=>zoomAt(1.4,view.x+view.w/2,view.y+view.h/2);
+$("zfit").onclick=()=>fit();
+
+function mkImg(parent, href, op){
+  const im = document.createElementNS(NS,"image");
+  im.setAttribute("href",href); im.setAttribute("x",0); im.setAttribute("y",0);
+  im.setAttribute("width",D.W); im.setAttribute("height",D.H);
+  im.setAttribute("preserveAspectRatio","none"); im.style.imageRendering="pixelated"; im.setAttribute("opacity",op);
+  parent.appendChild(im); return im;
+}
+$("pAoi").setAttribute("d", D.aoi_path); $("pRail").setAttribute("d", D.rail_path);
+const ndviSel=$("ndviYear");
+D.years.forEach((y,i)=>{const o=document.createElement("option"); o.value=i; o.textContent=y; ndviSel.appendChild(o);});
+ndviSel.value = D.years.length-1;
+let ndviImg = mkImg($("gNdvi"), D.ndvi_png[D.years.length-1], 0.9);
+mkImg($("gDecl"), D.decl_png, 0.95);
+$("gNdvi").style.display="none"; $("gDecl").style.display="none";
+ndviSel.onchange=()=>ndviImg.setAttribute("href", D.ndvi_png[+ndviSel.value]);
+$("lyNdvi").onchange=e=>{$("gNdvi").style.display=e.target.checked?"":"none"; $("gParcels").style.opacity=e.target.checked?0.28:1;};
+$("lyDecl").onchange=e=>$("gDecl").style.display=e.target.checked?"":"none";
+$("lyParcel").onchange=e=>$("gParcels").style.display=e.target.checked?"":"none";
+$("lyRail").onchange=e=>$("pRail").style.display=e.target.checked?"":"none";
+$("lyAoi").onchange=e=>$("pAoi").style.display=e.target.checked?"":"none";
+
+const els = [];
+P.forEach((p,i)=>{
+  const el = document.createElementNS(NS,"path");
+  el.setAttribute("d", D.paths[i]); el.setAttribute("fill-rule","evenodd");
+  el.setAttribute("stroke","rgba(40,40,40,.55)"); el.setAttribute("stroke-width","0.6"); el.setAttribute("vector-effect","non-scaling-stroke");
+  el.dataset.i=i; $("gParcels").appendChild(el); els.push(el);
+});
+
+function colorOf(p, m){
+  if (p.t==="INSUFFICIENT_DATA") return GREY;
+  if (m==="dr") return p.dr==null?GREY:hex(ramp(SEQ_RED,p.dr/0.5));
+  if (m==="d") return p.dd==null && p.d==null?GREY:hex(ramp(DIV,((p.d??p.dd)+0.4)/0.8));
+  if (m==="ps") return D.persist_colors[p.ps]||GREY;
+  if (m==="s") return p.rk==null?"#eef0f2":hex(ramp(SEQ_PRI,p.s/100));
+  if (m==="t") return D.type_colors[p.t]||GREY;
+  return GREY;
+}
+function legend(m){
+  const L=$("legend"); let h="";
+  const sw=(c,t)=>`<span><i style="background:${c}"></i>${t}</span>`;
+  const rp=(st,a,b)=>`<span>${a}<span class="ramp" style="background:linear-gradient(90deg,${st.map(c=>hex(c)).join(",")})"></span>${b}</span>`;
+  if(m==="dr") h=rp(SEQ_RED,"0%","50%+")+sw(GREY,"판단 보류");
+  if(m==="d") h=rp(DIV,"−0.4(감소)","+0.4(증가)")+sw(GREY,"판단 보류")+"<span>필지 평균 NDVI 변화(2016→2026)</span>";
+  if(m==="ps") h=Object.entries(PS_KO).map(([k,v])=>sw(D.persist_colors[k],v)).join("");
+  if(m==="s") h=rp(SEQ_PRI,"0","100")+sw("#eef0f2","검토 후보 아님");
+  if(m==="t") h=Object.entries(D.type_colors).map(([k,c])=>sw(c,D.type_ko[k])).join("");
+  L.innerHTML=h;
+}
+function recolor(){
+  const m=$("metric").value;
+  els.forEach((el,i)=>el.setAttribute("fill", colorOf(P[i],m)));
+  legend(m);
+}
+$("metric").onchange=recolor;
+
+const tip=$("tip");
+$("gParcels").addEventListener("pointermove", e=>{
+  const t=e.target; if(t.dataset.i==null){tip.style.display="none";return;}
+  const p=P[+t.dataset.i]; const r=$("mapwrap").getBoundingClientRect();
+  tip.textContent=`${p.j||"-"} · ${p.tk}${p.dr!=null?` · 감소 ${(p.dr*100).toFixed(0)}%`:""}`;
+  tip.style.left=(e.clientX-r.left+12)+"px"; tip.style.top=(e.clientY-r.top+12)+"px"; tip.style.display="block";
+});
+$("gParcels").addEventListener("pointerleave",()=>tip.style.display="none");
+$("gParcels").addEventListener("click", e=>{ if(moved) return; const t=e.target; if(t.dataset.i!=null) select(+t.dataset.i,false); });
+
+// ---------- detail
+let selI=null;
+function chart(p){
+  const W=340,H=170,l=34,r=10,t=10,b=24, ys=D.years;
+  const xs=i=>l+(W-l-r)*i/(ys.length-1), yv=v=>t+(H-t-b)*(1-(v+0.1)/1.0);
+  let s=`<svg viewBox="0 0 ${W} ${H}" style="width:100%">`;
+  for(let v=0;v<=0.8001;v+=0.2){s+=`<line x1="${l}" x2="${W-r}" y1="${yv(v)}" y2="${yv(v)}" stroke="currentColor" opacity=".12"/><text x="${l-4}" y="${yv(v)+3}" text-anchor="end" font-size="9" fill="currentColor" opacity=".7">${v.toFixed(1)}</text>`;}
+  ys.forEach((y,i)=>s+=`<text x="${xs(i)}" y="${H-8}" text-anchor="middle" font-size="9" fill="currentColor" opacity=".7">${y}</text>`);
+  const line=(arr,col,dash,w)=>{let d="",pen=false;arr.forEach((v,i)=>{if(v==null){pen=false;return;}d+=(pen?"L":"M")+xs(i)+","+yv(v);pen=true;});return `<path d="${d}" fill="none" stroke="${col}" stroke-width="${w}" ${dash?'stroke-dasharray="4 3"':''}/>`;};
+  s+=line(D.aoi_mean,"#8a94a3",true,1.5)+line(p.n,"#1f4e9c",false,2.2);
+  p.n.forEach((v,i)=>{ if(v!=null) s+=`<circle cx="${xs(i)}" cy="${yv(v)}" r="3.2" fill="#1f4e9c"><title>${ys[i]}: ${v}</title></circle>`;});
+  s+=`<text x="${W-r}" y="${t+8}" text-anchor="end" font-size="9" fill="#1f4e9c">— 필지</text><text x="${W-r}" y="${t+19}" text-anchor="end" font-size="9" fill="#8a94a3">-- AOI 평균</text></svg>`;
+  return s;
+}
+function select(i, zoom){
+  selI=i; const p=P[i];
+  $("gSel").innerHTML=""; const sp=document.createElementNS(NS,"path");
+  sp.setAttribute("d",D.paths[i]); sp.setAttribute("fill","none"); sp.setAttribute("stroke","var(--sel)"); sp.setAttribute("stroke-width","3");
+  sp.setAttribute("vector-effect","non-scaling-stroke"); sp.setAttribute("fill-rule","evenodd"); $("gSel").appendChild(sp);
+  if(zoom){ const bb=sp.getBBox(); const pad=Math.max(bb.width,bb.height,60)*1.2; const r=svg.getBoundingClientRect();
+    let w=bb.width+pad*2,h=bb.height+pad*2; const ar=r.width/r.height; if(w/h<ar) w=h*ar; else h=w/ar;
+    view={x:bb.x+bb.width/2-w/2,y:bb.y+bb.height/2-h/2,w,h}; applyView(); }
+  const tcol=D.type_colors[p.t];
+  const bar=(v,c)=>`<div class="bar"><b style="width:${v||0}%;background:${c}"></b></div>`;
+  $("detail").innerHTML = `
+    <h3>${p.j||"-"} <span class="tag" style="background:${tcol}">${p.tk}</span></h3>
+    <div class="note mono">PNU ${p.pnu||"—"}</div><div class="note">${p.ad||""}</div>
+    <dl class="dl">
+      <dt>필지 면적(전체 / AOI 내)</dt><dd>${fmt(p.at)} ㎡ / ${fmt(p.a)} ㎡</dd>
+      <dt>평가가능 면적</dt><dd>${fmt(p.ev)} ㎡ (${p.fr==null?"—":(p.fr*100).toFixed(0)+"%"})</dd>
+      <dt>식생 감소 면적 / 비율</dt><dd>${fmt(p.dl)} ㎡ / ${p.dr==null?"—":(p.dr*100).toFixed(1)+"%"}</dd>
+      <dt>지속 · 일시 · 미확인(㎡)</dt><dd>${fmt(p.pa)} · ${fmt(p.ta)} · ${fmt(p.ua)}</dd>
+      <dt>변화 지속성</dt><dd>${PS_KO[p.ps]||p.ps}</dd>
+      <dt>최초 변화 관측 구간</dt><dd>${p.fc?p.fc.replace("_","→"):"—"}</dd>
+      <dt>평균 NDVI 변화(첫→마지막)</dt><dd>${p.d==null?"—":p.d.toFixed(3)} (AOI 대비 ${p.dd==null?"—":p.dd.toFixed(3)})</dd>
+      <dt>철도(OSM) 최단거리</dt><dd>${p.rd==null?"—":fmt(p.rd)+" m"}${p.rt?" (터널 구간 기준)":""}</dd>
+      <dt>분석 신뢰도</dt><dd>${p.cf}</dd>
+      <dt>품질 플래그</dt><dd>${p.q}</dd>
+    </dl>
+    <h3 style="font-size:13px">NDVI 시계열 (면적가중 평균)</h3>${chart(p)}
+    <table class="grid" style="margin-top:6px"><thead><tr>${D.years.map(y=>`<th>${y}</th>`).join("")}</tr></thead>
+      <tbody><tr>${p.n.map(v=>`<td>${v==null?"—":v.toFixed(2)}</td>`).join("")}</tr>
+      <tr>${p.v.map(v=>`<td class="note">${v==null?"—":(v*100).toFixed(0)+"%"}</td>`).join("")}</tr></tbody></table>
+    <div class="note">아래 행: 해당 연도 유효 관측 면적 비율</div>
+    <h3 style="font-size:13px">현장조사 검토 우선순위 ${p.rk?`<span class="tag" style="background:${TIER_COL[p.tr]||"#888"}">#${p.rk} · ${p.tr}</span>`:`<span class="note">(검토 후보 아님)</span>`}</h3>
+    <div class="note">종합 점수 ${p.s==null?"—":p.s.toFixed(1)} = 0.40×감소비율 + 0.35×지속성 + 0.25×철도 인접성</div>
+    <div class="dl"><dt>감소 비율 점수</dt><dd>${p.s1==null?"—":p.s1.toFixed(0)}</dd></div>${bar(p.s1,"#d7301f")}
+    <div class="dl"><dt>지속성 점수</dt><dd>${p.s2==null?"—":p.s2.toFixed(0)}</dd></div>${bar(p.s2,"#ef8a62")}
+    <div class="dl"><dt>철도 인접 점수</dt><dd>${p.s3==null?"—":p.s3.toFixed(0)}</dd></div>${bar(p.s3,"#1f4e9c")}
+    <p class="note" style="margin-top:10px">식생·피복 변화 신호이며 건축물/지장물/보상 대상 여부를 뜻하지 않습니다. 추가 영상 검증 필요.</p>`;
+  document.querySelectorAll("#tbl tr.row").forEach(tr=>tr.classList.toggle("on", +tr.dataset.i===i));
+}
+
+// ---------- table
+let sortK="rk", sortDir=1;
+function renderTable(){
+  const only=$("onlyReview").checked, qf=$("qFilter").value;
+  let idx=P.map((p,i)=>i).filter(i=>(!only||P[i].rk!=null)&&(!qf||P[i].q===qf));
+  idx.sort((a,b)=>{let x=P[a][sortK],y=P[b][sortK]; if(x==null&&y==null) return 0; if(x==null) return 1; if(y==null) return -1;
+    return (x<y?-1:x>y?1:0)*sortDir;});
+  $("cnt").textContent=`${idx.length.toLocaleString()}개 필지 표시`;
+  $("tbl").querySelector("tbody").innerHTML=idx.slice(0,400).map(i=>{const p=P[i];
+    return `<tr class="row${i===selI?" on":""}" data-i="${i}"><td>${p.rk??"—"}</td><td class="mono">${p.pnu||"—"}</td><td>${p.j||"—"}</td>
+    <td>${fmt(p.dl)}</td><td>${p.dr==null?"—":(p.dr*100).toFixed(1)}</td><td>${PS_KO[p.ps]||p.ps}</td>
+    <td>${p.fc?p.fc.replace("_","→"):"—"}</td><td>${p.rd==null?"—":fmt(p.rd)}</td><td>${p.s==null?"—":p.s.toFixed(1)}</td><td>${p.q}</td></tr>`;}).join("");
+}
+$("tbl").querySelector("thead").addEventListener("click", e=>{const k=e.target.dataset.k; if(!k) return;
+  if(sortK===k) sortDir*=-1; else {sortK=k; sortDir=(k==="rk"||k==="rd"||k==="j"||k==="pnu")?1:-1;} renderTable();});
+$("tbl").querySelector("tbody").addEventListener("click", e=>{const tr=e.target.closest("tr.row"); if(!tr) return;
+  select(+tr.dataset.i,true); $("s2").scrollIntoView({behavior:"smooth"});});
+$("onlyReview").onchange=renderTable; $("qFilter").onchange=renderTable;
+
+// ---------- temporal
+const cA=$("cmpA"), cB=$("cmpB");
+D.years.forEach((y,i)=>{[cA,cB].forEach(s=>{const o=document.createElement("option");o.value=i;o.textContent=y;s.appendChild(o);});});
+cA.value=0; cB.value=D.years.length-1;
+function cmp(){ $("imgA").src=D.ndvi_png[+cA.value]; $("imgB").src=D.ndvi_png[+cB.value];
+  $("imgB").style.clipPath=`inset(0 0 0 ${$("cmpS").value}%)`; }
+cA.onchange=cB.onchange=$("cmpS").oninput=cmp; cmp();
+$("minis").innerHTML=D.years.map((y,i)=>`<figure><img src="${D.ndvi_png[i]}" alt="NDVI ${y}"><figcaption>${y} · ${D.scenes[i].date} · ${D.scenes[i].platform}</figcaption></figure>`).join("");
+(function(){ const W=520,H=250,l=40,r=12,t=14,b=30, n=D.years.length; const xs=i=>l+(W-l-r)*(i+0.5)/n;
+  const mx=Math.max(...D.aoi_mean,0.6); const yv=v=>t+(H-t-b)*(1-v/mx);
+  let s=""; for(let v=0;v<=mx;v+=0.1){s+=`<line x1="${l}" x2="${W-r}" y1="${yv(v)}" y2="${yv(v)}" stroke="currentColor" opacity=".1"/><text x="${l-5}" y="${yv(v)+3}" text-anchor="end" font-size="10" fill="currentColor" opacity=".7">${v.toFixed(1)}</text>`;}
+  D.aoi_mean.forEach((v,i)=>{const bw=(W-l-r)/n*0.5; s+=`<rect x="${xs(i)-bw/2}" y="${yv(v)}" width="${bw}" height="${yv(0)-yv(v)}" fill="#4a9d5b" rx="2"><title>${D.years[i]}: ${v.toFixed(3)}</title></rect><text x="${xs(i)}" y="${yv(v)-4}" text-anchor="middle" font-size="10" fill="currentColor">${v.toFixed(2)}</text><text x="${xs(i)}" y="${H-10}" text-anchor="middle" font-size="10" fill="currentColor">${D.years[i]} (${D.scenes[i].date.slice(5)})</text>`;});
+  $("aoiChart").innerHTML=s; })();
+
+// ---------- init
+recolor(); renderTable();
+window.addEventListener("load", ()=>{fit();});
+window.addEventListener("resize", ()=>fit());
+if(!P.length){ $("detail").innerHTML="<h3>필지 상세</h3><p class='note'>연속지적도를 확보하지 못해 필지별 결과가 없습니다(미완료).</p>"; }
+</script>
+</body>
+</html>

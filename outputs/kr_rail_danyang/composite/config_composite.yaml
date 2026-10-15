@@ -1,0 +1,255 @@
+project:
+  id: kr_rail_danyang
+  name: 한국철도공단 토지보상 Demo - 단양 매포읍 변화 Screening
+  short_label: 한국철도공단 단양 매포
+  customer: 한국철도공단
+  location: 충청북도 단양군 매포읍 매포리·하괴리 일대
+  purpose: SkyWatch 50cm 구매 전 Sentinel-2 시계열 Screening (Decision Support - 지장물/보상
+    판정 자료 아님)
+  analysis_crs: EPSG:5186
+  context:
+    railway_project: 중앙선 도담~영천 복선전철
+    construction_start:
+      도담~안동: 2015-05
+      안동~영천: 2015-11
+    double_track_opening:
+      도담~안동: 2022-07
+      안동~영천: '2024-12-21'
+aoi:
+  status: provisional
+  source: VWorld Data API LT_C_ADRI_INFO (법정리 경계) - 매포읍 매포리 + 하괴리 dissolve
+  source_script: src/data/build_kr_rail_danyang_aoi.py
+  note: '잠정 AOI. 행정경계(법정리)이며 사업구역/보상구역 경계가 아니다. 사용자가 검토 중인 SkyWatch 검색 범위(약 22.3 km^2)의
+    geometry는 저장소에 없어 임의로 재현하지 않았다 (실측 AOI 면적은 outputs/kr_rail_danyang/reports/sentinel2_baseline_report.md
+    참고). 공식 SkyWatch 검색 geometry를 받으면 paths.aoi만 교체하면 된다.
+
+    '
+  railway_source: OpenStreetMap Overpass (railway=rail, 중앙선) - 공식 노선 geometry 아님
+paths:
+  data_root: data/projects/kr_rail_danyang
+  output_root: outputs/kr_rail_danyang
+  aoi: data/projects/kr_rail_danyang/aoi/danyang_master_aoi.geojson
+  ri_boundaries: data/projects/kr_rail_danyang/aoi/danyang_ri_all.geojson
+  railway: data/projects/kr_rail_danyang/aoi/osm_railway.geojson
+  imagery_dir: data\projects\kr_rail_danyang\raw\sentinel2_composite
+  skywatch_dir: data/projects/kr_rail_danyang/raw/skywatch
+imagery:
+  provider: sentinel2
+  band_order:
+  - B02
+  - B03
+  - B04
+  - B08
+  resolution_m: 10
+  years:
+  - 2016
+  - 2018
+  - 2020
+  - 2022
+  - 2024
+  - 2026
+  season:
+    start: 04-10
+    end: 05-31
+    target_mmdd: 05-01
+  max_scene_cloud_pct: 20
+  min_aoi_clear_fraction: 0.95
+  local_files: {}
+pairs:
+  phase_a:
+  - 2016
+  - 2026
+  consecutive: true
+  long_term:
+  - - 2016
+    - 2026
+  - - 2020
+    - 2026
+analysis:
+  base_config: config/config.yaml
+  threshold_method: fixed
+  mask_threshold: 0.5
+  min_component_area_m2: 400
+  ssim_win_size: 7
+  confidence_thresholds:
+    high: 0.7
+    medium: 0.4
+hotspot:
+  top_n: 5
+  cluster_distance_m: 60
+  min_hotspot_area_m2: 1000
+  recommend_min_area_m2: 5000
+  recommend_min_score: 0.5
+  buffer_m: 300
+  min_roi_size_m: 500
+  max_roi_size_m: 1000
+  railway_corridor_buffer_m: 300
+  roi_overlap_merge: 0.5
+acquisition_years:
+  active_fraction_of_max: 0.25
+analysis_limitations:
+- Sentinel-2 공간해상도는 10m로 개별 지장물/소형 건물 판독용이 아니다.
+- 본 결과는 change candidate / change hotspot이며 possible construction-related change일
+  뿐, 반드시 고해상도 영상(SkyWatch 50cm 등)으로 검증해야 한다.
+- change candidate는 보상 대상 지장물이 아니며 불법/무허가 건축물도 아니다. 법적·행정적 판단은 본 Demo 범위 밖이다.
+- 계절·식생(농경지 경운/작황), 그림자, 대기/센서 차이, 영상 정합오차가 오탐을 유발할 수 있다.
+- '''변화 없음''이 아니라 ''Sentinel-2에서는 유의미한 변화가 검출되지 않음''으로 해석해야 한다.'
+- Sentinel-2는 2015-06 이후만 존재해 착공(2015) 이전 상태(2010~2015)는 이 Screening으로 확인할 수 없다.
+ndvi:
+  output_dir: outputs\kr_rail_danyang\composite\ndvi
+  scene_selection: outputs\kr_rail_danyang\composite\scene_selection_composite.json
+  grid_resolution_m: 10
+  grid_snap: true
+  reflectance_scale: 10000.0
+  reflectance_warn_max: 1.5
+  resampling: nearest
+  cadastre:
+    local_path: null
+    cache_dir: data/projects/kr_rail_danyang/cadastre
+    primary_layer: lp_pa_cbnd_bubun
+    qa_layer: lp_pa_cbnd_bonbun
+    fetch_buffer_deg: 0.002
+  railway:
+    include_railway_values:
+    - rail
+    official_boundary_path: null
+    distance_bands_m:
+    - 100
+    - 300
+    - 500
+  thresholds:
+    default:
+      before_min: 0.35
+      after_max: 0.2
+      delta_max: -0.2
+      recovery_ndvi: 0.35
+    conservative:
+      before_min: 0.45
+      after_max: 0.15
+      delta_max: -0.3
+      recovery_ndvi: 0.3
+    relaxed:
+      before_min: 0.3
+      after_max: 0.25
+      delta_max: -0.15
+      recovery_ndvi: 0.4
+  min_followup_obs: 1
+  min_valid_obs_pixel: 4
+  parcel_quality:
+    min_effective_pixels: 4
+    min_evaluable_fraction: 0.8
+    min_year_valid_fraction: 0.5
+    min_valid_years: 4
+  classification:
+    decline_ratio_min: 0.1
+    decline_area_min_m2: 300
+    recovery_delta_min: 0.1
+    stable_delta_abs_max: 0.1
+    fluctuation_std_min: 0.1
+    vegetation_mean_ndvi_min: 0.35
+    first_change_min_area_m2: 200
+  priority:
+    weights:
+      decline_ratio: 0.4
+      persistence: 0.35
+      rail_proximity: 0.25
+    decline_ratio_full_score: 0.5
+    persistence_scores:
+      PERSISTENT: 100
+      UNCONFIRMED: 50
+      TEMPORARY: 30
+      NONE: 0
+    rail_full_score_distance_m: 0
+    rail_zero_score_distance_m: 500
+    min_decline_area_m2: 300
+    review_types:
+    - PERSISTENT_DECLINE
+    - DECLINE_UNCONFIRMED
+    tiers:
+      high: 60
+      medium: 40
+bsi:
+  output_dir: outputs\kr_rail_danyang\composite\bsi
+  swir_cache_dir: data\projects\kr_rail_danyang\raw\sentinel2_composite_swir
+  reference_dir: data/projects/kr_rail_danyang/reference
+  grid_resolution_m: 20
+  aggregate_min_valid_10m: 4
+  min_denominator: 0.001
+  water_mndwi_min: 0.0
+  bias_correction: true
+  stable_dndvi: 0.05
+  ndvi:
+    before_min: 0.35
+    after_max: 0.2
+    delta_max: -0.2
+    recovery_ndvi: 0.35
+    recovery_delta_min: 0.2
+  bsi:
+    increase_min: 0.1
+    decrease_min: 0.05
+    exposed_min: 0.0
+    conflict_decrease_min: 0.1
+  exposed_state:
+    ndvi_max: 0.25
+  min_persistent_exposed_obs: 4
+  min_valid_obs_pixel: 4
+  min_followup_obs: 1
+  quarry:
+    reference_tags:
+      landuse:
+      - quarry
+    adjacency_distance_m: 40
+    min_component_pixels: 2
+  parcel:
+    min_area_m2_for_composite: 800
+    min_change_area_m2: 800
+    min_change_ratio: 0.1
+    min_evaluable_fraction: 0.8
+  rankB:
+    weights:
+      exposed_ratio: 0.4
+      quarry_link: 0.35
+      persistence: 0.25
+    exposed_ratio_full_score: 0.5
+    quarry_link_scores:
+      POTENTIAL_QUARRY_EXPANSION: 100
+      QUARRY_INTERNAL_CHANGE: 60
+      EXPOSED_SURFACE_CHANGE: 40
+    persistence_scores:
+      PERSISTENT: 100
+      UNCONFIRMED: 50
+      REVEGETATED: 20
+    min_exposed_area_m2: 800
+  sensitivity:
+    ndvi_delta_max:
+    - -0.15
+    - -0.2
+    - -0.3
+    bsi_increase_min:
+    - 0.05
+    - 0.1
+    - 0.15
+    min_component_pixels:
+    - 1
+    - 2
+    - 4
+    min_followup_obs:
+    - 1
+    - 2
+    adjacency_distance_m:
+    - 20
+    - 40
+    - 80
+    - 120
+  context:
+    cache_dir: data/projects/kr_rail_danyang/context
+    lulc_years:
+    - 2017
+    - 2018
+    - 2019
+    - 2020
+    - 2021
+    - 2022
+    - 2023
+    - 2024
+    agri_share_min: 0.5

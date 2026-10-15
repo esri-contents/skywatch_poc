@@ -1,0 +1,38 @@
+{
+  "source": "OpenStreetMap via Overpass API",
+  "license": "ODbL 1.0 (c) OpenStreetMap contributors",
+  "crs_native": "EPSG:4326",
+  "accuracy": "자원봉사 기반 참고자료. 공인 경계/최신성/정확도 보증 없음",
+  "status": "OK",
+  "retrieved_at": "2026-10-13T10:36:24+09:00",
+  "bbox_wgs84": [
+    128.30525757555813,
+    36.98451866832265,
+    128.36511883833705,
+    37.04595405545826
+  ],
+  "n_quarry_candidates": 7,
+  "n_context": 11,
+  "quarry_tag_counts": {
+    "landuse": {
+      "quarry": 4
+    },
+    "natural": {
+      "bare_rock": 3
+    }
+  },
+  "queries": {
+    "quarry": [
+      "[\"landuse\"=\"quarry\"]",
+      "[\"industrial\"~\"quarry|mine\"]",
+      "[\"man_made\"=\"mineshaft\"]",
+      "[\"resource\"~\"limestone|stone|gravel|sand\"]",
+      "[\"natural\"=\"bare_rock\"]",
+      "[\"landuse\"=\"brownfield\"]"
+    ],
+    "context": [
+      "[\"landuse\"~\"farmland|orchard|farmyard|meadow|vineyard|plant_nursery\"]",
+      "[\"landuse\"~\"industrial|construction|landfill|retail|commercial\"]"
+    ]
+  }
+}

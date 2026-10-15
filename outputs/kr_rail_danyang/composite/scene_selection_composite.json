@@ -1,0 +1,68 @@
+{
+  "2016": {
+    "year": 2016,
+    "date": "2016-05-15",
+    "provider": "median composite of Sentinel-2 L2A scenes",
+    "scene_id": "COMPOSITE_2016",
+    "platform": "median of 5 scenes",
+    "processing_baseline": "mixed",
+    "boa_offset_removed_dn": null,
+    "scene_cloud_cover_pct": null,
+    "aoi_clear_fraction": 0.9905080213903743
+  },
+  "2018": {
+    "year": 2018,
+    "date": "2018-05-03",
+    "provider": "median composite of Sentinel-2 L2A scenes",
+    "scene_id": "COMPOSITE_2018",
+    "platform": "median of 13 scenes",
+    "processing_baseline": "mixed",
+    "boa_offset_removed_dn": null,
+    "scene_cloud_cover_pct": null,
+    "aoi_clear_fraction": 0.9977941176470588
+  },
+  "2020": {
+    "year": 2020,
+    "date": "2020-04-27",
+    "provider": "median composite of Sentinel-2 L2A scenes",
+    "scene_id": "COMPOSITE_2020",
+    "platform": "median of 11 scenes",
+    "processing_baseline": "mixed",
+    "boa_offset_removed_dn": null,
+    "scene_cloud_cover_pct": null,
+    "aoi_clear_fraction": 0.9613302139037433
+  },
+  "2022": {
+    "year": 2022,
+    "date": "2022-05-04",
+    "provider": "median composite of Sentinel-2 L2A scenes",
+    "scene_id": "COMPOSITE_2022",
+    "platform": "median of 11 scenes",
+    "processing_baseline": "mixed",
+    "boa_offset_removed_dn": null,
+    "scene_cloud_cover_pct": null,
+    "aoi_clear_fraction": 0.9990864527629234
+  },
+  "2024": {
+    "year": 2024,
+    "date": "2024-05-08",
+    "provider": "median composite of Sentinel-2 L2A scenes",
+    "scene_id": "COMPOSITE_2024",
+    "platform": "median of 13 scenes",
+    "processing_baseline": "mixed",
+    "boa_offset_removed_dn": null,
+    "scene_cloud_cover_pct": null,
+    "aoi_clear_fraction": 0.9991532976827094
+  },
+  "2026": {
+    "year": 2026,
+    "date": "2026-05-15",
+    "provider": "median composite of Sentinel-2 L2A scenes",
+    "scene_id": "COMPOSITE_2026",
+    "platform": "median of 16 scenes",
+    "processing_baseline": "mixed",
+    "boa_offset_removed_dn": null,
+    "scene_cloud_cover_pct": null,
+    "aoi_clear_fraction": 0.998596256684492
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "t0_t2": {
+    "out_dir": "outputs\\gwangmyeong_siheung\\comparisons\\t0_t2",
+    "candidate_count": 181,
+    "site_count": 132,
+    "priority": {
+      "MEDIUM": 103,
+      "HIGH": 58,
+      "LOW": 20
+    },
+    "change_type": {
+      "OTHER_CHANGE": 73,
+      "EXPANSION_OR_RECONSTRUCTION": 57,
+      "NEW_BUILDING": 29,
+      "DEMOLITION": 22
+    },
+    "register_match_count": 45,
+    "alignment": {
+      "dx_px": -0.020852845162153244,
+      "dy_px": 0.03162477910518646,
+      "displacement_px": 0.037880968900076674,
+      "displacement_m": 0.3787924768211283,
+      "ecc_score": 0.9898399685098401,
+      "converged": true
+    }
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "timestamp_utc": "2026-09-17T09:32:57.190914+00:00",
+  "seed": 42,
+  "git_commit": "7c3275c6aa14b040fe5f36077eb44cfca2454c5f",
+  "inputs": {
+    "t1": {
+      "path": "data\\projects\\gwangmyeong_siheung\\processed\\imagery\\t0_stack.tif",
+      "sha256": "39ba815182f45fea05091945ed4dd2a32cee5745ff76536321a12492a8f0dd87"
+    },
+    "t2": {
+      "path": "data\\projects\\gwangmyeong_siheung\\processed\\imagery\\t2_stack.tif",
+      "sha256": "2f040bb0af224277ad02b4da7ef37c57e0ea7751a6f91fa98bc263c5d93c8354"
+    },
+    "aoi": {
+      "path": "data\\projects\\gwangmyeong_siheung\\aoi\\gwangmyeong_siheung_official.gpkg",
+      "sha256": "ad6a4c78d53c6e679d4d453ea8b7872b0ab59cf488f62e0241c719a1fe3a5e40"
+    },
+    "buildings": {
+      "path": "data\\projects\\gwangmyeong_siheung\\processed\\buildings.gpkg",
+      "sha256": "44ccb5b6904189e2db7b9c45b3307f3d608e2f1199e106700c5b572d7ffa23b4"
+    },
+    "building_register": {
+      "path": "data\\projects\\gwangmyeong_siheung\\raw\\building_register\\title_info.json",
+      "sha256": "d85d6526e6d3f7936bdbbf839064118e203add848a59cd5c56c0f90fd8d2c554"
+    }
+  },
+  "params": {
+    "threshold_method": "fixed",
+    "used_threshold": 0.5,
+    "min_component_area_m2": 25,
+    "buffer_m": 3,
+    "priority_scoring_weights": {
+      "change_confidence": 0.4,
+      "change_ratio": 0.3,
+      "administrative_uncertainty": 0.2,
+      "building_relevance": 0.1
+    },
+    "spatial_statistics": {
+      "k": 8,
+      "permutations": 999
+    },
+    "global_moran": {
+      "I": 0.2557062631679235,
+      "p_sim": 0.001,
+      "z_sim": 7.790518989356068,
+      "n": 181,
+      "k": 8
+    }
+  },
+  "package_versions": {
+    "rasterio": "1.4.3",
+    "geopandas": "1.1.4",
+    "shapely": "2.1.2",
+    "pyproj": "3.8.0",
+    "fiona": "1.10.1",
+    "numpy": "2.5.3",
+    "pandas": "3.0.5",
+    "opencv-python": "5.0.0.93",
+    "scikit-image": "0.26.0",
+    "scikit-learn": "1.9.0",
+    "libpysal": "4.15.0",
+    "esda": "2.10.0"
+  }
+}

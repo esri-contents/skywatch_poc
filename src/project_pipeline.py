@@ -150,7 +150,7 @@ def write_data_inventory(cfg: dict) -> Path:
     execution = {
         "project_id": cfg["project"]["id"],
         "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
-        "project_config": "config/projects/hwaseong_jinan.yaml",
+        "project_config": f"config/projects/{cfg['project']['id']}.yaml",
         "selected_imagery": cfg["imagery"]["epochs"],
         "aoi": cfg["aoi"],
         "compensation_baseline": cfg["compensation"],

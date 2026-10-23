@@ -1,0 +1,84 @@
+{
+  "aoi": {
+    "feature_count": 1,
+    "area_m2": 12714465.8,
+    "bounds_wgs84": [
+      126.8248176,
+      37.4086203,
+      126.865566,
+      37.4772415
+    ]
+  },
+  "vectors": {
+    "buildings": 5106,
+    "cadastre": 21446,
+    "bbox": [
+      126.82281755000001,
+      37.40662035,
+      126.86756604,
+      37.47924145
+    ]
+  },
+  "building_register": {
+    "legal_dong_codes": [
+      "4119410600",
+      "4121010100",
+      "4121010500",
+      "4121010700",
+      "4121010800",
+      "4139011000",
+      "4139011200",
+      "4139013400"
+    ],
+    "records": 7968,
+    "errors": {}
+  },
+  "building_permits": {
+    "records": 9156,
+    "errors": {}
+  },
+  "imagery": [
+    {
+      "id": "t0",
+      "date": "2022-05-17",
+      "item_id": "S2A_MSIL2A_20220517T021611_R003_T52SCG_20220519T044055",
+      "role": "T1(2022) - 장면 전체 구름 0.0076%, AOI 내부 SCL 재계산 결과 구름 0.0%(완전 청천)",
+      "scene_cloud_pct": 0.007608,
+      "aoi_valid_pixel_pct": 100.0,
+      "aoi_cloud_pixel_pct": 0.0,
+      "source_checksums": {
+        "B02": null,
+        "B03": null,
+        "B04": null,
+        "B08": null
+      },
+      "assets": {
+        "B02": "data\\projects\\gwangmyeong_siheung\\raw\\imagery\\t0\\S2A_MSIL2A_20220517T021611_R003_T52SCG_20220519T044055_B02.tif",
+        "B03": "data\\projects\\gwangmyeong_siheung\\raw\\imagery\\t0\\S2A_MSIL2A_20220517T021611_R003_T52SCG_20220519T044055_B03.tif",
+        "B04": "data\\projects\\gwangmyeong_siheung\\raw\\imagery\\t0\\S2A_MSIL2A_20220517T021611_R003_T52SCG_20220519T044055_B04.tif",
+        "B08": "data\\projects\\gwangmyeong_siheung\\raw\\imagery\\t0\\S2A_MSIL2A_20220517T021611_R003_T52SCG_20220519T044055_B08.tif"
+      }
+    },
+    {
+      "id": "t2",
+      "date": "2024-05-31",
+      "item_id": "S2B_MSIL2A_20240531T021529_R003_T52SCG_20240531T054410",
+      "role": "T2(2024) - T1과 14일 이내 계절 일치. 장면 전체 구름 2.07%지만 AOI 내부 SCL 재계산 결과 구름 0.0849%로 실사용 적합. 같은 tile(T52SCG)의 2024-05-16(장면 구름 5.35%) 후보는 AOI 내부 재계산 시 구름 6.24%로 더 나빠 제외했다 - 장면 전체 구름률만으로는 이 AOI의 실제 가용성을 알 수 없다는 기존 프로젝트(제주김녕)의 관찰과 일치.",
+      "scene_cloud_pct": 2.074054,
+      "aoi_valid_pixel_pct": 100.0,
+      "aoi_cloud_pixel_pct": 0.0849,
+      "source_checksums": {
+        "B02": null,
+        "B03": null,
+        "B04": null,
+        "B08": null
+      },
+      "assets": {
+        "B02": "data\\projects\\gwangmyeong_siheung\\raw\\imagery\\t2\\S2B_MSIL2A_20240531T021529_R003_T52SCG_20240531T054410_B02.tif",
+        "B03": "data\\projects\\gwangmyeong_siheung\\raw\\imagery\\t2\\S2B_MSIL2A_20240531T021529_R003_T52SCG_20240531T054410_B03.tif",
+        "B04": "data\\projects\\gwangmyeong_siheung\\raw\\imagery\\t2\\S2B_MSIL2A_20240531T021529_R003_T52SCG_20240531T054410_B04.tif",
+        "B08": "data\\projects\\gwangmyeong_siheung\\raw\\imagery\\t2\\S2B_MSIL2A_20240531T021529_R003_T52SCG_20240531T054410_B08.tif"
+      }
+    }
+  ]
+}

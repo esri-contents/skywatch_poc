@@ -1,0 +1,150 @@
+project:
+  id: gwangmyeong_siheung
+  name: "광명시흥 공공주택지구 위성영상 기반 변화탐지 PoC (Sentinel-2, 2022 vs 2024)"
+  short_name: "광명시흥"
+  official_name: "광명시흥 공공주택지구"
+  location: "경기도 광명시 광명동·옥길동·가학동·노온사동, 시흥시 과림동·무지내동·금이동 일원"
+  official_area_m2: null  # 언론보도 "1,271만㎡"는 미검증 참고치 - area_m2_calc(VWorld 실측 폴리곤 면적)로 대체
+  operator: "한국토지주택공사(LH) · 경기주택도시공사(GH) 공동 시행"
+  analysis_crs: "EPSG:5186"
+
+paths:
+  data_root: "data/projects/gwangmyeong_siheung"
+  output_root: "outputs/gwangmyeong_siheung"
+  aoi: "data/projects/gwangmyeong_siheung/aoi/gwangmyeong_siheung_official.gpkg"
+  buildings: "data/projects/gwangmyeong_siheung/processed/buildings.gpkg"
+  cadastre: "data/projects/gwangmyeong_siheung/processed/cadastre.gpkg"
+  building_register: "data/projects/gwangmyeong_siheung/raw/building_register/title_info.json"
+  building_permits: "data/projects/gwangmyeong_siheung/raw/building_permits/basic_outline.json"
+  output_gdb: "outputs/gwangmyeong_siheung/arcgis/gwangmyeong_siheung.gdb"
+  output_aprx: "outputs/gwangmyeong_siheung/arcgis/gwangmyeong_siheung.aprx"
+  reports: "outputs/gwangmyeong_siheung/reports"
+
+aoi:
+  status: official
+  provider: "VWorld WFS"
+  layer: "lt_c_lhzone"
+  zonecode: "41210LH2022002"
+  zonename: "광명시흥 공공주택지구"
+  source_url: "https://api.vworld.kr/req/wfs"
+  designation_notice_url: "https://eum.go.kr/web/gs/gv/gvGosiDet.jsp?seq=540298"
+  designation_notice_number: "국토교통부 고시 제2022-673호"
+  designation_notice_date: "2022-11-29"
+  note: >
+    2026-09-17 실측 확인: VWorld lt_c_lhzone에서 zonecode=41210LH2022002,
+    zonename="광명시흥 공공주택지구"(cat_cde=RA, 실시계획 단계) 1건을 확보했다.
+    계산면적(EPSG:5186) 12,714,465.76㎡로, 언론에 보도된 지구지정 당시 면적
+    "1,271만㎡"(12,710,000㎡)와 4,466㎡(0.035%) 차이 - 같은 지구를 가리킨다는
+    정황과 일치한다. WFS가 서비스하는 경계는 이후 변경고시(아래)가 반영된
+    최신본일 가능성이 있어, 최초 고시(2022-11-29) 시점 경계와 완전히 같다고
+    단정하지 않는다. 이후 변경 이력(WebSearch 2차 자료 기준, 원문 미확보):
+    국토교통부 고시 제2023-396호(2023-07-11, 지구지정 변경(1차) - 집단취락지역
+    제척), 국토교통부 고시 제2024-875호(2024-12-30, 지구지정 변경(2차) 및
+    지구계획 승인). designation_notice_*는 최초 지정고시 기준으로 기재했다 -
+    고시 원문 PDF는 직접 확보/전문검색하지 못했다(eum.go.kr 상세페이지
+    WebFetch 요약만 반영, 미검증).
+
+imagery:
+  provider: "Microsoft Planetary Computer STAC"
+  stac_api: "https://planetarycomputer.microsoft.com/api/stac/v1"
+  collection: "sentinel-2-l2a"
+  bands: ["B02", "B03", "B04", "B08"]
+  asset_aliases: {}
+  epochs:
+    - id: t0
+      date: "2022-05-17"
+      item_id: "S2A_MSIL2A_20220517T021611_R003_T52SCG_20220519T044055"
+      role: "T1(2022) - 장면 전체 구름 0.0076%, AOI 내부 SCL 재계산 결과 구름 0.0%(완전 청천)"
+    - id: t2
+      date: "2024-05-31"
+      item_id: "S2B_MSIL2A_20240531T021529_R003_T52SCG_20240531T054410"
+      role: "T2(2024) - T1과 14일 이내 계절 일치. 장면 전체 구름 2.07%지만 AOI 내부
+        SCL 재계산 결과 구름 0.0849%로 실사용 적합. 같은 tile(T52SCG)의
+        2024-05-16(장면 구름 5.35%) 후보는 AOI 내부 재계산 시 구름 6.24%로
+        더 나빠 제외했다 - 장면 전체 구름률만으로는 이 AOI의 실제 가용성을
+        알 수 없다는 기존 프로젝트(제주김녕)의 관찰과 일치."
+  selection_note: >
+    2026-09-17 Planetary Computer STAC(collection=sentinel-2-l2a)에서 AOI
+    bbox(126.8248~126.8656E, 37.4086~37.4772N)를 완전히 포함하는 tile은
+    T52SCG뿐임을 shapely contains()로 직접 확인했다(T52SBG는 AOI 일부만
+    커버). T52SCG 후보 중 2022년은 2022-05-17이 압도적으로 청천(장면
+    0.0076%)이었고, 이는 고양창릉 baseline의 T1 선택일과 동일한 날짜다(같은
+    상대궤도 R003이 같은 날 경기 북부/남부를 함께 촬영한 것으로 보이며, 임의로
+    맞춘 값이 아니다). 2024년은 T52SCG 후보 중 AOI 내부 SCL 구름률을 직접
+    재계산해 2024-05-31(0.0849%)을 2024-05-16(6.24%) 대신 선택했다.
+
+compensation:
+  # 아래 baseline_date는 "지구지정을 위한 주민공람공고일"이 원칙(대법원 취지,
+  # hwaseong_jinan 조사에서 확인)이나, 이번 조사에서는 지구지정고시일까지만
+  # 확인했다 - 사업부서 확인 전까지 잠정값이다.
+  baseline_date: "2022-11-29"
+  baseline_type: "지구지정 및 지형도면 등의 고시일(국토교통부고시 제2022-673호) -
+    이 지구는 이미 보상계획공고 단계까지 진행되어(아래 note) 실제
+    이주대책기준일/권리산정기준일이 보상계획공고문에 명시돼 있을 가능성이
+    높으나, 이번 조사에서는 그 원문을 직접 확인하지 못해 지구지정고시일을
+    잠정값으로 사용한다. [미확정 잠정값]"
+  source_url: "https://eum.go.kr/web/gs/gv/gvGosiDet.jsp?seq=540298"
+  business_confirmed: false
+  interim_use_approved: true
+  interim_use_note: >
+    2026-09-17 WebSearch(2차 자료, 원문 미확보) 기준 추진경위: 2021-02-24
+    3기 신도시 신규 후보지 발표 -> 2022-11-29 지구지정 및 지형도면 고시
+    (국토교통부고시 제2022-673호) -> 2023-07-11 지구지정 변경(1차, 집단취락지역
+    제척, 제2023-396호) -> 2024-12-30 지구지정 변경(2차) 및 지구계획 승인
+    (제2024-875호) -> 2025-08-27 토지·물건 보상계획 및 열람 공고(1차) ->
+    2026-07-31 보상계획 및 열람 공고(2차). 즉 하남진안/제주김녕과 달리 이미
+    보상계획공고까지 실제로 진행된 사업이다 - LH·GH 공고문 원문(보상계획공고
+    PDF)에 이주대책기준일/권리산정기준일이 명시돼 있을 가능성이 높지만, 이번
+    조사에서는 뉴스 2차 보도까지만 확인했고 그 공고문 원문을 직접 열어보지
+    못했다. business_confirmed를 true로 바꾸려면 GH(gh.or.kr)/LH(lh.or.kr)
+    보상계획공고 원문에서 이주대책기준일 조항을 직접 확인해야 한다.
+  open_questions_for_business_team:
+    - "2025-08-27(1차)/2026-07-31(2차) 보상계획 및 열람 공고 원문에 이주대책
+      기준일 또는 권리산정기준일이 명시되어 있는가? 명시되어 있다면 그 날짜로
+      baseline_date를 교체해야 한다."
+    - "2023-07-11 집단취락지역 제척(1차 변경)으로 AOI 경계가 바뀌었는가?
+      VWorld가 서비스하는 현재 경계가 어느 시점 기준인지 사업부서 확인 필요."
+
+analysis:
+  base_config: "config/config.yaml"
+  change_ratio_new_building_min: 0.5
+  threshold_candidates: [0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
+  comparison_pairs:
+    - [t0, t2]
+
+publishing:
+  folder: "skywatch_poc_gwangmyeong_siheung"
+  web_map_title: "광명시흥 Building Change Intelligence - Sentinel-2 2022 vs 2024"
+  sharing: private
+  overwrite_existing: false
+
+sources_checked_at: "2026-09-17"
+
+official_sources:
+  - title: "광명시흥 공공주택지구의 지정 및 지형도면 등 고시"
+    agency: "국토교통부"
+    notice_number: "국토교통부고시 제2022-673호"
+    notice_date: "2022-11-29"
+    url: "https://eum.go.kr/web/gs/gv/gvGosiDet.jsp?seq=540298"
+    confirms: "지구지정. WebFetch 요약 조회 결과만 반영(원문 PDF 미확보) -
+      고시번호·고시일자·지정권자(국토교통부)만 확인, 사업면적/이주대책기준일 등은
+      본문 요약에서 확인되지 않음."
+  - title: "광명시흥 공공주택지구 지정 변경(1차) - 집단취락지역 제척"
+    agency: "국토교통부"
+    notice_number: "국토교통부고시 제2023-396호 (미검증 - 뉴스 2차 자료)"
+    notice_date: "2023-07-11"
+    url: "N/A"
+    confirms: "뉴스 검색 결과 기반, 원문 미확보"
+  - title: "광명시흥 공공주택지구 지정 변경(2차) 및 지구계획 승인"
+    agency: "국토교통부"
+    notice_number: "국토교통부고시 제2024-875호 (미검증 - 뉴스 2차 자료)"
+    notice_date: "2024-12-30"
+    url: "N/A"
+    confirms: "뉴스 검색 결과 기반, 원문 미확보"
+  - title: "광명시흥 공공주택지구 토지·물건 보상계획공고"
+    agency: "LH · GH 경기주택도시공사"
+    notice_number: "N/A (뉴스 2차 보도 기준)"
+    notice_date: "2025-08-27 (1차) / 2026-07-31 (2차)"
+    url: "N/A"
+    confirms: "보상계획 및 열람 공고 진행 중이라는 사실만 확인 - 이주대책기준일
+      원문은 미확보."

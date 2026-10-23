@@ -45,15 +45,28 @@ def acquire_official_aoi(cfg: dict[str, Any]) -> gpd.GeoDataFrame:
     if not key:
         raise RuntimeError("VWORLD_API_KEY가 필요합니다")
     aoi_cfg = cfg["aoi"]
-    params = {
-        "SERVICE": "WFS", "VERSION": "2.0.0", "REQUEST": "GetFeature",
-        "TYPENAME": aoi_cfg["layer"], "SRSNAME": "EPSG:4326",
-        "OUTPUT": "application/json", "MAXFEATURES": 1000, "STARTINDEX": 0,
-        "KEY": key,
-    }
-    response = requests.get(VWORLD_WFS, params=params, timeout=90)
-    response.raise_for_status()
-    features = response.json().get("features", [])
+    # lt_c_lhzone은 실측 확인 결과 1000건을 넘는 전국 지구 목록이라(2026-09-17
+    # 기준 1,331건), STARTINDEX=0 한 페이지만 조회하면 뒷페이지에 있는 지구는
+    # "1건이어야 합니다: matches=0"로 조용히 못 찾은 것처럼 보인다 - 끝까지
+    # 페이징한다. 또한 response.json()은 이 엔드포인트에서 실측 확인 결과
+    # 한글 zonename을 mojibake로 깨뜨리므로(Content-Type에 charset이 없어
+    # requests가 잘못 추측함) content를 UTF-8로 직접 디코딩한다.
+    features: list[dict[str, Any]] = []
+    start = 0
+    while True:
+        params = {
+            "SERVICE": "WFS", "VERSION": "2.0.0", "REQUEST": "GetFeature",
+            "TYPENAME": aoi_cfg["layer"], "SRSNAME": "EPSG:4326",
+            "OUTPUT": "application/json", "MAXFEATURES": 1000, "STARTINDEX": start,
+            "KEY": key,
+        }
+        response = requests.get(VWORLD_WFS, params=params, timeout=90)
+        response.raise_for_status()
+        page = json.loads(response.content.decode("utf-8")).get("features", [])
+        features.extend(page)
+        if len(page) < 1000:
+            break
+        start += 1000
     matches = [f for f in features if f.get("properties", {}).get("zonecode") == aoi_cfg["zonecode"]]
     if len(matches) != 1:
         raise RuntimeError(f"공식 지구계가 1건이어야 합니다: matches={len(matches)}")

@@ -251,8 +251,13 @@ def _stack_svg(items: list[tuple[str, list[tuple[float, str]], str]], width: int
     return f'<svg viewBox="0 0 {width} {height}" width="100%" class="chart" role="img">{"".join(rows)}</svg>'
 
 
+def _text_width(text: str, size: float) -> float:
+    """SVG 라벨 폭 추정(px): 한글 등 전각 문자는 글자 크기, 그 외는 0.6배."""
+    return sum(size if ord(c) >= 0x1100 else size * 0.6 for c in text)
+
+
 def _timeline_svg(t1: date, t2: date, baseline: date | None, events: list[tuple[date, str]]) -> str:
-    width, left, right, axis_y = 900, 40, 40, 70
+    width, left, right, axis_y = 900, 40, 40, 108
     marks = {t1: "T1 영상", t2: "T2 영상"}
     if baseline:
         marks[baseline] = "기준일(잠정)"
@@ -271,17 +276,29 @@ def _timeline_svg(t1: date, t2: date, baseline: date | None, events: list[tuple[
         parts.append(f'<rect x="{px(baseline):.1f}" y="{axis_y - 8}" width="{px(t2) - px(baseline):.1f}" height="16" fill="#118ab2" opacity=".85"/>')
     else:
         parts.append(f'<rect x="{px(t1):.1f}" y="{axis_y - 8}" width="{px(t2) - px(t1):.1f}" height="16" fill="#118ab2" opacity=".85"/>')
-    for i, day in enumerate(days):
-        x, up = px(day), i % 2 == 0
-        y_text = axis_y - 44 if up else axis_y + 40
-        anchor = "start" if x < 120 else "end" if x > width - 140 else "middle"
+    # 라벨 줄(위 2줄, 아래 2줄): 앞선 라벨과 가로로 겹치지 않는 첫 줄에 배치한다.
+    lanes = [(-1, 1), (1, 1), (-1, 2), (1, 2)]
+    lane_right = {lane: float("-inf") for lane in lanes}
+    bottom = axis_y + 16
+    halo = 'paint-order="stroke" stroke="#fff" stroke-width="3"'  # 다른 줄의 눈금선 위에서도 읽히게
+    for day in days:
+        x = px(day)
         label = marks[day]
         label = label if len(label) <= 20 else label[:19] + "…"
-        parts.append(f'<line x1="{x:.1f}" y1="{axis_y - 20 if up else axis_y + 8}" x2="{x:.1f}" y2="{axis_y - 8 if up else axis_y + 22}" stroke="#345"/>')
+        w = max(_text_width(label, 12), _text_width(day.isoformat(), 11)) + 8
+        anchor = "start" if x < 120 else "end" if x > width - 140 else "middle"
+        x0 = x if anchor == "start" else x - w if anchor == "end" else x - w / 2
+        lane = next((ln for ln in lanes if x0 > lane_right[ln]), min(lanes, key=lambda ln: lane_right[ln]))
+        lane_right[lane] = x0 + w
+        side, level = lane
+        y_text = axis_y - 10 - 34 * level if side < 0 else axis_y + 6 + 34 * level
+        tick_end = y_text + 18 if side < 0 else y_text - 13
+        bottom = max(bottom, y_text + 20)
+        parts.append(f'<line x1="{x:.1f}" y1="{axis_y - 8 if side < 0 else axis_y + 8}" x2="{x:.1f}" y2="{tick_end}" stroke="#345"/>')
         parts.append(f'<circle cx="{x:.1f}" cy="{axis_y}" r="4" fill="#073b4c"/>')
-        parts.append(f'<text x="{x:.1f}" y="{y_text}" text-anchor="{anchor}" font-size="12" fill="#17222e" font-weight="600">{label}</text>')
-        parts.append(f'<text x="{x:.1f}" y="{y_text + 14}" text-anchor="{anchor}" font-size="11" fill="#567">{day.isoformat()}</text>')
-    return f'<svg viewBox="0 0 {width} 140" width="100%" role="img">{"".join(parts)}</svg>'
+        parts.append(f'<text x="{x:.1f}" y="{y_text}" text-anchor="{anchor}" font-size="12" fill="#17222e" font-weight="600" {halo}>{label}</text>')
+        parts.append(f'<text x="{x:.1f}" y="{y_text + 14}" text-anchor="{anchor}" font-size="11" fill="#567" {halo}>{day.isoformat()}</text>')
+    return f'<svg viewBox="0 0 {width} {bottom:.0f}" width="100%" role="img">{"".join(parts)}</svg>'
 
 
 def _to_date(value) -> date | None:

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import hashlib
+import io
 import json
 import re
 from datetime import date
@@ -781,6 +783,21 @@ def _brief_sections(cfg: dict, m: dict, ctx: dict) -> str:
     return "".join(out)
 
 
+def _embedded_image(path: Path, max_width: int = 2400, quality: int = 85) -> str:
+    """그림을 JPEG data URI로 넣는다 - reports 폴더만 압축·전달해도 이미지가 깨지지 않게 한다."""
+    if not path.exists():
+        return ""
+    from PIL import Image
+
+    with Image.open(path) as img:
+        img = img.convert("RGB")
+        if img.width > max_width:
+            img = img.resize((max_width, round(img.height * max_width / img.width)), Image.LANCZOS)
+        buffer = io.BytesIO()
+        img.save(buffer, format="JPEG", quality=quality, optimize=True)
+    return "data:image/jpeg;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
+
+
 def _html(cfg: dict, summary: dict, briefing: bool = False) -> str:
     name = cfg["project"]["short_name"]
     epochs = {e["id"]: e for e in cfg["imagery"]["epochs"]}
@@ -830,13 +847,14 @@ def _html(cfg: dict, summary: dict, briefing: bool = False) -> str:
         grid = f'<div class="grid first">{_cards(card_rows)}</div>'
         body = (f'<section><h2>실행 결과</h2><p>후보 {total["candidate_count"]}건, 현장 {total["site_count"]}곳. AOI 내 건물 footprint {buildings:,}동, 수집 건축물대장 {len(register):,}건.</p></section>'
                 f'<section class="warn"><h2>기준일 해석</h2><p>{cfg["compensation"]["baseline_date"]} ({cfg["compensation"]["baseline_type"]})은 미확정 후보 기준일이며 보상 판정으로 표현하지 않는다.</p></section>')
-    image = f"../comparisons/{main_code}/figures/before_after_change.png"
+    fig_dir = Path(cfg["paths"]["output_root"]) / "comparisons" / main_code / "figures"
+    image = _embedded_image(fig_dir / "before_after_change.png")
     figures = ""
     if m and not briefing:
         figs = [("priority_map.png", "우선순위 분포", "HIGH 후보는 소규모 footprint라 지도에서는 작게 보인다."),
                 ("hotspots.png", "Getis-Ord Gi* hotspot", "붉은색이 유의한 고밀도 군집, 푸른색이 저밀도 군집이다."),
                 ("cadastre_context.png", "지적(필지) 연계", "후보를 필지 경계와 겹쳐 PNU 단위 확인에 쓴다.")]
-        cards = "".join(f'<figure><img src="../comparisons/{main_code}/figures/{f}" alt="{t}"><figcaption><b>{t}</b> - {c}</figcaption></figure>' for f, t, c in figs)
+        cards = "".join(f'<figure><img src="{_embedded_image(fig_dir / f)}" alt="{t}"><figcaption><b>{t}</b> - {c}</figcaption></figure>' for f, t, c in figs)
         figures = f'<section><h2>공간 분포 지도</h2><div class="figs">{cards}</div></section>'
     checked_at = cfg.get("sources_checked_at", "")
     source_rows = "".join(

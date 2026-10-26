@@ -164,9 +164,12 @@ def acquire_building_permits(cfg: dict[str, Any], codes: list[str]) -> dict[str,
             if isinstance(batch, dict):
                 batch = [batch]
             for item in batch:
+                # platGbCd(0=대지, 1=산)와 PNU 11번째 자리(1=일반, 2=산)는 코드 체계가
+                # 다르다 - 그대로 붙이면 지적 PNU와 거의 매칭되지 않는다.
+                plat = {"0": "1", "1": "2"}.get(str(item.get("platGbCd", "0")), str(item.get("platGbCd", "0")))
                 item["pnu"] = (
                     f"{item.get('sigunguCd', '')}{item.get('bjdongCd', '')}"
-                    f"{item.get('platGbCd', '0')}{str(item.get('bun', '0')).zfill(4)}"
+                    f"{plat}{str(item.get('bun', '0')).zfill(4)}"
                     f"{str(item.get('ji', '0')).zfill(4)}"
                 )
             all_items.extend(batch)
@@ -261,7 +264,13 @@ def acquire_all(project_config: str | Path) -> dict[str, Any]:
     result["building_permits"] = acquire_building_permits(
         cfg, result["building_register"]["legal_dong_codes"]
     )
-    result["imagery"] = acquire_imagery(cfg, aoi)
+    if cfg["imagery"].get("source") == "local":
+        # 사용자가 제공한 로컬 영상은 내려받지 않고 경로/존재 여부만 기록한다.
+        result["imagery"] = [
+            {**epoch, "exists": Path(epoch["path"]).exists()} for epoch in cfg["imagery"]["epochs"]
+        ]
+    else:
+        result["imagery"] = acquire_imagery(cfg, aoi)
     out = Path(cfg["paths"]["output_root"]) / "acquisition_result.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     with open(out, "w", encoding="utf-8") as stream:

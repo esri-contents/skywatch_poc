@@ -26,10 +26,12 @@ import geopandas as gpd  # noqa: E402
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import rasterio  # noqa: E402
+from affine import Affine  # noqa: E402
 from matplotlib.patches import Patch  # noqa: E402
+from rasterio.enums import Resampling  # noqa: E402
 from rasterio.plot import plotting_extent  # noqa: E402
 
-from ..change_detection.band_schema import resolve_band_roles  # noqa: E402
+from ..change_detection.band_schema import determine_band_order, resolve_band_roles  # noqa: E402
 
 logger = logging.getLogger("visualize")
 
@@ -55,19 +57,27 @@ GI_CLASS_COLORS = {
 
 def _read_true_color(
     stack_path: str | Path,
-    band_order: list[str] = ("B02", "B03", "B04", "B08"),
+    band_order: list[str] | None = None,
     percentile: tuple[float, float] = (2, 98),
+    max_dim: int = 6000,
 ) -> tuple[np.ndarray, tuple, object]:
     """스택 GeoTIFF를 (H, W, 3) 0~1 true-color 배열로 읽는다 (percentile stretch, NoData=0 제외).
 
     band_order는 Sentinel-2 이름(B02/B03/B04/B08)뿐 아니라 RGB/RGBNIR 등 role
     이름(red/green/blue[/nir])도 받는다 - band_schema.resolve_band_roles() 참고.
+    None이면 파일의 band description을 우선 쓰고, 없으면 Sentinel-2 순서로 본다.
+    항공사진처럼 큰 스택은 긴 변이 max_dim을 넘지 않도록 평균 축소해 읽는다
+    (반환 transform도 축소 grid 기준).
     """
+    if band_order is None:
+        band_order = determine_band_order(stack_path, ["B02", "B03", "B04", "B08"])
     roles = resolve_band_roles(band_order)
     with rasterio.open(stack_path) as src:
-        arr = src.read().astype(np.float32)
+        scale = max(1.0, max(src.width, src.height) / max_dim)
+        shape = (src.count, int(src.height / scale), int(src.width / scale))
+        arr = src.read(out_shape=shape, resampling=Resampling.nearest if scale == 1 else Resampling.average).astype(np.float32)
         extent = plotting_extent(src)
-        transform = src.transform
+        transform = src.transform * Affine.scale(src.width / shape[2], src.height / shape[1])
         nodata = src.nodata
 
     rgb = arr[[roles["red"], roles["green"], roles["blue"]]]
@@ -187,8 +197,9 @@ def plot_site_qa_contact_sheet(
     Returns:
         저장된 페이지 PNG 경로 목록.
     """
-    t1_rgb, _, t1_transform = _read_true_color(t1_path)
-    t2_rgb, _, _ = _read_true_color(t2_path)
+    # chip은 원해상도가 필요하므로 축소하지 않는다
+    t1_rgb, _, t1_transform = _read_true_color(t1_path, max_dim=10**9)
+    t2_rgb, _, _ = _read_true_color(t2_path, max_dim=10**9)
 
     polys = gpd.read_file(change_polygons_path)
     labels = labels or {}

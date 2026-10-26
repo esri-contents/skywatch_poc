@@ -1,0 +1,47 @@
+{
+  "acquired_at": "2026-10-26",
+  "aoi": {
+    "feature_count": 1,
+    "area_m2": 12714465.8,
+    "bounds_wgs84": [
+      126.8248176,
+      37.4086203,
+      126.865566,
+      37.4772415
+    ]
+  },
+  "vectors": {
+    "buildings": 5107,
+    "cadastre": 21448
+  },
+  "building_register": {
+    "legal_dong_codes": [
+      "4119410600",
+      "4121010100",
+      "4121010500",
+      "4121010700",
+      "4121010800",
+      "4139011000",
+      "4139011200",
+      "4139013400"
+    ],
+    "records": 7966,
+    "errors": {}
+  },
+  "building_permits": {
+    "records": 9164,
+    "errors": {},
+    "note": "PNU platGbCd->PNU 토지구분 매핑 버그 수정 후 재계산(2026-10-26), AOI 지적 매칭 16->3,048건"
+  },
+  "imagery": [
+    {
+      "id": "t0",
+      "path": "data/projects/gwangmyeong_siheung_aerial/raw/imagery/aerial_20221201_0.25m.tif"
+    },
+    {
+      "id": "t2",
+      "path": "data/projects/gwangmyeong_siheung_aerial/raw/imagery/aerial_2024_0.25m_georef.tif",
+      "georef_report": "data/projects/gwangmyeong_siheung_aerial/raw/imagery/georef_2024_report.json"
+    }
+  ]
+}

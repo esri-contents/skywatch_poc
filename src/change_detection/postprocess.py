@@ -108,8 +108,14 @@ def compute_brightness_delta(
     t1_path: str,
     t2_path: str,
     band_order: list[str] = ("B02", "B03", "B04", "B08"),
+    center_global_shift: bool = False,
 ) -> gpd.GeoDataFrame:
     """change polygon별 T1->T2 밝기(RGB 평균) 변화 방향을 계산한다.
+
+    center_global_shift=True면 AOI 유효 픽셀 전체의 밝기 변화 중앙값을 빼서
+    상대적인 방향을 남긴다. 촬영 계절·노출이 달라 한쪽 영상이 전체적으로
+    밝으면(광명시흥 항공: T2가 중앙값 +22) 원시 차이로는 거의 모든 폴리곤이
+    "밝아짐"이 되어 방향 검사가 무력해지기 때문이다.
 
     change_probability(robust_cva/ssim/edge_texture 앙상블)는 변화의 "크기"만
     담고 "방향"(밝아짐/어두워짐)은 버린다. 이 때문에 classify.py의 DEMOLITION
@@ -134,6 +140,12 @@ def compute_brightness_delta(
     with rasterio.open(t2_path) as s2:
         gray2 = to_grayscale(s2.read(), list(band_order))
 
+    shift = 0.0
+    if center_global_shift:
+        valid = (gray1 > 0) & (gray2 > 0)
+        shift = float(np.median(gray2[valid] - gray1[valid])) if valid.any() else 0.0
+        logger.info("[CHANGE] brightness_delta 전역 이동 보정: T2-T1 중앙값 %.2f를 뺌", shift)
+
     stats1 = zonal_stats(out, gray1, affine=transform, stats=["mean"], nodata=np.nan)
     stats2 = zonal_stats(out, gray2, affine=transform, stats=["mean"], nodata=np.nan)
     b1 = [s["mean"] for s in stats1]
@@ -142,7 +154,7 @@ def compute_brightness_delta(
     out["brightness_t1"] = [round(v, 2) if v is not None else None for v in b1]
     out["brightness_t2"] = [round(v, 2) if v is not None else None for v in b2]
     out["brightness_delta"] = [
-        round(v2 - v1, 2) if v1 is not None and v2 is not None else None
+        round(v2 - v1 - shift, 2) if v1 is not None and v2 is not None else None
         for v1, v2 in zip(b1, b2)
     ]
     return out

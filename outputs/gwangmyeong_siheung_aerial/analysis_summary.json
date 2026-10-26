@@ -1,0 +1,27 @@
+{
+  "t0_t2": {
+    "out_dir": "outputs\\gwangmyeong_siheung_aerial\\comparisons\\t0_t2",
+    "candidate_count": 4387,
+    "site_count": 4285,
+    "priority": {
+      "MEDIUM": 3488,
+      "LOW": 733,
+      "HIGH": 166
+    },
+    "change_type": {
+      "OTHER_CHANGE": 4017,
+      "EXPANSION_OR_RECONSTRUCTION": 288,
+      "DEMOLITION": 55,
+      "NEW_BUILDING": 27
+    },
+    "register_match_count": 927,
+    "alignment": {
+      "dx_px": -0.07370870560407639,
+      "dy_px": 0.3820022940635681,
+      "displacement_px": 0.3890484879184819,
+      "displacement_m": 0.3890484879184819,
+      "ecc_score": 0.9356087461543999,
+      "converged": true
+    }
+  }
+}

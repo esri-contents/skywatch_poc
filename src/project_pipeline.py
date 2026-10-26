@@ -12,6 +12,7 @@ import geopandas as gpd
 import pandas as pd
 import rasterio
 import yaml
+from rasterio.enums import Resampling
 
 from .data.project_acquisition import acquire_all, load_project
 from .evaluation.report import build_human_validation_sample
@@ -23,7 +24,7 @@ from .evaluation.visualize import (
 )
 from .pipeline import run_change_detection
 from .preprocessing.alignment import verify_alignment
-from .preprocessing.raster_preprocess import build_stacked_scene
+from .preprocessing.raster_preprocess import align_imagery_pair, build_stacked_scene
 
 
 def _epoch_map(cfg: dict) -> dict[str, dict]:
@@ -37,6 +38,8 @@ def _band_paths(cfg: dict, epoch: dict) -> dict[str, Path]:
 
 def preprocess(cfg: dict) -> dict[str, str]:
     root = Path(cfg["paths"]["data_root"]) / "processed" / "imagery"
+    if cfg["imagery"].get("source") == "local":
+        return _preprocess_local(cfg, root)
     stacks = {}
     for epoch in cfg["imagery"]["epochs"]:
         out = root / f"{epoch['id']}_stack.tif"
@@ -48,6 +51,20 @@ def preprocess(cfg: dict) -> dict[str, str]:
     return stacks
 
 
+def _preprocess_local(cfg: dict, root: Path) -> dict[str, str]:
+    """이미 다중밴드로 완성된 로컬 영상(항공사진 등)을 AOI 공통 grid로 정렬한다."""
+    epochs = cfg["imagery"]["epochs"]
+    if len(epochs) != 2:
+        raise ValueError("source=local은 epoch 2개(T1/T2)만 지원합니다")
+    outs = [root / f"{e['id']}_stack.tif" for e in epochs]
+    align_imagery_pair(
+        epochs[0]["path"], epochs[1]["path"], cfg["paths"]["aoi"], outs[0], outs[1],
+        dst_crs=cfg["project"]["analysis_crs"], resolution=cfg["imagery"].get("resolution_m"),
+        resampling=Resampling.average,
+    )
+    return {e["id"]: str(p) for e, p in zip(epochs, outs)}
+
+
 def _resolved_analysis_config(cfg: dict) -> Path:
     with open(cfg["analysis"]["base_config"], encoding="utf-8") as stream:
         resolved = yaml.safe_load(stream)
@@ -57,6 +74,9 @@ def _resolved_analysis_config(cfg: dict) -> Path:
         "search_bbox_wgs84": [float(v) for v in gpd.read_file(cfg["paths"]["aoi"]).to_crs(4326).total_bounds],
     }
     resolved["classification"]["change_ratio_new_building_min"] = cfg["analysis"]["change_ratio_new_building_min"]
+    # 영상 해상도별 보정값(예: 항공사진의 spectral_min)은 프로젝트 설정에서 덮어쓴다.
+    for section in ("change_detection", "postprocess", "classification"):
+        resolved[section] = {**resolved.get(section, {}), **cfg["analysis"].get(section, {})}
     resolved["compensation"] = cfg["compensation"]
     resolved["paths"] = cfg["paths"]
     resolved["publishing"] = cfg["publishing"]
@@ -91,6 +111,7 @@ def analyze(cfg: dict, stacks: dict[str, str]) -> dict:
             stacks[left], stacks[right], cfg["paths"]["aoi"], cfg["paths"]["buildings"],
             config_path=resolved, t1_date=epochs[left]["date"], t2_date=epochs[right]["date"],
             out_dir=out, building_register_path=cfg["paths"]["building_register"],
+            cadastre_path=cfg["paths"].get("cadastre"),
         )
         site_ids = gdf["site_id"].astype("object").copy()
         site_ids.loc[site_ids.isna()] = [f"row_{i}" for i in site_ids.index[site_ids.isna()]]
@@ -134,7 +155,9 @@ def write_data_inventory(cfg: dict) -> Path:
                     digest.update(chunk)
             selected_ids = {e["item_id"] for e in cfg["imagery"]["epochs"]}
             is_imagery = "raw\\imagery" in str(path) or "raw/imagery" in str(path)
-            selected = (not is_imagery) or any(item_id in path.name for item_id in selected_ids)
+            selected = (not is_imagery) or cfg["imagery"].get("source") == "local" or any(
+                item_id in path.name for item_id in selected_ids
+            )
             rows.append({
                 "file_path": str(path), "bytes": path.stat().st_size,
                 "sha256": digest.hexdigest(), "selected_input_or_output": selected,

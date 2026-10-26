@@ -47,8 +47,15 @@ def classify_building_changes(
     demolition_score_min: float = 0.6,
     t1_date: date | None = None,
     t2_date: date | None = None,
+    min_change_area_m2: float = 0.0,
 ) -> gpd.GeoDataFrame:
     """change_ratio/near_change/max_change_score 기반 규칙 분류.
+
+    min_change_area_m2 > 0이면 건물 본체와 겹친 변화 면적이 그보다 작은 건물은
+    경계 접촉으로 보고 OTHER_CHANGE로 둔다. 1m 항공사진에서는 옆 변화 폴리곤이
+    건물 경계에 수 ㎡만 걸쳐도 "증축/개축(대장 근거 확정)"이 되어 HIGH까지
+    올라가는 사례가 육안검수에서 반복됐다(광명시흥 항공: 건물 후보 585건 중
+    213건이 5㎡ 미만). 기본 0이면 기존 동작과 같다.
 
     규칙 (근거는 모듈 docstring의 한계 설명 참고):
     1. change_ratio == 0 이고 near_change == True
@@ -92,9 +99,14 @@ def classify_building_changes(
         matched = bool(row.get("has_register_match")) if has_register else False
         brightness_delta = row.get("brightness_delta") if has_brightness else None
 
+        area = row.get("change_area_m2") or 0.0
         if ratio == 0 and near:
             change_types.append(OTHER_CHANGE)
             notes.append("건물 본체 미교차, 버퍼 내 변화만 존재")
+            consistency_flags.append(None)
+        elif ratio > 0 and area < min_change_area_m2:
+            change_types.append(OTHER_CHANGE)
+            notes.append(f"건물 본체 교차 면적 {area:.1f}㎡ < {min_change_area_m2:g}㎡ - 경계 접촉으로 보고 기타 변화")
             consistency_flags.append(None)
         elif ratio == 0:
             change_types.append(None)
@@ -211,3 +223,31 @@ def classify_unmatched_changes(
     unmatched["site_id"] = unmatched["change_id"]
     unmatched["directional_consistency_flag"] = None
     return unmatched
+
+
+def demote_demolition_by_jimok(
+    unmatched: gpd.GeoDataFrame,
+    cadastre: gpd.GeoDataFrame,
+    exclude_jimok: list[str],
+) -> gpd.GeoDataFrame:
+    """건물이 서기 어려운 지목(임야·하천·도로 등) 필지 위의 DEMOLITION을 OTHER_CHANGE로 내린다.
+
+    DEMOLITION은 T1 건물 유무를 모른 채 변화 강도만으로 추정하는데, 1m
+    항공사진에서는 산지 그림자·하천 모래·도로 반사도 같은 조건을 만족한다
+    (광명시흥 항공 육안검수 철거 10건 중 실제 철거 1건, 지목 임 47/107건).
+    지목은 지적 jibun 끝 글자(예: "산91-2임" -> 임)에서 읽는다.
+    """
+    if unmatched.empty or not exclude_jimok or "jibun" not in cadastre.columns:
+        return unmatched
+    out = unmatched.copy()
+    parcels = cadastre[["jibun", "geometry"]].dropna(subset=["jibun"]).to_crs(out.crs)
+    parcels = parcels.assign(jimok=parcels["jibun"].astype(str).str.extract(r"([가-힣]+)\s*$")[0])
+    points = out[out["change_type"] == DEMOLITION].geometry.representative_point()
+    hits = gpd.sjoin(gpd.GeoDataFrame(geometry=points, crs=out.crs), parcels, how="inner", predicate="within")
+    jimok = hits.groupby(level=0)["jimok"].first()
+    demote = jimok[jimok.isin(exclude_jimok)]
+    for idx, jm in demote.items():
+        out.at[idx, "change_type"] = OTHER_CHANGE
+        out.at[idx, "classification_note"] = f"철거 추정 조건 충족이나 지목={jm} 필지라 건물 철거 가능성 낮음 - 기타 변화(지형·피복 변화 추정)"
+    logger.info("[BUILDING] 지목 기반 DEMOLITION 하향: %d건 (%s)", len(demote), demote.value_counts().to_dict())
+    return out

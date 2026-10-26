@@ -63,6 +63,7 @@ def run_baseline_change_detection(
     threshold_method: str = "fixed",
     mask_threshold: float = 0.5,
     ssim_win_size: int = 7,
+    spectral_min: float | None = None,
 ) -> tuple[Path, Path, float]:
     """Baseline Change Detection 전체 실행: 3개 방법 -> 앙상블 -> 확률/마스크 raster 저장.
 
@@ -84,6 +85,11 @@ def run_baseline_change_detection(
             바꾸지 않는다. AOI가 매우 작아(예: 소규모 필지 몇 개) 한 변이
             7픽셀 미만이면 scikit-image가 ValueError를 내므로, 그 경우에만
             프로젝트 config에서 더 작은 홀수(예: 3, 5)로 낮춰 쓴다.
+        spectral_min: 지정하면 앙상블 임계값에 더해 robust CVA 점수도 이 값
+            이상인 픽셀만 변화로 본다. 1m 이하 항공사진에서는 SSIM이 밭·수목·
+            포장면의 미세 질감 차이만으로 AOI 절반 이상을 변화로 판정해(광명시흥
+            항공 실측: SSIM>=0.5가 AOI의 56%) 분광 변화가 동반된 픽셀로 제한한다.
+            None(기본)이면 기존 Sentinel-2 동작과 같다.
 
     Returns:
         (change_probability 경로, change_mask 경로, 실제 사용된 임계값)
@@ -134,7 +140,10 @@ def run_baseline_change_detection(
     else:
         raise ValueError(f"[CHANGE] 알 수 없는 threshold_method: {threshold_method}")
 
-    change_mask = ((change_prob >= used_threshold) & valid_mask).astype(np.uint8)
+    change_mask = (change_prob >= used_threshold) & valid_mask
+    if spectral_min is not None:
+        change_mask &= spectral_score >= spectral_min
+    change_mask = change_mask.astype(np.uint8)
 
     prob_profile = profile.copy()
     prob_profile.update(count=1, dtype="float32", nodata=None)
@@ -151,7 +160,7 @@ def run_baseline_change_detection(
         dst.write(change_mask, 1)
 
     logger.info(
-        "[CHANGE] 저장 완료: prob=%s mask=%s (threshold=%.4f[%s], 변화 픽셀 비율=%.2f%%)",
-        out_prob_path, out_mask_path, used_threshold, threshold_method, 100 * change_mask.mean(),
+        "[CHANGE] 저장 완료: prob=%s mask=%s (threshold=%.4f[%s], spectral_min=%s, 변화 픽셀 비율=%.2f%%)",
+        out_prob_path, out_mask_path, used_threshold, threshold_method, spectral_min, 100 * change_mask.mean(),
     )
     return out_prob_path, out_mask_path, used_threshold

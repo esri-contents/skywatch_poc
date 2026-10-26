@@ -60,3 +60,26 @@ def test_brightness_delta_empty_input_stays_empty():
     out = compute_brightness_delta(empty, "unused_t1.tif", "unused_t2.tif")
     assert out.empty
     assert "brightness_delta" in out.columns
+
+
+def test_brightness_delta_center_global_shift(tmp_path):
+    """전역적으로 밝아진 T2에서는 전역 이동량을 빼야 국소적으로 더 밝아진 곳만 양수가 된다."""
+    t1 = np.full((3, 20, 20), 500, dtype=np.uint16)
+    t2 = np.full((3, 20, 20), 800, dtype=np.uint16)
+    t2[:, 0:5, 0:5] = 2000  # 좌상단만 국소적으로 더 밝아짐
+    t1_path = tmp_path / "t1.tif"
+    t2_path = tmp_path / "t2.tif"
+    _write_stack(t1_path, t1)
+    _write_stack(t2_path, t2)
+
+    polys = gpd.GeoDataFrame(
+        [{"change_id": "local", "geometry": box(0, 150, 50, 200)},
+         {"change_id": "background", "geometry": box(100, 0, 200, 100)}], crs="EPSG:5186",
+    )
+    raw = compute_brightness_delta(polys, t1_path, t2_path, band_order=["red", "green", "blue"])
+    centered = compute_brightness_delta(
+        polys, t1_path, t2_path, band_order=["red", "green", "blue"], center_global_shift=True,
+    )
+    assert raw["brightness_delta"].iloc[1] == 300  # 원시 차이는 배경도 밝아짐으로 본다
+    assert centered["brightness_delta"].iloc[1] == 0
+    assert centered["brightness_delta"].iloc[0] > 0

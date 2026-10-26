@@ -199,3 +199,26 @@ def test_ssim_win_size_override_supports_tiny_aoi(tmp_path):
         mask = src.read(1)
     assert mask.shape == (6, 5)
     assert mask.sum() == 0
+
+
+def test_spectral_min_gates_change_mask(tmp_path):
+    """spectral_min은 앙상블 임계값을 넘은 픽셀 중 robust CVA도 그 이상인 것만 남긴다."""
+    rng = np.random.default_rng(3)
+    t1 = rng.integers(500, 2000, size=(3, 20, 20))
+    t2 = t1.copy()
+    t2[:, 5:15, 5:15] = rng.integers(2500, 4000, size=(3, 10, 10))
+    t1_path = tmp_path / "t1.tif"
+    t2_path = tmp_path / "t2.tif"
+    _write_stack(t1_path, t1)
+    _write_stack(t2_path, t2)
+
+    run_baseline_change_detection(
+        t1_path, t2_path, tmp_path / "p0.tif", tmp_path / "m0.tif", band_order=["red", "green", "blue"],
+    )
+    run_baseline_change_detection(
+        t1_path, t2_path, tmp_path / "p1.tif", tmp_path / "m1.tif", band_order=["red", "green", "blue"],
+        spectral_min=1.01,  # CVA는 0~1이라 어떤 픽셀도 통과할 수 없다
+    )
+    with rasterio.open(tmp_path / "m0.tif") as a, rasterio.open(tmp_path / "m1.tif") as b:
+        assert a.read(1).sum() > 0
+        assert b.read(1).sum() == 0

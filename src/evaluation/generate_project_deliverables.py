@@ -287,6 +287,27 @@ def _to_date(value) -> date | None:
     return date.fromisoformat(match.group(0)) if match else None
 
 
+def _epoch_date(value) -> date | None:
+    """촬영일이 연도만 알려진 영상("2024")은 pipeline._parse_date와 같이 1월 1일로 본다."""
+    day = _to_date(value)
+    if day is None and re.fullmatch(r"\d{4}", str(value or "").strip()):
+        day = date(int(value), 1, 1)
+    return day
+
+
+def _sensor(cfg: dict) -> dict:
+    """보고서 문구에 쓰는 영상 종류·해상도. 기본은 기존 Sentinel-2(10m) 프로젝트."""
+    img = cfg["imagery"]
+    local = img.get("source") == "local"
+    px = float(img.get("resolution_m") or 10.0)
+    return {
+        "label": img.get("sensor_label") or ("로컬 영상" if local else "Sentinel-2"),
+        "long": img.get("sensor_label") or ("로컬 영상" if local else "Sentinel-2 L2A"),
+        "kind": "항공사진" if local else "위성",
+        "px": px, "px_area": px * px,
+    }
+
+
 def _metrics(cfg: dict, summary: dict, main_code: str) -> dict | None:
     """Derive every number the narrative cites from the executed outputs."""
     root = Path(cfg["paths"]["output_root"])
@@ -449,13 +470,14 @@ def _events(cfg: dict) -> list[tuple[date, str]]:
 
 
 def _findings(m: dict, ctx: dict) -> list[tuple[str, str]]:
-    types = m["types"]
+    types, sen = m["types"], ctx["sensor"]
     out = [(
         "변화의 ‘건수’와 ‘면적’은 전혀 다른 이야기다",
         f'후보 {m["n"]}건 중 건물 footprint에 연결된 것은 {m["n_bld"]}건({_pct(m["n_bld"], m["n"], 0)})이지만 변화 면적으로는 '
         f'{m["area_bld"]:,.0f}㎡({_pct(m["area_bld"], m["area_total"])})에 그친다. 건물과 겹치지 않는 폴리곤 {m["n_poly"]}건이 '
-        f'{m["area_poly"]:,.0f}㎡({_pct(m["area_poly"], m["area_total"])})를 차지하며 중앙값이 {m["poly_median_area"]:,.0f}㎡(약 {m["poly_median_area"] / 100:.0f}픽셀)다. '
-        "Sentinel-2가 실제로 강하게 포착한 것은 개별 건물보다 필지 단위 토지 변화다.",
+        f'{m["area_poly"]:,.0f}㎡({_pct(m["area_poly"], m["area_total"])})를 차지하며 중앙값이 {m["poly_median_area"]:,.0f}㎡(약 {m["poly_median_area"] / sen["px_area"]:,.0f}픽셀)다. '
+        + (f'{sen["label"]} 결과에서 실제로 강하게 드러난 것은 개별 건물보다 필지 단위 토지 변화다.' if m["area_poly"] > m["area_bld"]
+           else f'{sen["label"]}에서는 변화 면적의 대부분이 건물 footprint와 연결된다.'),
     ), (
         f'HIGH {m["priority"]["HIGH"]}건은 실제로는 {m["high_sites"]}개 현장이다',
         f'HIGH 후보는 인접 건물이 한 현장으로 묶여 {m["high_sites"]}개 현장으로 줄어든다(중복 제거 전체 {m["sites_total"]}현장).'
@@ -495,7 +517,7 @@ def _findings(m: dict, ctx: dict) -> list[tuple[str, str]]:
 
 def _context(cfg: dict, main_left: str, main_right: str) -> dict:
     epochs = {e["id"]: e for e in cfg["imagery"]["epochs"]}
-    t1, t2 = _to_date(epochs[main_left]["date"]), _to_date(epochs[main_right]["date"])
+    t1, t2 = _epoch_date(epochs[main_left]["date"]), _epoch_date(epochs[main_right]["date"])
     baseline = _to_date(cfg.get("compensation", {}).get("baseline_date"))
     window = (t2 - t1).days
     ctx = {"t1": t1, "t2": t2, "baseline": baseline, "window_days": window, "pre_days": None, "pre_share": None}
@@ -533,6 +555,7 @@ def _dong_table(m: dict) -> str:
 
 def _report_sections(cfg: dict, m: dict, ctx: dict, buildings: int, register_n: int, main_code: str, matched: int, total: dict) -> str:
     types, pri = m["types"], m["priority"]
+    sen, disp = ctx["sensor"], total["alignment"]["displacement_m"]
     charts = _hbar_svg([
         (_TYPE_LABELS[r["type"]], r["n"], _TYPE_COLORS[r["type"]], f'{r["n"]}건 · 중앙값 {r["median_area"]:,.0f}㎡') for r in m["type_rows"]
     ], width=620, label_w=170)
@@ -576,8 +599,10 @@ def _report_sections(cfg: dict, m: dict, ctx: dict, buildings: int, register_n: 
                f'<th class="n">정합 변위</th><th class="n">ECC 점수</th></tr></thead><tbody>{periods}</tbody></table>'
                f'<p>AOI 내 건물 footprint {buildings:,}동, 수집 건축물대장 {register_n:,}건. 후보 매칭률은 {ctx["date_span"]} 비교 기준 {matched / max(total["candidate_count"], 1) * 100:.1f}%이며 '
                f'전체 footprint 매칭률과 혼동하지 않는다.</p>'
-               f'<p class="ins"><b>해석</b> 정합 변위 {total["alignment"]["displacement_m"]:.2f}m는 Sentinel-2 한 픽셀(10m)의 4% 안팎이라 두 시점의 위치 어긋남이 변화 후보를 만들 가능성은 낮다. '
-               f'매칭률 {matched / max(total["candidate_count"], 1) * 100:.1f}%는 분모에 건물과 겹치지 않는 폴리곤 {m["n_poly"]}건이 들어 있어 낮게 보인다. '
+               f'<p class="ins"><b>해석</b> 정합 변위 {disp:.2f}m는 {sen["label"]} 한 픽셀({sen["px"]:g}m)의 {disp / sen["px"] * 100:.0f}%라 '
+               + ("두 시점의 위치 어긋남이 변화 후보를 만들 가능성은 낮다. " if disp < 0.5 * sen["px"]
+                  else "건물 경계부에서는 위치 어긋남이 띠 모양 변화 후보를 만들 수 있어 육안 확인이 필요하다. ")
+               + f'매칭률 {matched / max(total["candidate_count"], 1) * 100:.1f}%는 분모에 건물과 겹치지 않는 폴리곤 {m["n_poly"]}건이 들어 있어 낮게 보인다. '
                f'건물에 연결된 후보만 보면 {m["registered_of_bld"]}/{m["n_bld"]}건({_pct(m["registered_of_bld"], m["n_bld"])})이다.</p></section>')
 
     out.append(f'<section><h2>후보의 구성: 무엇을 탐지했나</h2><div class="two"><div>{charts}</div><div>{prio_chart}'
@@ -591,11 +616,14 @@ def _report_sections(cfg: dict, m: dict, ctx: dict, buildings: int, register_n: 
         matched_exp = exp["registered"]
         out.append(f'<section><h2>유형별 해석</h2>'
                    f'<h3><span class="tag" style="background:{_TYPE_COLORS["NEW_BUILDING"]}">신축 추정</span> {new["n"]}건</h3>'
-                   f'<p>모두 휴리스틱 판정(변화 비율 ≥ {cfg["analysis"]["change_ratio_new_building_min"]})이며 건축물대장 사용승인일로 확정된 건은 없다. 건물 면적 중앙값 {new["median_footprint"]:,.0f}㎡, 평균 신뢰도 {new["mean_conf"]:.2f}. '
+                   + (f'<p>모두 휴리스틱 판정(변화 비율 ≥ {cfg["analysis"]["change_ratio_new_building_min"]})이며 건축물대장 사용승인일로 확정된 건은 없다. ' if not new["confirmed"] else
+                      f'<p>{new["confirmed"]}건은 대장 사용승인일이 T1~T2 사이라 대장 근거로 판정됐고, {new["heuristic"]}건은 휴리스틱 판정(변화 비율 ≥ {cfg["analysis"]["change_ratio_new_building_min"]})이다. ')
+                   + f'건물 면적 중앙값 {new["median_footprint"]:,.0f}㎡, 평균 신뢰도 {new["mean_conf"]:.2f}. '
                    f'대장 미연결 {new["n"] - new["registered"]}건은 신축 후 대장 등재 전이거나, 미등재 건물일 수 있다 - 어느 쪽인지는 이 분석만으로 구분되지 않는다.</p>'
                    f'<h3><span class="tag" style="background:{_TYPE_COLORS["EXPANSION_OR_RECONSTRUCTION"]}">증축·개축 추정</span> {exp["n"]}건</h3>'
                    f'<p>{exp["confirmed"]}건은 대장 사용승인일이 T1 이전이라 ‘기존 건물에서 변화 신호 발생’으로 분류된 것이고, {exp["heuristic"]}건은 대장 미연결 휴리스틱이다. '
-                   f'‘증축 확정’은 라벨 규칙상 표현일 뿐 물리적 증축을 현장에서 확인했다는 뜻이 아니다. 변화 면적 중앙값이 {exp["median_area"]:,.0f}㎡로 픽셀 하나(100㎡)에도 못 미쳐 경계 혼합화소 영향이 크다.'
+                   f'‘증축 확정’은 라벨 규칙상 표현일 뿐 물리적 증축을 현장에서 확인했다는 뜻이 아니다. 변화 면적 중앙값은 {exp["median_area"]:,.0f}㎡다.'
+                   + (f' 픽셀 하나({sen["px_area"]:g}㎡)에도 못 미쳐 경계 혼합화소 영향이 크다.' if exp["median_area"] < sen["px_area"] else "")
                    + (f' 위험물 저장·처리시설 {m["hazard_total"]}건 중 {m["hazard_expansions"]}건이 이 유형이라 용도상 우선 확인 대상이다.' if m["hazard_expansions"] else "") + "</p>"
                    + (f'<h3><span class="tag" style="background:{_TYPE_COLORS["DEMOLITION"]}">철거 추정</span> {demo["n"]}건</h3>'
                       f'<p>건물과 겹치지 않는 폴리곤을 영상 변화 강도만으로 분류한 것이라 근거가 약하다. 건당 평균 {demo["mean_area"]:,.0f}㎡로 크고 밝기 변화는 평균 {demo["mean_delta"]:+.0f}이다. '
@@ -632,7 +660,8 @@ def _report_sections(cfg: dict, m: dict, ctx: dict, buildings: int, register_n: 
                + (f'<p>대장 매칭 건물의 주용도: ' + " · ".join(f"{k} {v}건" for k, v in m["purposes"]) + ".</p>" if m["purposes"] else "")
                + f'<p class="ins"><b>해석</b> 미매칭이 곧 불법·미등재를 뜻하지는 않는다. 수집한 대장({register_n:,}건)의 기준 시점과 필지·도로명 매칭 한계가 있어 ‘대장 확인 필요’ 신호로만 쓰고 판정은 사업부서가 한다.</p></section>')
 
-    conf_bits = [f'건물 연결 후보 {m["n_bld"]}건 중 {m["small_footprint"]}건({_pct(m["small_footprint"], m["small_footprint_of"], 0)})은 footprint가 100㎡ 미만으로 Sentinel-2 한 픽셀보다 작다',
+    conf_bits = [f'건물 연결 후보 {m["n_bld"]}건 중 {m["small_footprint"]}건({_pct(m["small_footprint"], m["small_footprint_of"], 0)})은 footprint가 100㎡ 미만'
+                 + (f'으로 {sen["label"]} 한 픽셀보다 작다' if sen["px_area"] >= 100 else f'인 소규모 건물이다({sen["label"]} {sen["px"]:g}m 기준 {100 / sen["px_area"]:,.0f}픽셀 미만)'),
                  f'신축·증축 후보 {m["small_change_of"]}건 중 {m["small_change"]}건({_pct(m["small_change"], m["small_change_of"], 0)})은 변화 면적이 100㎡ 미만이다']
     if m["flagged"]:
         conf_bits.append(f'휴리스틱 판정 {m["flagged"]}건 중 {m["mismatch"]}건({_pct(m["mismatch"], m["flagged"], 0)})은 밝기 방향이 기대와 반대다')
@@ -647,11 +676,39 @@ def _report_sections(cfg: dict, m: dict, ctx: dict, buildings: int, register_n: 
     out.append(f'<section><h2>신뢰도와 한계</h2><ul>' + "".join(f"<li>{b}</li>" for b in conf_bits) + f'</ul>{sens_text}'
                f'<p class="ins"><b>해석</b> 이 결과의 강점은 ‘건물 단위 확정’이 아니라 넓은 지구에서 확인할 곳을 좁히는 데 있다. 개별 건물의 신축·증축 판정은 고해상 영상이나 현장 확인이 있어야 성립한다.</p></section>')
 
+    out.append(_visual_qa_section(cfg))
     out.append(f'<section class="warn"><h2>기준일 해석</h2><p>{cfg["compensation"]["baseline_date"]} ({cfg["compensation"]["baseline_type"]})을 업무상 미확정 후보 기준일로 설정했다. '
                f'실제 이주대책기준일/권리산정기준일과 다를 수 있으며, 보상계획 공고 원문을 사업부서가 확인하기 전까지 이 비교를 보상 판정으로 표현하지 않는다.</p></section>')
 
     out.append(_actions_section(cfg, m, ctx, brief=False))
     return "".join(out)
+
+
+_QA_LABELS = {
+    "building_change": "건물·구조물 변화", "other_real_change": "기타 실제 변화",
+    "uncertain": "판단 불가", "false_positive": "오탐",
+}
+
+
+def _visual_qa_section(cfg: dict) -> str:
+    """reports/visual_qa/visual_qa_labels.csv(사람/분석자 육안 판독)가 있으면 표본 판독 결과를 요약한다."""
+    path = Path(cfg["paths"]["reports"]) / "visual_qa" / "visual_qa_labels.csv"
+    if not path.exists():
+        return ""
+    qa = pd.read_csv(path, encoding="utf-8-sig")
+    table = qa.groupby(["round", "s"])["label"].value_counts().unstack(fill_value=0).reindex(columns=list(_QA_LABELS), fill_value=0)
+    body = "".join(
+        f'<tr><td>{rnd} · {stratum.upper()}</td><td class="n">{int(row.sum())}</td>'
+        + "".join(f'<td class="n">{int(row[k])}</td>' for k in _QA_LABELS)
+        + f'<td class="n">{_pct(row["building_change"] + row["other_real_change"], row.sum(), 0)}</td></tr>'
+        for (rnd, stratum), row in table.iterrows()
+    )
+    head = "".join(f'<th class="n">{v}</th>' for v in _QA_LABELS.values())
+    return (f'<section><h2>표본 육안 판독</h2><table><thead><tr><th>표본</th><th class="n">건수</th>{head}<th class="n">실제 변화 비율</th></tr></thead>'
+            f'<tbody>{body}</tbody></table>'
+            '<p class="ins"><b>해석</b> 무작위 표본을 원본 해상도 영상으로 판독한 결과로, 우선순위가 높아도 차량·그림자·지붕 반사 같은 오탐이 섞여 있다. '
+            '후보는 현장조사 전에 육안으로 한 번 더 걸러야 하며, 유형 라벨(신축/증축/철거)은 밝기 방향 규칙이라 실제 행위와 다를 수 있다. '
+            '판독 근거 이미지와 라벨은 <code>reports/visual_qa/</code>, 보정 근거는 <code>reports/aerial_calibration.md</code>에 있다.</p></section>')
 
 
 def _actions_section(cfg: dict, m: dict, ctx: dict, brief: bool) -> str:
@@ -679,7 +736,7 @@ def _actions_section(cfg: dict, m: dict, ctx: dict, brief: bool) -> str:
 
 
 def _brief_sections(cfg: dict, m: dict, ctx: dict) -> str:
-    types = m["types"]
+    types, sen = m["types"], ctx["sensor"]
     new, exp = types.get("NEW_BUILDING"), types.get("EXPANSION_OR_RECONSTRUCTION")
     top = m["dongs"][:3]
     top_table = "".join(
@@ -711,9 +768,15 @@ def _brief_sections(cfg: dict, m: dict, ctx: dict) -> str:
         out.append(f'<section class="warn"><h2>관측 시점 주의</h2><p>비교 구간 {ctx["t1"]} → {ctx["t2"]}({ctx["window_days"]}일) 중 {ctx["pre_days"]}일({ctx["pre_share"] * 100:.0f}%)이 '
                    f'잠정 기준일({ctx["baseline"]}) 이전이다. 신축 후보를 기준일 이후 행위로 해석하려면 기준일 부근 영상으로 구간을 나눠야 하며, 그 전에는 보상 판단 근거로 쓰지 않는다.</p></section>')
     out.append(f'<section><h2>결과를 읽는 방법</h2><ul>'
-               f'<li>HIGH = 신축 추정 {new["high"] if new else 0}건 + 증축·개축 추정 {exp["high"] if exp else 0}건. 우선순위 점수 상위 구간.</li>'
-               f'<li>신축 추정은 전부 휴리스틱이며 {m["new_mismatch"]}건({_pct(m["new_mismatch"], m["new_flagged"], 0) if m["new_flagged"] else "-"})은 밝기 방향이 기대와 반대다.</li>'
-               f'<li>Sentinel-2(10m)로는 100㎡ 미만 변화가 많아({_pct(m["small_change"], m["small_change_of"], 0)}) 건물 단위 확정에는 쓰지 않는다.</li></ul></section>')
+               f'<li>HIGH = 신축 추정 {new["high"] if new else 0}건 + 증축·개축 추정 {exp["high"] if exp else 0}건'
+               + (f' + 철거 추정 {types["DEMOLITION"]["high"]}건' if types.get("DEMOLITION") and types["DEMOLITION"]["high"] else "")
+               + '. 우선순위 점수 상위 구간.</li>'
+               + (f'<li>신축 추정은 전부 휴리스틱이며 ' if not (new and new["confirmed"]) else f'<li>신축 추정 중 {new["heuristic"]}건은 휴리스틱이며 ')
+               + f'{m["new_mismatch"]}건({_pct(m["new_mismatch"], m["new_flagged"], 0) if m["new_flagged"] else "-"})은 밝기 방향이 기대와 반대다.</li>'
+               + (f'<li>{sen["label"]}({sen["px"]:g}m)로는 100㎡ 미만 변화가 많아({_pct(m["small_change"], m["small_change_of"], 0)}) 건물 단위 확정에는 쓰지 않는다.</li>' if sen["px_area"] >= 100
+                  else f'<li>{sen["label"]}({sen["px"]:g}m) 해상도에서는 건물 단위 판독이 가능하지만, 100㎡ 미만 신축·증축 후보({_pct(m["small_change"], m["small_change_of"], 0)})는 그림자·차량·자재 적치일 수 있어 육안 확인을 거친다.</li>')
+               + '</ul></section>')
+    out.append(_visual_qa_section(cfg))
     out.append(_actions_section(cfg, m, ctx, brief=True))
     return "".join(out)
 
@@ -740,9 +803,11 @@ def _html(cfg: dict, summary: dict, briefing: bool = False) -> str:
         area_note = "언론보도 면적은 미검증 - 실측(VWorld) 폴리곤 계산값"
         area_value = f"{area_m2_calc / 1e6:.3f} km²"
     date_span = f'{epochs[main_left]["date"]} → {epochs[main_right]["date"]}'
-    title = f"{name} 위성 변화탐지 {'사업 브리핑' if briefing else '분석 보고서'}"
+    sen = _sensor(cfg)
+    title = f"{name} {sen['kind']} 변화탐지 {'사업 브리핑' if briefing else '분석 보고서'}"
     ctx = _context(cfg, main_left, main_right)
     ctx["date_span"] = date_span
+    ctx["sensor"] = sen
     m = _metrics(cfg, summary, main_code)
 
     card_rows = [
@@ -780,10 +845,12 @@ def _html(cfg: dict, summary: dict, briefing: bool = False) -> str:
     limits = (f'<section><h2>근거와 한계</h2><table><thead><tr><th>일자</th><th>고시·공고</th><th>번호/출처</th></tr></thead><tbody>{source_rows}</tbody></table>'
               "<p>임계값 0.5는 사람 정답 라벨이 없는 상태의 임시 운영값이며 별도 민감도표와 수동 검수표를 제공한다. "
               "3D는 대상지 및 촬영계획까지만 산출하며 적합 고해상 중복영상이 없어 실제 재구성은 수행하지 않는다.</p></section>")
-    hero_cap = "Sentinel-2의 10m 공간해상도 때문에 소규모 증축, 경계부 혼합화소, 수목·토양 계절 변화는 재확인이 필요하다."
+    hero_cap = (f"{sen['label']}의 {sen['px']:g}m 공간해상도 때문에 소규모 증축, 경계부 혼합화소, 수목·토양 계절 변화는 재확인이 필요하다."
+                if sen["px_area"] >= 100 else
+                f"{sen['label']}({sen['px']:g}m) 해상도에서는 건물 단위로 판독할 수 있지만 그림자·차량·자재 적치·계절 차이도 변화로 잡히므로 후보는 육안 확인이 필요하다.")
     return f'''<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>{title}</title>
 <style>{_CSS}</style></head>
-<body><header><small>LH 업무 적용 · 실행 결과 기반 · {checked_at} 확인</small><h1>{title}</h1><p>{name} 공공주택지구의 공식 지구계와 Sentinel-2 L2A {len(cfg['imagery']['epochs'])}개 시점을 이용한 기술 검토다. 자동 결과는 현장 확인 우선순위를 위한 후보이며 불법 여부나 보상 대상 여부를 확정하지 않는다.</p></header>
+<body><header><small>LH 업무 적용 · 실행 결과 기반 · {checked_at} 확인</small><h1>{title}</h1><p>{name} 공공주택지구의 공식 지구계와 {sen['long']} {len(cfg['imagery']['epochs'])}개 시점을 이용한 기술 검토다. 자동 결과는 현장 확인 우선순위를 위한 후보이며 불법 여부나 보상 대상 여부를 확정하지 않는다.</p></header>
 <section class="hero-img"><div class="hero-inner"><h2>변화탐지 비교 지도</h2><p class="sub">{date_span} · T1 / T2 / Change Probability / Classification</p><img src="{image}" alt="변화탐지 비교 지도 - T1, T2, Change Probability, Classification"><p class="cap">{hero_cap}</p></div></section>
 <main>{grid}{body}{figures}{limits}</main></body></html>'''
 

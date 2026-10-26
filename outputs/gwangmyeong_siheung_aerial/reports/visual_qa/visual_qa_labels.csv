@@ -1,0 +1,61 @@
+﻿round,s,change_id,bd_mgt_sn,change_type,inspection_priority,change_area_m2,change_ratio,label,label_note
+1차(spectral_min만 적용),high,,4139013400101940002002152,EXPANSION_OR_RECONSTRUCTION,HIGH,0.06,0.0004,false_positive,"건물 변화 없음, 교차면적 0㎡ 경계 접촉"
+1차(spectral_min만 적용),high,,4139011200100130001020616,EXPANSION_OR_RECONSTRUCTION,HIGH,177.21,0.5771,false_positive,주차 차량 변화
+1차(spectral_min만 적용),high,,4121010500105740013015357,EXPANSION_OR_RECONSTRUCTION,HIGH,83.26,0.3277,uncertain,옥상 적치물 변화
+1차(spectral_min만 적용),high,,4121010500104720000000001,NEW_BUILDING,HIGH,301.21,0.7513,other_real_change,인접 도로공사 토공(건물 아님)
+1차(spectral_min만 적용),high,,4121010700104320001000001,NEW_BUILDING,HIGH,45.56,0.6612,building_change,기초 -> 신축 건물(청색 지붕)
+1차(spectral_min만 적용),high,CHG_03380,,DEMOLITION,HIGH,98.0,0.0,building_change,비닐하우스 철거
+1차(spectral_min만 적용),high,,4139013400101420000000001,EXPANSION_OR_RECONSTRUCTION,HIGH,4.47,0.0084,building_change,목재 창고 철거 후 경작지(유형은 증축으로 오분류)
+1차(spectral_min만 적용),high,,4121010800103470001000002,EXPANSION_OR_RECONSTRUCTION,HIGH,20.7,0.157,uncertain,인접 적색 지붕 구조물 소멸 추정
+1차(spectral_min만 적용),high,,4139013400102900002000001,EXPANSION_OR_RECONSTRUCTION,HIGH,15.02,0.1457,other_real_change,고물상 적치물 변화
+1차(spectral_min만 적용),high,,4139011200103540008000205,EXPANSION_OR_RECONSTRUCTION,HIGH,134.34,0.2857,false_positive,"건물 동일, 주변 차량"
+1차(spectral_min만 적용),high,,4121010500105570000000001,NEW_BUILDING,HIGH,88.25,0.875,building_change,검은 지붕 건물 철거 -> 나대지(신축으로 오분류)
+1차(spectral_min만 적용),high,,4121010100105110001000001,EXPANSION_OR_RECONSTRUCTION,HIGH,103.47,0.5688,building_change,지붕 교체
+1차(spectral_min만 적용),high,,4121010500101800000000001,NEW_BUILDING,HIGH,236.17,0.8934,building_change,재건축/지붕 교체
+1차(spectral_min만 적용),high,,4139011200105150000021789,EXPANSION_OR_RECONSTRUCTION,HIGH,72.52,0.4154,uncertain,옥상 적치물
+1차(spectral_min만 적용),high,,4139011200107390001000063,EXPANSION_OR_RECONSTRUCTION,HIGH,150.0,0.0384,false_positive,"야적장 차량·자재, 교차 4%"
+1차(spectral_min만 적용),high,CHG_02433,,DEMOLITION,HIGH,114.0,0.0,other_real_change,비닐하우스 덮개 백색 -> 흑색(철거 아님)
+1차(spectral_min만 적용),high,,4121010100105720021013046,EXPANSION_OR_RECONSTRUCTION,HIGH,1.92,0.0215,false_positive,"수목 그림자, 교차 2㎡"
+1차(spectral_min만 적용),high,,4139011200107200002022075,EXPANSION_OR_RECONSTRUCTION,HIGH,48.01,0.2899,building_change,지붕 교체/개축
+1차(spectral_min만 적용),high,CHG_03575,,DEMOLITION,HIGH,67.0,0.0,other_real_change,곤포 사일리지 제거(건물 아님)
+1차(spectral_min만 적용),high,,4139011200104340008022158,EXPANSION_OR_RECONSTRUCTION,HIGH,48.74,0.1287,false_positive,"건물 동일, 주변 차량"
+1차(spectral_min만 적용),med,CHG_03505,,OTHER_CHANGE,MEDIUM,71.0,0.0,building_change,소형 백색 구조물 신설
+1차(spectral_min만 적용),med,CHG_00225,,OTHER_CHANGE,MEDIUM,39.0,0.0,false_positive,건물 그림자
+1차(spectral_min만 적용),med,CHG_03389,,OTHER_CHANGE,MEDIUM,28.0,0.0,other_real_change,고물상 적치물
+1차(spectral_min만 적용),med,CHG_00780,,OTHER_CHANGE,MEDIUM,48.0,0.0,false_positive,차량·물건
+1차(spectral_min만 적용),med,,4121010500102500001015989,EXPANSION_OR_RECONSTRUCTION,MEDIUM,8.1,0.0393,false_positive,건물 동일
+1차(spectral_min만 적용),med,CHG_01548,,OTHER_CHANGE,MEDIUM,48.0,0.0,other_real_change,경작지 정지
+1차(spectral_min만 적용),med,CHG_02804,,OTHER_CHANGE,MEDIUM,47.0,0.0,uncertain,흑색 덮개/구조물 추정
+1차(spectral_min만 적용),med,,4139011200100110001020351,EXPANSION_OR_RECONSTRUCTION,MEDIUM,32.0,0.0762,false_positive,"건물 동일, 그림자"
+1차(spectral_min만 적용),med,CHG_00720,,OTHER_CHANGE,MEDIUM,65.0,0.0,false_positive,고층 그림자
+1차(spectral_min만 적용),med,CHG_03084,,OTHER_CHANGE,MEDIUM,31.0,0.0,uncertain,소형 지붕 색 변화
+1차(spectral_min만 적용),demo,CHG_03166,,DEMOLITION,MEDIUM,63.0,0.0,false_positive,포장면 밝기
+1차(spectral_min만 적용),demo,CHG_00486,,DEMOLITION,MEDIUM,107.0,0.0,other_real_change,하우스 덮개 교체
+1차(spectral_min만 적용),demo,CHG_00134,,DEMOLITION,MEDIUM,152.0,0.0,false_positive,도로 반사·그림자
+1차(spectral_min만 적용),demo,CHG_03575,,DEMOLITION,HIGH,67.0,0.0,other_real_change,곤포 사일리지 제거
+1차(spectral_min만 적용),demo,CHG_03088,,DEMOLITION,HIGH,156.0,0.0,building_change,비닐하우스 철거
+1차(spectral_min만 적용),demo,CHG_02881,,DEMOLITION,MEDIUM,106.0,0.0,other_real_change,하우스 덮개 교체
+1차(spectral_min만 적용),demo,CHG_01590,,DEMOLITION,HIGH,97.0,0.0,false_positive,경작지 표면
+1차(spectral_min만 적용),demo,CHG_02264,,DEMOLITION,MEDIUM,545.0,0.0,false_positive,산지 조도·계절 차이
+1차(spectral_min만 적용),demo,CHG_03383,,DEMOLITION,MEDIUM,134.0,0.0,false_positive,하천 모래
+1차(spectral_min만 적용),demo,CHG_00498,,DEMOLITION,MEDIUM,94.0,0.0,uncertain,고물상 적치물
+2차(경계접촉·지목 규칙 추가),high,,4139011200105100001001330,EXPANSION_OR_RECONSTRUCTION,HIGH,49.77,0.2643,false_positive,"녹색 지붕 동일, 조도"
+2차(경계접촉·지목 규칙 추가),high,,4121010500105740013015357,EXPANSION_OR_RECONSTRUCTION,HIGH,83.26,0.3277,uncertain,옥상 적치물
+2차(경계접촉·지목 규칙 추가),high,,4121010100106500003015449,EXPANSION_OR_RECONSTRUCTION,HIGH,16.85,0.0206,false_positive,흑색 하우스 동일
+2차(경계접촉·지목 규칙 추가),high,,4139013400101400000021436,EXPANSION_OR_RECONSTRUCTION,HIGH,70.65,0.4785,building_change,목재 적치 구조물 제거 -> 경작지
+2차(경계접촉·지목 규칙 추가),high,,4139011200104170002021428,EXPANSION_OR_RECONSTRUCTION,HIGH,81.78,0.3835,false_positive,주차 트럭
+2차(경계접촉·지목 규칙 추가),high,,4139011200103800019000001,EXPANSION_OR_RECONSTRUCTION,HIGH,34.94,0.2601,false_positive,흑색 하우스 음영
+2차(경계접촉·지목 규칙 추가),high,,4139011200104070003000755,EXPANSION_OR_RECONSTRUCTION,HIGH,10.12,0.2808,uncertain,소형 물체 교체
+2차(경계접촉·지목 규칙 추가),high,CHG_02433,,DEMOLITION,HIGH,114.0,0.0,other_real_change,하우스 덮개 교체
+2차(경계접촉·지목 규칙 추가),high,,4121010100105390010009805,EXPANSION_OR_RECONSTRUCTION,HIGH,36.0,0.1969,false_positive,비닐 지붕 음영
+2차(경계접촉·지목 규칙 추가),high,,4139011200101200000000119,NEW_BUILDING,HIGH,836.27,0.5465,false_positive,버스 주차장 차량
+2차(경계접촉·지목 규칙 추가),high,CHG_03640,,DEMOLITION,HIGH,55.0,0.0,other_real_change,농업용 멀칭 비닐 제거
+2차(경계접촉·지목 규칙 추가),high,,4139011200100300005000001,EXPANSION_OR_RECONSTRUCTION,HIGH,17.83,0.4639,false_positive,그림자
+2차(경계접촉·지목 규칙 추가),high,CHG_00291,,DEMOLITION,HIGH,775.0,0.0,building_change,나대지 -> 흑색 지붕 건물 신설(철거로 오분류)
+2차(경계접촉·지목 규칙 추가),high,,4139013400101500005000004,NEW_BUILDING,HIGH,130.19,0.6489,other_real_change,고물상 적치물
+2차(경계접촉·지목 규칙 추가),high,CHG_02829,,DEMOLITION,HIGH,57.0,0.0,other_real_change,적재 패널 감소
+2차(경계접촉·지목 규칙 추가),high,,4121010500101800000000001,NEW_BUILDING,HIGH,236.17,0.8934,building_change,재건축/지붕 교체
+2차(경계접촉·지목 규칙 추가),high,,4139011200107330004000057,EXPANSION_OR_RECONSTRUCTION,HIGH,297.94,0.1478,other_real_change,야적장 자재 변화
+2차(경계접촉·지목 규칙 추가),high,,4139011200101200000020901,EXPANSION_OR_RECONSTRUCTION,HIGH,45.72,0.2773,false_positive,주차 차량
+2차(경계접촉·지목 규칙 추가),high,,4121010500103600004012695,EXPANSION_OR_RECONSTRUCTION,HIGH,141.97,0.6833,building_change,지붕 교체(녹색 -> 회색)
+2차(경계접촉·지목 규칙 추가),high,,4139011200105900008002779,EXPANSION_OR_RECONSTRUCTION,HIGH,134.58,0.6308,building_change,지붕 교체(청색 -> 적색)

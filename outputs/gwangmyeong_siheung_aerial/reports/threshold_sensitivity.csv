@@ -1,0 +1,7 @@
+﻿threshold,comparison,new_building_candidates,expansion_candidates,high_priority_candidates,unique_field_sites,direction_mismatch_or_review
+0.3,t0_t2,116,4216,166,4285,23
+0.4,t0_t2,78,4254,166,4285,23
+0.5,t0_t2,50,4282,166,4285,23
+0.6,t0_t2,31,4301,166,4285,23
+0.7,t0_t2,18,4314,166,4285,23
+0.8,t0_t2,6,4326,166,4285,23

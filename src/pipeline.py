@@ -21,7 +21,11 @@ import pandas as pd
 import rasterio
 import yaml
 
-from .buildings.classify import classify_building_changes, classify_unmatched_changes
+from .buildings.classify import (
+    classify_building_changes,
+    classify_unmatched_changes,
+    demote_demolition_by_jimok,
+)
 from .buildings.overlay import overlay_buildings_with_changes
 from .buildings.validation import compute_administrative_uncertainty, join_building_register
 from .change_detection.baseline import run_baseline_change_detection
@@ -47,6 +51,7 @@ def run_change_detection(
     t2_date: str = "2024",
     out_dir: str | Path = "outputs",
     building_register_path: str | Path | None = None,
+    cadastre_path: str | Path | None = None,
 ) -> gpd.GeoDataFrame:
     """전체 Change Detection 파이프라인 실행 (STEP 9~14, 건축물대장 있으면 STEP 13도).
 
@@ -89,6 +94,8 @@ def run_change_detection(
     logger.info("[CHANGE] Baseline Change Detection 시작 (threshold_method=%s)", threshold_method)
     _, _, used_threshold = run_baseline_change_detection(
         t1_path, t2_path, prob_path, mask_path, threshold_method=threshold_method,
+        mask_threshold=cd_cfg.get("mask_threshold", 0.5),
+        spectral_min=cd_cfg.get("spectral_min"),
     )
 
     with rasterio.open(mask_path) as src:
@@ -112,7 +119,10 @@ def run_change_detection(
     change_polygons = polygonize_change(cleaned, prob, transform, crs, t1_date, t2_date)
 
     logger.info("[CHANGE] 밝기 변화 방향(brightness_delta) 계산")
-    change_polygons = compute_brightness_delta(change_polygons, t1_path, t2_path)
+    change_polygons = compute_brightness_delta(
+        change_polygons, t1_path, t2_path,
+        center_global_shift=bool(pp_cfg.get("brightness_center_global_shift", False)),
+    )
 
     vec_dir = out_dir / "vectors"
     vec_dir.mkdir(parents=True, exist_ok=True)
@@ -140,10 +150,14 @@ def run_change_detection(
     classified = classify_building_changes(
         overlaid, new_building_ratio_min=cfg["classification"]["change_ratio_new_building_min"],
         t1_date=_parse_date(t1_date), t2_date=_parse_date(t2_date),
+        min_change_area_m2=cfg["classification"].get("min_building_change_area_m2", 0.0),
     )
     building_results = classified[classified["change_type"].notna()].copy()
 
     unmatched = classify_unmatched_changes(change_polygons, buildings)
+    exclude_jimok = cfg["classification"].get("demolition_exclude_jimok") or []
+    if exclude_jimok and cadastre_path and Path(cadastre_path).exists():
+        unmatched = demote_demolition_by_jimok(unmatched, gpd.read_file(cadastre_path), exclude_jimok)
 
     non_empty = [g for g in (building_results, unmatched) if len(g)]
     combined = gpd.GeoDataFrame(pd.concat(non_empty, ignore_index=True), crs=buildings.crs) if non_empty else building_results
@@ -187,6 +201,9 @@ def run_change_detection(
         params={
             "threshold_method": threshold_method,
             "used_threshold": used_threshold,
+            "spectral_min": cd_cfg.get("spectral_min"),
+            "min_building_change_area_m2": cfg["classification"].get("min_building_change_area_m2", 0.0),
+            "demolition_exclude_jimok": cfg["classification"].get("demolition_exclude_jimok") or [],
             "min_component_area_m2": pp_cfg["min_component_area_m2"],
             "buffer_m": buffer_m,
             "priority_scoring_weights": cfg["priority_scoring"]["weights"],

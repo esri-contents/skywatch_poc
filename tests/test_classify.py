@@ -1,7 +1,7 @@
 from datetime import date
 
 import geopandas as gpd
-from shapely.geometry import Point
+from shapely.geometry import Point, box
 
 from src.buildings.classify import (
     DEMOLITION,
@@ -10,6 +10,7 @@ from src.buildings.classify import (
     OTHER_CHANGE,
     classify_building_changes,
     classify_unmatched_changes,
+    demote_demolition_by_jimok,
 )
 
 
@@ -154,3 +155,31 @@ def test_register_based_classification_has_no_consistency_flag():
     )
     assert out["change_type"].iloc[0] == NEW_BUILDING
     assert out["directional_consistency_flag"].iloc[0] is None
+
+
+def test_min_change_area_demotes_edge_contact_to_other_change():
+    gdf = gpd.GeoDataFrame([
+        _row(change_ratio=0.02, change_area_m2=3.0, has_register_match=True, useAprDay="19990101"),
+        _row(change_ratio=0.30, change_area_m2=40.0, has_register_match=True, useAprDay="19990101"),
+    ])
+    default = classify_building_changes(gdf)
+    assert list(default["change_type"]) == [EXPANSION_OR_RECONSTRUCTION, EXPANSION_OR_RECONSTRUCTION]
+    out = classify_building_changes(gdf, min_change_area_m2=10)
+    assert list(out["change_type"]) == [OTHER_CHANGE, EXPANSION_OR_RECONSTRUCTION]
+    assert "경계 접촉" in out["classification_note"].iloc[0]
+
+
+def test_demolition_on_forest_parcel_is_demoted():
+    unmatched = gpd.GeoDataFrame(
+        [{"change_type": DEMOLITION, "classification_note": "", "geometry": box(1, 1, 3, 3)},
+         {"change_type": DEMOLITION, "classification_note": "", "geometry": box(11, 1, 13, 3)}],
+        crs="EPSG:5186",
+    )
+    cadastre = gpd.GeoDataFrame(
+        [{"jibun": "산91-2임", "geometry": box(0, 0, 10, 10)},
+         {"jibun": "787-4전", "geometry": box(10, 0, 20, 10)}],
+        crs="EPSG:5186",
+    )
+    out = demote_demolition_by_jimok(unmatched, cadastre, ["임", "천", "도"])
+    assert list(out["change_type"]) == [OTHER_CHANGE, DEMOLITION]
+    assert "지목=임" in out["classification_note"].iloc[0]

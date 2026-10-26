@@ -1,0 +1,73 @@
+{
+  "timestamp_utc": "2026-10-26T07:45:19.839378+00:00",
+  "seed": 42,
+  "git_commit": "16e56a724e9c6b3365625b0342423e39e0d34226",
+  "inputs": {
+    "t1": {
+      "path": "data\\projects\\gwangmyeong_siheung_aerial\\processed\\imagery\\t0_stack.tif",
+      "sha256": "31e7e8c022162225c8b3083163487904ce2a6c4268b3648a7c6ddab99bc1432a"
+    },
+    "t2": {
+      "path": "data\\projects\\gwangmyeong_siheung_aerial\\processed\\imagery\\t2_stack.tif",
+      "sha256": "14e78fc22cdb71377b6c75d0d7df05abd5fd593d6c27cb06c8b03a78596b0e30"
+    },
+    "aoi": {
+      "path": "data\\projects\\gwangmyeong_siheung_aerial\\aoi\\gwangmyeong_siheung_official.gpkg",
+      "sha256": "2fbe42767fa44b26fe498f1fa9f2b3651cf2c0a1bb9fd0850720725287d105e3"
+    },
+    "buildings": {
+      "path": "data\\projects\\gwangmyeong_siheung_aerial\\processed\\buildings.gpkg",
+      "sha256": "86c82f4fb5f1f7b373f34214275cc0b27e7121870af389b3b10b02c85b30ad87"
+    },
+    "building_register": {
+      "path": "data\\projects\\gwangmyeong_siheung_aerial\\raw\\building_register\\title_info.json",
+      "sha256": "bd2c2bc367eec02c15c6a821b0f5cc801daa9374a3630371008942dbdd119583"
+    }
+  },
+  "params": {
+    "threshold_method": "fixed",
+    "used_threshold": 0.5,
+    "spectral_min": 0.5,
+    "min_building_change_area_m2": 10,
+    "demolition_exclude_jimok": [
+      "임",
+      "천",
+      "도",
+      "구",
+      "제"
+    ],
+    "min_component_area_m2": 25,
+    "buffer_m": 3,
+    "priority_scoring_weights": {
+      "change_confidence": 0.4,
+      "change_ratio": 0.3,
+      "administrative_uncertainty": 0.2,
+      "building_relevance": 0.1
+    },
+    "spatial_statistics": {
+      "k": 8,
+      "permutations": 999
+    },
+    "global_moran": {
+      "I": 0.11789500517507165,
+      "p_sim": 0.001,
+      "z_sim": 15.68468358065302,
+      "n": 4387,
+      "k": 8
+    }
+  },
+  "package_versions": {
+    "rasterio": "1.5.1",
+    "geopandas": "1.1.4",
+    "shapely": "2.1.2",
+    "pyproj": "3.8.0",
+    "fiona": "1.10.1",
+    "numpy": "2.5.2",
+    "pandas": "3.0.5",
+    "opencv-python": "5.0.0.93",
+    "scikit-image": "0.26.0",
+    "scikit-learn": "1.9.0",
+    "libpysal": "4.15.0",
+    "esda": "2.10.0"
+  }
+}

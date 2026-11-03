@@ -64,8 +64,13 @@ if (-not $SkipPython) {
     robocopy $PythonHome "$Dest\python" /E /XD __pycache__ site-packages Scripts /NFL /NDL /NJH /NJS | Out-Null
     New-Item -ItemType Directory -Force "$Dest\python\Lib\site-packages" | Out-Null
     $env:PYTHONNOUSERSITE = "1"
+    # 다운로드·압축 해제 임시 파일은 배포 폴더 드라이브에 둔다(시스템 드라이브 공간이 부족한 PC 대비)
+    $tmp = Join-Path (Split-Path $Dest) "_build_tmp"
+    New-Item -ItemType Directory -Force $tmp | Out-Null
+    $env:TEMP = $env:TMP = $tmp
     & "$Dest\python\python.exe" -s -m ensurepip --upgrade | Out-Null
-    & "$Dest\python\python.exe" -s -m pip install --no-warn-script-location -r "$app\arcgis_addin\requirements-runtime.txt"
+    & "$Dest\python\python.exe" -s -m pip install --no-cache-dir --no-warn-script-location -r "$app\arcgis_addin\requirements-runtime.txt"
+    Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
     if ($LASTEXITCODE -ne 0) { throw "패키지 설치 실패" }
     & "$Dest\python\python.exe" -s -c "import rasterio.warp, sklearn, cv2, skimage, geopandas, yaml, pyarrow, matplotlib, openpyxl; print('python ok')"
 }

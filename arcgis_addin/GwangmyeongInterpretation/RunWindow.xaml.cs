@@ -174,6 +174,11 @@ namespace GwangmyeongInterpretation
             Settings.Current.Save();
             StepText.Text = $"완료 ({_clock.Elapsed:hh\\:mm\\:ss})";
             AppendLog($"보고서: {r.report}");
+            if (r.warnings is { Count: > 0 })
+            {
+                foreach (var w in r.warnings) AppendLog("[주의] " + w);
+                MessageBox.Show("완료했지만 확인이 필요한 사항이 있습니다.\n\n- " + string.Join("\n- ", r.warnings), "광명시흥 판독");
+            }
             if (after != null)
             {
                 try { await after(r); }

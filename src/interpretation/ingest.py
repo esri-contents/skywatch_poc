@@ -177,6 +177,8 @@ def warp(src: str, out: Path, bounds: tuple, res: float, crs: str, state: str,
         with WarpedVRT(ds, crs=crs, transform=dst_t, width=w, height=h, resampling=Resampling.average,
                        nodata=0, **kw) as vrt, rasterio.open(out, "w", **prof) as o:
             idx = _bands(ds)
+            # 화소 변화탐지(band_schema.determine_band_order)는 밴드 설명으로 RGB 역할을 찾는다 - 없으면 Sentinel-2 기본값으로 넘어가 실패
+            o.descriptions = ("red", "green", "blue")
             n = (h + block - 1) // block
             for i, r0 in enumerate(range(0, h, block)):
                 win = Window(0, r0, w, min(block, h - r0))
@@ -184,6 +186,15 @@ def warp(src: str, out: Path, bounds: tuple, res: float, crs: str, state: str,
                 if (i + 1) * 10 // n != i * 10 // n:
                     log(f"   재표본 {(i + 1) * 100 // n}%")
     return out
+
+
+def ensure_rgb_descriptions(path: str | Path) -> None:
+    """정리본에 red/green/blue 밴드 설명이 없으면 단다(설명이 없던 이전 캐시 영상 보정)."""
+    with rasterio.open(path) as d:
+        if d.descriptions == ("red", "green", "blue"):
+            return
+    with rasterio.open(path, "r+") as d:
+        d.descriptions = ("red", "green", "blue")
 
 
 def _grad(a: np.ndarray) -> np.ndarray:

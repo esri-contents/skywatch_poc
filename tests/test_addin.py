@@ -97,6 +97,22 @@ def test_tile_shifts_sign_restores_alignment(tmp_path):
     assert f["rmse_m"] < 0.05
 
 
+def test_warp_output_has_rgb_band_descriptions(tmp_path):
+    """화소 변화탐지가 밴드 역할을 찾을 수 있게 정리본에 red/green/blue 설명을 단다(없으면 Sentinel-2 4밴드로 착각)."""
+    from src.change_detection.band_schema import determine_band_order
+    src = _write(tmp_path / "src.tif", _texture(200, 200), Affine(0.25, 0, ORIGIN[0], 0, -0.25, ORIGIN[1]))
+    out = ingest.warp(str(src), tmp_path / "out.tif", (ORIGIN[0], ORIGIN[1] - 40, ORIGIN[0] + 40, ORIGIN[1]), 0.25,
+                      "EPSG:5186", "crs", log=lambda *_: None)
+    assert determine_band_order(out, fallback_band_order=["B02", "B03", "B04", "B08"]) == ["red", "green", "blue"]
+
+
+def test_run_warnings():
+    assert addin_run.warnings({"change_detection": {"candidate_count": 1}, "inputs": {"t0": {"registration": None}}}) == []
+    w = addin_run.warnings({"change_detection": {"error": "[BAND] x"},
+                            "inputs": {"t2": {"registration": {"warning": "inconsistent"}}}})
+    assert len(w) == 2 and "변화탐지 실패" in w[0] and "비교 시기" in w[1]
+
+
 def test_fine_shift_drops_outliers():
     sh = np.array([[0.5, -0.2, 0]] * 10 + [[6.0, 4.0, 0], [-5.0, 3.0, 0]], dtype=float)
     f = ingest.fine_shift(sh)
@@ -218,6 +234,17 @@ def test_survey_import_and_summary(tmp_path):
     assert abs(u.precision - 2 / 3) < 1e-9
     g = s.loc["소멸 의심"]
     assert g.unknown == 1 and g.precision != g.precision  # 판단 가능 0건이면 NaN
+
+
+def test_survey_export_keeps_previous_files(tmp_path):
+    from src.interpretation.survey import backup_previous
+    (tmp_path / "현장조사표.xlsx").write_bytes(b"filled")
+    (tmp_path / "survey.gdb").mkdir()
+    (tmp_path / "survey.gdb" / "a0000001.gdbtable").write_bytes(b"x")
+    kept = backup_previous(tmp_path, log=lambda *_: None)
+    assert len(kept) == 2 and not (tmp_path / "현장조사표.xlsx").exists() and not (tmp_path / "survey.gdb").exists()
+    assert any(p.suffix == ".xlsx" and p.read_bytes() == b"filled" for p in kept)
+    assert backup_previous(tmp_path, log=lambda *_: None) == []  # 보관할 것이 없으면 아무것도 안 함
 
 
 def test_round_selection_for_report():

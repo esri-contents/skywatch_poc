@@ -194,6 +194,7 @@ def run(args) -> dict:
         elif hit and (hit / "ingest.json").exists():
             imgs[e] = json.loads((hit / "ingest.json").read_text(encoding="utf-8"))
             _link(hit / "image.tif", dst)
+            ingest.ensure_rgb_descriptions(dst)
             imgs[e].update(path=str(dst), source=str(Path(src).resolve()), cached=True)
             _log(f"   같은 영상(해시 {hashes[e][:12]})을 정리한 결과가 있어 재사용")
         else:
@@ -278,7 +279,20 @@ def _result(cfg: dict, out: Path, html: Path, info: dict) -> dict:
             "csv": str(io / "reports" / "parcel_interpretation.csv"), "qa": str(io / "qa" / REVIEW_ROUND / "qa_labels.csv"),
             "appendix1": str(io / "reports" / SHP_NAME / f"{SHP_NAME}.shp"),
             "image_t0": cfg["imagery"]["epochs"][0]["path"], "image_t2": cfg["imagery"]["epochs"][1]["path"],
-            "status_field": f"status_{cfg['interpretation']['epochs'][0]}", "minutes": info.get("minutes")}
+            "status_field": f"status_{cfg['interpretation']['epochs'][0]}", "minutes": info.get("minutes"),
+            "warnings": warnings(info)}
+
+
+def warnings(info: dict) -> list[str]:
+    """Add-in이 완료 후 창으로 알릴 주의 사항(로그 한 줄로는 놓치기 쉬운 것)."""
+    out = []
+    cd = info.get("change_detection")
+    if isinstance(cd, dict) and "error" in cd:
+        out.append(f"화소 변화탐지 실패 - 신규·소멸 A·B 등급이 없습니다({cd['error'][:200]})")
+    for e, v in (info.get("inputs") or {}).items():
+        if (v.get("registration") or {}).get("warning"):
+            out.append(f"{'기준' if e == 't0' else '비교'} 시기 영상이 기준 영상과 위치가 일관되게 맞지 않습니다 - 좌표계를 확인하세요")
+    return out
 
 
 def main() -> None:

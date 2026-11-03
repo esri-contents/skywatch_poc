@@ -1,0 +1,1 @@
+﻿{ "name": "addin-manual", "private": true, "description": "광명시흥 판독 Add-in 사용설명서(KO/EN/ZH) 생성: npm install 후 node build.js ..", "dependencies": { "docx": "9.5.1" } }

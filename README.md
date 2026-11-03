@@ -625,15 +625,21 @@ python -m src.interpretation.pipeline --project config/projects/gwangmyeong_sihe
 python -m src.interpretation.pipeline --project ... --refit       # 분류기만 다시 학습
 python -m src.interpretation.pipeline --project ... --resegment   # 분할부터 다시
 python -m src.evaluation.generate_interpretation_report --project config/projects/gwangmyeong_siheung_aerial.yaml
+python -m src.evaluation.generate_interpretation_official --project config/projects/gwangmyeong_siheung_aerial.yaml   # A4 공공기관 보고서 + 붙임 1 SHP
 ```
 
 설정은 프로젝트 YAML의 `interpretation` 항목(해상도, 분할, 분류기, 판정 규칙, 검수 회차, 행정자료 기간).
+
+새 항공사진(형식 무관)으로 같은 판독을 돌리고 보고서까지 받으려면 ArcGIS Pro Add-in을 쓴다 - [arcgis_addin/README.md](arcgis_addin/README.md)
+(실행기만 쓰려면 `python -m src.interpretation.addin_run --t0 <영상> --t0-date <날짜> --t2 <영상> --t2-date <날짜> --out <폴더>`).
 
 ### 산출물 (`outputs/gwangmyeong_siheung_aerial/interpretation/`)
 
 - `vectors/parcel_interpretation.gpkg`, `reports/parcel_interpretation.csv`: 필지별 2022 상태(등재+판독/등재만/판독만/없음), 미등재 객체 수·면적과 구분(`unregistered_conf`: 독립 / 부속 의심 / 저신뢰), 신규·소멸 객체 수
 - `vectors/structure_change_objects.gpkg`: 신규(new)·소멸(gone)·미등재(unregistered) 객체. tier A = 두 방법 일치·미등재, B = 등재 건물 위, C = 판독만, U = 미등재 독립, UA = 등재 건물과 이어진 미등재(부속 의심)
-- `reports/gwangmyeong_siheung_aerial_parcel_interpretation_report.html`: LH 보상 실무자용 보고서
+- `reports/gwangmyeong_siheung_aerial_parcel_interpretation_report.html`: LH 보상 실무자용 보고서(웹 열람용)
+- `reports/gwangmyeong_siheung_aerial_parcel_interpretation_official.html`: A4 공공기관 보고서(표지·요약·Ⅰ~Ⅴ장·붙임)
+- `reports/appendix1_unregistered_parcels/`(+ `.zip`): 보고서 붙임 1(독립 미등재 필지)을 필지 폴리곤에 붙인 SHP. 연번 SEQ가 보고서 표와 같다(필드 설명은 `필드설명.txt`)
 - `qa/round*/`: 검수 표본(round1 = 규칙 보정용, round2 = 평가용, round3 = 필지 평가이자 부속 분리 규칙 보정용, round4 = 독립/부속 평가). 라벨이 있는 회차는 다시 뽑지 않는다. 새 검수는 YAML의 `interpretation.qa.round`를 새 이름으로 바꾼다.
 - `qa/human_review.csv`: 사람 재판독용 표. `human_label`(structure / not_structure / uncertain)과 `judge`를 채운 뒤 `src.interpretation.qa.agreement()`로 AI 판독과의 κ, 사람 기준 정밀도를 계산한다.
 - 보정·검증 기록: `outputs/gwangmyeong_siheung_aerial/reports/interpretation_calibration.md`

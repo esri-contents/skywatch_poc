@@ -23,9 +23,10 @@ namespace GwangmyeongInterpretation
         private static CIMPolygonSymbol Hollow(CIMColor c, double w) =>
             SymbolFactory.Instance.ConstructPolygonSymbol(Rgb(0, 0, 0, 0), SimpleFillStyle.Null, SymbolFactory.Instance.ConstructStroke(c, w, SimpleLineStyle.Solid));
 
-        private static FeatureLayer AddVector(Map map, Uri uri, string name, CIMPolygonSymbol sym, string where = null)
+        private static FeatureLayer AddVector(Map map, string path, string table, string name, CIMPolygonSymbol sym, string where = null)
         {
-            var lyr = (FeatureLayer)LayerFactory.Instance.CreateLayer(uri, map, 0, name);
+            var lyr = table != null ? MapResults.GpkgLayer(path, table, map, name)
+                                    : (FeatureLayer)LayerFactory.Instance.CreateLayer(new Uri(path), map, 0, name);
             lyr.SetRenderer(new CIMSimpleRenderer { Symbol = sym.MakeSymbolReference() });
             if (where != null) lyr.SetDefinitionQuery(where);
             return lyr;
@@ -38,10 +39,10 @@ namespace GwangmyeongInterpretation
             var map = MapFactory.Instance.CreateMap(name, MapType.Map, MapViewingMode.Map, Basemap.None);
             map.SetSpatialReference(SpatialReferenceBuilder.CreateSpatialReference(5186));
             if (File.Exists(image)) LayerFactory.Instance.CreateLayer(new Uri(image), map, 0, "영상");
-            AddVector(map, new Uri(Path.Combine(r.parcels, "main.parcels")), "필지 경계", Hollow(Rgb(255, 255, 255), 0.6));
-            AddVector(map, new Uri(Path.Combine(r.objects, "main.objects")), "판독 덩어리", Hollow(Rgb(255, 230, 0), 1.6), objWhere);
+            AddVector(map, r.parcels, "parcels", "필지 경계", Hollow(Rgb(255, 255, 255), 0.6));
+            AddVector(map, r.objects, "objects", "판독 덩어리", Hollow(Rgb(255, 230, 0), 1.6), objWhere);
             if (index)
-                AddVector(map, new Uri(r.appendix1), "붙임1 필지", Hollow(Rgb(200, 65, 75), 2.4));
+                AddVector(map, r.appendix1, null, "붙임1 필지", Hollow(Rgb(200, 65, 75), 2.4));
             return map;
         }
 

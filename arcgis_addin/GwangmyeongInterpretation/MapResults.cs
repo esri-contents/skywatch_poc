@@ -54,6 +54,13 @@ namespace GwangmyeongInterpretation
         /// <summary>GeoPackage 테이블 경로. Pro는 "파일.gpkg\main.테이블" 형식으로 연다.</summary>
         private static Uri Gpkg(string path, string table) => new(Path.Combine(path, "main." + table));
 
+        /// <summary>GeoPackage 레이어. "main.테이블"로 안 열리면 "테이블"로 한 번 더 시도.</summary>
+        internal static FeatureLayer GpkgLayer(string path, string table, ILayerContainerEdit container, string name)
+        {
+            try { return (FeatureLayer)LayerFactory.Instance.CreateLayer(Gpkg(path, table), container, 0, name); }
+            catch (Exception) { return (FeatureLayer)LayerFactory.Instance.CreateLayer(new Uri(Path.Combine(path, table)), container, 0, name); }
+        }
+
         public static Task AddAsync(RunResult r) => QueuedTask.Run(() =>
         {
             var map = MapView.Active?.Map ?? throw new InvalidOperationException("열린 지도가 없습니다. 지도 보기를 연 뒤 다시 실행하세요.");
@@ -70,15 +77,15 @@ namespace GwangmyeongInterpretation
                 LayerFactory.Instance.CreateLayer(new Uri(r.image_t0), group, 0, "기준 시기 영상");
 
             var field = string.IsNullOrEmpty(r.status_field) ? "status_t0" : r.status_field;
-            var status = (FeatureLayer)LayerFactory.Instance.CreateLayer(Gpkg(r.parcels, "parcels"), group, 0, "필지 판독 상태");
+            var status = GpkgLayer(r.parcels, "parcels", group, "필지 판독 상태");
             status.SetRenderer(Renderer(field, Status.Select(s => (s.value, s.value, Fill(s.hex, 55, "#ffffff", 0.3))).ToArray()));
             status.SetTransparency(20);
 
-            var unreg = (FeatureLayer)LayerFactory.Instance.CreateLayer(Gpkg(r.parcels, "parcels"), group, 0, "미등재 구조물 필지");
+            var unreg = GpkgLayer(r.parcels, "parcels", group, "미등재 구조물 필지");
             unreg.SetDefinitionQuery("unregistered_flag = 1");
             unreg.SetRenderer(Renderer("unregistered_conf", Unreg.Select(s => (s.value, "미등재 · " + s.value, Hollow(s.hex, 2.0))).ToArray()));
 
-            var objs = (FeatureLayer)LayerFactory.Instance.CreateLayer(Gpkg(r.objects, "objects"), group, 0, "신규·소멸 의심(A·B)");
+            var objs = GpkgLayer(r.objects, "objects", group, "신규·소멸 의심(A·B)");
             objs.SetDefinitionQuery("kind IN ('new','gone') AND tier IN ('A','B')");
             objs.SetRenderer(Renderer("kind", Change.Select(s => (s.value, s.label, Hollow(s.hex, 2.5))).ToArray()));
 
@@ -89,7 +96,7 @@ namespace GwangmyeongInterpretation
                 unreg.SetVisibility(false);
             }
 
-            var unregObjs = (FeatureLayer)LayerFactory.Instance.CreateLayer(Gpkg(r.objects, "objects"), group, 0, "미등재 판독 덩어리");
+            var unregObjs = GpkgLayer(r.objects, "objects", group, "미등재 판독 덩어리");
             unregObjs.SetDefinitionQuery("kind = 'unregistered'");
             unregObjs.SetRenderer(Renderer("tier", new[] { ("U", "독립", Hollow("#c8414b", 1.2)), ("UA", "부속 의심", Hollow("#e9a23b", 1.2)) }));
             unregObjs.SetVisibility(false);

@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using ArcGIS.Desktop.Framework;
@@ -32,18 +34,36 @@ namespace GwangmyeongInterpretation
         public string image_t2 { get; set; }
         public string status_field { get; set; }
         public double? minutes { get; set; }
+        public List<string> warnings { get; set; }
     }
 
     /// <summary>사용자 설정과 마지막 실행 결과(%APPDATA%\GwangmyeongInterpretation\settings.json).</summary>
     internal class Settings
     {
-        public string RepoPath { get; set; } = @"C:\github\skywatch_poc";
+        public string RepoPath { get; set; } = DefaultRepo();
         public string AnalysisPython { get; set; } = "";
         public string T0Path { get; set; } = "";
         public string T0Date { get; set; } = "2022-12-01";
         public string T2Path { get; set; } = "";
         public string T2Date { get; set; } = "2024";
-        public string OutRoot { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "광명시흥_판독");
+        public string OutRoot { get; set; } = DefaultOutRoot();
+
+        private static bool IsRepo(string p) => !string.IsNullOrEmpty(p) && File.Exists(Path.Combine(p, "src", "interpretation", "addin_run.py"));
+
+        /// <summary>판독 코드 폴더 기본값: 각 고정 드라이브의 \github\skywatch_poc 중 있는 것(여유 공간 큰 드라이브 먼저).</summary>
+        private static string DefaultRepo() =>
+            FixedDrives().Select(d => Path.Combine(d.RootDirectory.FullName, "github", "skywatch_poc")).FirstOrDefault(IsRepo) ?? @"C:\github\skywatch_poc";
+
+        /// <summary>출력 기본값: 여유 공간이 가장 큰 고정 드라이브의 \광명시흥_판독(한 번 실행에 1~2GB를 쓴다).</summary>
+        private static string DefaultOutRoot()
+        {
+            var d = FixedDrives().FirstOrDefault();
+            return d != null ? Path.Combine(d.RootDirectory.FullName, "광명시흥_판독")
+                             : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "광명시흥_판독");
+        }
+
+        private static IEnumerable<DriveInfo> FixedDrives() =>
+            DriveInfo.GetDrives().Where(d => d.DriveType == DriveType.Fixed && d.IsReady).OrderByDescending(d => d.AvailableFreeSpace);
         public bool ChangeDetection { get; set; } = true;
         public bool AddToMap { get; set; } = true;
         public bool OpenReport { get; set; } = true;
@@ -59,7 +79,11 @@ namespace GwangmyeongInterpretation
             try
             {
                 if (File.Exists(FilePath))
-                    return JsonSerializer.Deserialize<Settings>(File.ReadAllText(FilePath)) ?? new Settings();
+                {
+                    var s = JsonSerializer.Deserialize<Settings>(File.ReadAllText(FilePath)) ?? new Settings();
+                    if (!IsRepo(s.RepoPath)) s.RepoPath = DefaultRepo();  // 저장소를 다른 드라이브로 옮긴 경우
+                    return s;
+                }
             }
             catch (Exception) { /* 손상된 설정은 기본값으로 */ }
             return new Settings();
@@ -151,10 +175,11 @@ namespace GwangmyeongInterpretation
 
     internal class SurveyExportButton : Button
     {
-        protected override void OnClick()
+        protected override async void OnClick()
         {
             var r = Shell.LastOrWarn();
             if (r == null) return;
+            await Survey.RemoveLayersAsync();
             var w = new RunWindow { Owner = FrameworkApplication.Current.MainWindow };
             w.Show();
             w.StartTask("현장조사 내보내기", $"--out {Runner.Quote(r.@out)} --survey-export", r.@out, async res =>

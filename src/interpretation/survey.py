@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from pathlib import Path
 
 import geopandas as gpd
@@ -65,6 +66,24 @@ def targets(cfg: dict) -> gpd.GeoDataFrame:
     return t
 
 
+def backup_previous(sdir: Path, log=print) -> list[Path]:
+    """이전에 내보낸 조사표·gdb는 현장 결과가 적혀 있을 수 있어 덮어쓰지 않고 시각을 붙여 보관한다."""
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    kept = []
+    for p in (sdir / "현장조사표.xlsx", sdir / "survey.gdb"):
+        if not p.exists():
+            continue
+        dst = p.with_name(f"{p.stem}_{stamp}{p.suffix}")
+        try:
+            p.rename(dst)
+        except OSError as e:
+            raise RuntimeError(f"{p.name}를 보관하지 못함 - 엑셀이나 ArcGIS Pro에서 열려 있으면 닫거나 지도에서 레이어를 제거한 뒤 "
+                               f"다시 실행하세요({e})") from e
+        kept.append(dst)
+        log(f"   이전 {p.name} → {dst.name}로 보관")
+    return kept
+
+
 def export(cfg: dict, log=print) -> Path:
     """조사표 엑셀과 gdb를 만든다. 반환: survey 폴더."""
     from openpyxl import Workbook
@@ -76,6 +95,7 @@ def export(cfg: dict, log=print) -> Path:
     io = Path(cfg["interpretation"]["out_dir"])
     sdir = io / "survey"
     (sdir / "images").mkdir(parents=True, exist_ok=True)
+    backup_previous(sdir, log)
     t = targets(cfg)
     images, dates, t1, _ = _dates(cfg)
     objs = gpd.read_file(io / "vectors" / "structure_change_objects.gpkg")

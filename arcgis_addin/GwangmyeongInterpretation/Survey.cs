@@ -60,11 +60,22 @@ namespace GwangmyeongInterpretation
                 log?.Invoke("   사진 첨부 사용 설정 완료 - Field Maps에서 지점마다 사진을 붙일 수 있음");
         }
 
+        public const string LayerName = "현장조사 대상";
+
+        /// <summary>다시 내보내기 전에 이전 조사 레이어를 지도에서 뺀다(Pro가 survey.gdb를 잠가 보관이 안 되므로).</summary>
+        public static Task RemoveLayersAsync() => QueuedTask.Run(() =>
+        {
+            var map = MapView.Active?.Map;
+            if (map == null) return;
+            var old = map.GetLayersAsFlattenedList().Where(l => l.Name == LayerName).ToList();
+            if (old.Count > 0) map.RemoveLayers(old);
+        });
+
         public static Task AddLayerAsync(string gdb) => QueuedTask.Run(() =>
         {
             var map = MapView.Active?.Map;
             if (map == null) return;
-            var lyr = (FeatureLayer)LayerFactory.Instance.CreateLayer(new Uri(Path.Combine(gdb, "survey_points")), map, 0, "현장조사 대상");
+            var lyr = (FeatureLayer)LayerFactory.Instance.CreateLayer(new Uri(Path.Combine(gdb, "survey_points")), map, 0, LayerName);
             CIMPointSymbol Dot(string hex) => SymbolFactory.Instance.ConstructPointSymbol(
                 ColorFactory.Instance.CreateRGBColor(Convert.ToInt32(hex.Substring(1, 2), 16), Convert.ToInt32(hex.Substring(3, 2), 16), Convert.ToInt32(hex.Substring(5, 2), 16)),
                 9, SimpleMarkerStyle.Circle);

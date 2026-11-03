@@ -9,6 +9,7 @@ pyproj
 fiona
 numpy
 pandas
+pyarrow  # 필지 판독(src/interpretation)의 조각 특징 parquet
 opencv-python
 scikit-image
 scikit-learn

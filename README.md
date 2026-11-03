@@ -602,3 +602,44 @@ python -m src.ndvi.pipeline --project config/projects/kr_rail_danyang.yaml \
 - 보고서: `outputs/kr_rail_danyang/bsi/report/kr_rail_danyang_survey_screening_report.html`
 - 필지별 표: `outputs/kr_rail_danyang/bsi/tables/survey_screening_parcels.csv`
 - 현재 건축물 윤곽(VWorld 도로명주소건물): `outputs/kr_rail_danyang/bsi/vectors/buildings_current_spbd.gpkg`
+
+## 광명시흥 필지 단위 구조물 판독 (`src/interpretation`)
+
+항공 정사영상 두 시기(2022-12-01, 2024)로 필지마다 구조물 유무, 건물 레이어 미등재 구조물, 기준일 이후 신규·소멸 의심을 판독한다. `판독_코드`(중앙선 매포 Wayback 판독)의 OBIA 방법을 0.25m 항공사진에 맞게 옮기고, 판정은 건물 레이어를 약한 정답으로 학습한 2단계 분류기(auto-context, 공간 블록 교차검증)가 한다.
+
+### 환경
+
+이 PC처럼 `PROJ_LIB`가 다른 PROJ 설치(PostGIS 등)를 가리키면 rasterio가 EPSG 코드를 찾지 못한다. 실행 전에 rasterio 내장 PROJ 데이터로 바꾼다(PowerShell).
+
+```powershell
+$pd = python -c "import rasterio,os;print(os.path.join(os.path.dirname(rasterio.__file__),'proj_data'))"
+$env:PROJ_LIB=$pd; $env:PROJ_DATA=$pd; Remove-Item Env:GDAL_DATA -ErrorAction SilentlyContinue; $env:PYTHONIOENCODING='utf-8'
+```
+
+조각 특징은 parquet로 저장하므로 `pyarrow`가 필요하다(requirements.txt에 포함). 타일 분할은 작업 프로세스마다 BLAS 스레드를 1개로 제한한다(16코어에서 메모리 할당 실패 실측).
+
+### 실행
+
+```bash
+python -m src.interpretation.pipeline --project config/projects/gwangmyeong_siheung_aerial.yaml   # 분할(약 14분)·분류기는 캐시 재사용
+python -m src.interpretation.pipeline --project ... --refit       # 분류기만 다시 학습
+python -m src.interpretation.pipeline --project ... --resegment   # 분할부터 다시
+python -m src.evaluation.generate_interpretation_report --project config/projects/gwangmyeong_siheung_aerial.yaml
+```
+
+설정은 프로젝트 YAML의 `interpretation` 항목(해상도, 분할, 분류기, 판정 규칙, 검수 회차, 행정자료 기간).
+
+### 산출물 (`outputs/gwangmyeong_siheung_aerial/interpretation/`)
+
+- `vectors/parcel_interpretation.gpkg`, `reports/parcel_interpretation.csv`: 필지별 2022 상태(등재+판독/등재만/판독만/없음), 미등재 객체 수·면적과 구분(`unregistered_conf`: 독립 / 부속 의심 / 저신뢰), 신규·소멸 객체 수
+- `vectors/structure_change_objects.gpkg`: 신규(new)·소멸(gone)·미등재(unregistered) 객체. tier A = 두 방법 일치·미등재, B = 등재 건물 위, C = 판독만, U = 미등재 독립, UA = 등재 건물과 이어진 미등재(부속 의심)
+- `reports/gwangmyeong_siheung_aerial_parcel_interpretation_report.html`: LH 보상 실무자용 보고서
+- `qa/round*/`: 검수 표본(round1 = 규칙 보정용, round2 = 평가용, round3 = 필지 평가이자 부속 분리 규칙 보정용, round4 = 독립/부속 평가). 라벨이 있는 회차는 다시 뽑지 않는다. 새 검수는 YAML의 `interpretation.qa.round`를 새 이름으로 바꾼다.
+- `qa/human_review.csv`: 사람 재판독용 표. `human_label`(structure / not_structure / uncertain)과 `judge`를 채운 뒤 `src.interpretation.qa.agreement()`로 AI 판독과의 κ, 사람 기준 정밀도를 계산한다.
+- 보정·검증 기록: `outputs/gwangmyeong_siheung_aerial/reports/interpretation_calibration.md`
+
+### 해석 원칙
+
+- 기존 검수 라벨은 AI가 단 것이다. 정밀도는 사람 재판독 전 잠정값이다.
+- 판독기는 건물을 많이 놓친다(건물 레이어 기준 재현율 약 39%). '없음'은 구조물이 없다는 근거가 아니다.
+- 신규·소멸 판정은 정밀도(15~24%)와 행정자료 대용 재현율(10필지 중 1)이 모두 낮아 전수 육안 확인용 목록으로만 쓴다.

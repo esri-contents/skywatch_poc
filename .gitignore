@@ -88,6 +88,9 @@ outputs/*/*/vectors/
 outputs/*/*/report/static/
 outputs/*/composite/*/
 outputs/*/validation/montages/
+# 필지 단위 구조물 판독(src/interpretation): 조각 라벨 래스터·특징 표(160MB+)는 재생성 가능한 중간 산출물.
+outputs/*/interpretation/segments/
+outputs/*/interpretation/evidence/_round1_unused/
 deliverables/
 data/projects/*/raw/
 data/projects/*/context/

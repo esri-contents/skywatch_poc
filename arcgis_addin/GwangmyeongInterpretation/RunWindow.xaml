@@ -1,0 +1,101 @@
+<controls:ProWindow x:Class="GwangmyeongInterpretation.RunWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:ArcGIS.Desktop.Framework.Controls;assembly=ArcGIS.Desktop.Framework"
+        Title="광명시흥 필지 구조물 판독" Width="760" Height="720" MinWidth="620" MinHeight="560"
+        WindowStartupLocation="CenterOwner">
+  <Grid Margin="14">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+
+    <TextBlock Grid.Row="0" TextWrapping="Wrap" Margin="0,0,0,10" Foreground="{DynamicResource Esri_TextStyleDefaultBrush}">
+      기준·비교 시기 항공사진을 넣으면 지구 경계에 맞춰 정리(형식 변환·좌표 정합)한 뒤 필지 단위 구조물 판독을 하고
+      공공기관 보고서 HTML을 만듭니다. 지구 경계·지적·건물 레이어는 광명시흥 프로젝트 자료를 씁니다.
+    </TextBlock>
+
+    <Grid x:Name="InputGrid" Grid.Row="1">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="110"/>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="Auto"/>
+        <ColumnDefinition Width="110"/>
+      </Grid.ColumnDefinitions>
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+      </Grid.RowDefinitions>
+      <TextBlock Grid.Row="0" VerticalAlignment="Center" Text="기준 시기 영상" Foreground="{DynamicResource Esri_TextStyleDefaultBrush}"/>
+      <TextBox x:Name="T0Path" Grid.Row="0" Grid.Column="1" Margin="0,3"/>
+      <Button Grid.Row="0" Grid.Column="2" Content="찾아보기" Margin="6,3,10,3" Padding="8,2" Click="BrowseT0" Style="{DynamicResource Esri_Button}"/>
+      <TextBlock Grid.Row="0" Grid.Column="3" VerticalAlignment="Center" Text="촬영일" Margin="0,0,6,0" Foreground="{DynamicResource Esri_TextStyleDefaultBrush}"/>
+      <TextBox x:Name="T0Date" Grid.Row="0" Grid.Column="4" Margin="0,3" ToolTip="YYYY-MM-DD, YYYY-MM 또는 YYYY"/>
+
+      <TextBlock Grid.Row="1" VerticalAlignment="Center" Text="비교 시기 영상" Foreground="{DynamicResource Esri_TextStyleDefaultBrush}"/>
+      <TextBox x:Name="T2Path" Grid.Row="1" Grid.Column="1" Margin="0,3"/>
+      <Button Grid.Row="1" Grid.Column="2" Content="찾아보기" Margin="6,3,10,3" Padding="8,2" Click="BrowseT2" Style="{DynamicResource Esri_Button}"/>
+      <TextBlock Grid.Row="1" Grid.Column="3" VerticalAlignment="Center" Text="촬영일" Margin="0,0,6,0" Foreground="{DynamicResource Esri_TextStyleDefaultBrush}"/>
+      <TextBox x:Name="T2Date" Grid.Row="1" Grid.Column="4" Margin="0,3" ToolTip="YYYY-MM-DD, YYYY-MM 또는 YYYY"/>
+
+      <TextBlock Grid.Row="2" VerticalAlignment="Center" Text="출력 상위 폴더" Foreground="{DynamicResource Esri_TextStyleDefaultBrush}"/>
+      <TextBox x:Name="OutRoot" Grid.Row="2" Grid.Column="1" Margin="0,3" ToolTip="이 폴더 아래에 실행 시각 이름의 폴더를 만듭니다"/>
+      <Button Grid.Row="2" Grid.Column="2" Content="찾아보기" Margin="6,3,10,3" Padding="8,2" Click="BrowseOut" Style="{DynamicResource Esri_Button}"/>
+    </Grid>
+
+    <Expander x:Name="OptionsBox" Grid.Row="2" Header="옵션 및 환경" Margin="0,8,0,8" Foreground="{DynamicResource Esri_TextStyleDefaultBrush}">
+      <Grid Margin="0,6,0,0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="110"/>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+          <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <TextBlock VerticalAlignment="Center" Text="판독 코드 폴더"/>
+        <TextBox x:Name="RepoPath" Grid.Column="1" Margin="0,3" ToolTip="skywatch_poc 저장소(src/interpretation이 있는 폴더)"/>
+        <Button Grid.Column="2" Content="찾아보기" Margin="6,3,0,3" Padding="8,2" Click="BrowseRepo" Style="{DynamicResource Esri_Button}"/>
+        <TextBlock Grid.Row="1" VerticalAlignment="Center" Text="분석 Python"/>
+        <TextBox x:Name="PythonPath" Grid.Row="1" Grid.Column="1" Margin="0,3" ToolTip="비우면 자동으로 찾습니다(rasterio·scikit-learn·OpenCV 등이 설치된 Python)"/>
+        <Button Grid.Row="1" Grid.Column="2" Content="환경 점검" Margin="6,3,0,3" Padding="8,2" Click="CheckEnv" Style="{DynamicResource Esri_Button}"/>
+        <StackPanel Grid.Row="2" Grid.ColumnSpan="3" Orientation="Horizontal" Margin="0,6,0,0">
+          <CheckBox x:Name="ChangeDetection" Content="화소 변화탐지 교차 확인(신규·소멸 A·B 등급에 필요, 권장)" Margin="0,0,16,0"/>
+        </StackPanel>
+        <StackPanel Grid.Row="3" Grid.ColumnSpan="3" Orientation="Horizontal" Margin="0,4,0,0">
+          <CheckBox x:Name="AddToMap" Content="완료 후 결과 레이어를 지도에 추가" Margin="0,0,16,0"/>
+          <CheckBox x:Name="OpenReport" Content="완료 후 보고서 열기"/>
+        </StackPanel>
+      </Grid>
+    </Expander>
+
+    <Grid Grid.Row="3">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="*"/>
+      </Grid.RowDefinitions>
+      <DockPanel Margin="0,0,0,4">
+        <TextBlock x:Name="Elapsed" DockPanel.Dock="Right" Foreground="{DynamicResource Esri_TextStyleSubduedBrush}"/>
+        <TextBlock x:Name="StepText" Text="대기 중" FontWeight="SemiBold" Foreground="{DynamicResource Esri_TextStyleDefaultBrush}"/>
+      </DockPanel>
+      <ProgressBar x:Name="Progress" Grid.Row="1" Height="8" Minimum="0" Maximum="5" Margin="0,0,0,6"/>
+      <TextBox x:Name="Log" Grid.Row="2" IsReadOnly="True" FontFamily="Consolas, Malgun Gothic" FontSize="11.5"
+               VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" TextWrapping="NoWrap"/>
+    </Grid>
+
+    <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+      <Button x:Name="RunBtn" Content="판독 실행" Width="100" Margin="0,0,8,0" Click="RunClick" Style="{DynamicResource Esri_Button}"/>
+      <Button x:Name="CancelBtn" Content="취소" Width="80" Margin="0,0,8,0" Click="CancelClick" IsEnabled="False" Style="{DynamicResource Esri_Button}"/>
+      <Button Content="닫기" Width="80" Click="CloseClick" Style="{DynamicResource Esri_Button}"/>
+    </StackPanel>
+  </Grid>
+</controls:ProWindow>

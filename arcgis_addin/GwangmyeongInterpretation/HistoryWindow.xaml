@@ -1,0 +1,36 @@
+<controls:ProWindow x:Class="GwangmyeongInterpretation.HistoryWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="clr-namespace:ArcGIS.Desktop.Framework.Controls;assembly=ArcGIS.Desktop.Framework"
+        Title="광명시흥 판독 - 실행 이력" Width="1000" Height="480" MinWidth="700" MinHeight="300" WindowStartupLocation="CenterOwner">
+  <DockPanel Margin="12">
+    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+      <Button DockPanel.Dock="Right" Content="새로고침" Padding="10,2" Click="RefreshClick" Style="{DynamicResource Esri_Button}"/>
+      <TextBlock x:Name="RootText" VerticalAlignment="Center" Foreground="{DynamicResource Esri_TextStyleDefaultBrush}"/>
+    </DockPanel>
+    <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+      <Button Content="현재 결과로 선택" Padding="10,2" Margin="0,0,8,0" Click="SelectClick" Style="{DynamicResource Esri_Button}"
+              ToolTip="리본의 보고서 열기·레이어 추가·검수·현장조사 버튼이 이 실행을 대상으로 하게 합니다"/>
+      <Button Content="보고서 열기" Padding="10,2" Margin="0,0,8,0" Click="ReportClick" Style="{DynamicResource Esri_Button}"/>
+      <Button Content="레이어 추가" Padding="10,2" Margin="0,0,8,0" Click="LayersClick" Style="{DynamicResource Esri_Button}"/>
+      <Button Content="폴더 열기" Padding="10,2" Margin="0,0,8,0" Click="FolderClick" Style="{DynamicResource Esri_Button}"/>
+      <Button Content="닫기" Width="70" Click="CloseClick" Style="{DynamicResource Esri_Button}"/>
+    </StackPanel>
+    <ListView x:Name="List" MouseDoubleClick="ReportClick">
+      <ListView.View>
+        <GridView>
+          <GridViewColumn Header="실행" DisplayMemberBinding="{Binding Started}" Width="130"/>
+          <GridViewColumn Header="기준 시기 영상" DisplayMemberBinding="{Binding T0}" Width="190"/>
+          <GridViewColumn Header="비교 시기 영상" DisplayMemberBinding="{Binding T2}" Width="190"/>
+          <GridViewColumn Header="소요(분)" DisplayMemberBinding="{Binding Minutes}" Width="60"/>
+          <GridViewColumn Header="필지" DisplayMemberBinding="{Binding Parcels}" Width="60"/>
+          <GridViewColumn Header="독립 미등재" DisplayMemberBinding="{Binding Unreg}" Width="75"/>
+          <GridViewColumn Header="신규 A" DisplayMemberBinding="{Binding NewA}" Width="55"/>
+          <GridViewColumn Header="소멸 A·B" DisplayMemberBinding="{Binding Gone}" Width="60"/>
+          <GridViewColumn Header="재사용" DisplayMemberBinding="{Binding Reused}" Width="55"/>
+          <GridViewColumn Header="현재" DisplayMemberBinding="{Binding Current}" Width="40"/>
+        </GridView>
+      </ListView.View>
+    </ListView>
+  </DockPanel>
+</controls:ProWindow>

@@ -1,0 +1,14 @@
+﻿보고서 붙임 1. 독립 미등재 구조물 필지 - 필지 폴리곤(SHP)
+필지 297개 · 좌표계 EPSG:5186(KGD2002 Central Belt 2010) · 인코딩 UTF-8
+
+SEQ        연번 - 보고서 붙임 1 표의 연번과 같음(PNU순)
+PNU        필지고유번호(19자리)
+ADDR       소재지(지번 주소)
+JIMOK      지목
+N_OBJ      미등재 판독 덩어리 수(건물 레이어 1m 밖, 등재 건물과 지붕이 이어지지 않는 것)
+UNREG_M2   미등재 판독 덩어리 면적 합(㎡)
+REG_M2     필지 내 건물 레이어(등재) 면적(㎡)
+PARCEL_M2  필지 면적(㎡, EPSG:5186 계산값)
+STATUS     기준 시기 필지 판독 상태(있음(등재+판독)/있음(등재만)/있음(판독만)/없음/영상 부족)
+
+광명시흥 공공주택지구 · 판독 영상 2022-12-01·2024 · 보고서 gwangmyeong_siheung_aerial_parcel_interpretation_official.html

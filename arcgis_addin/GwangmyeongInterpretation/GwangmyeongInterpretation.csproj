@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- ArcGIS Pro 3.7(.NET 10) Add-in. Visual Studio 없이 `dotnet build -c Release`로 .esriAddinX를 만든다.
+       Pro SDK 템플릿과 같은 구성: Pro 설치 폴더의 어셈블리를 참조(복사 안 함)하고 Esri.ProApp.SDK.Desktop.targets로 패키징. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <PlatformTarget>x64</PlatformTarget>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+    <RootNamespace>GwangmyeongInterpretation</RootNamespace>
+    <AssemblyName>GwangmyeongInterpretation</AssemblyName>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <NoWarn>CA1416;CS0618</NoWarn>
+    <ProInstallDir>$([MSBuild]::GetRegistryValueFromView('HKEY_LOCAL_MACHINE\SOFTWARE\ESRI\ArcGISPro', 'InstallDir', null, RegistryView.Registry64))</ProInstallDir>
+    <ProInstallDir Condition="'$(ProInstallDir)' == ''">C:\Program Files\ArcGIS\Pro\</ProInstallDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Remove="Config.daml" />
+    <Content Include="Config.daml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="ArcGIS.Core"><HintPath>$(ProInstallDir)bin\ArcGIS.Core.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="ArcGIS.Desktop.Framework"><HintPath>$(ProInstallDir)bin\ArcGIS.Desktop.Framework.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="ArcGIS.Desktop.Core"><HintPath>$(ProInstallDir)bin\Extensions\Core\ArcGIS.Desktop.Core.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="ArcGIS.Desktop.Mapping"><HintPath>$(ProInstallDir)bin\Extensions\Mapping\ArcGIS.Desktop.Mapping.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="ArcGIS.Desktop.Catalog"><HintPath>$(ProInstallDir)bin\Extensions\Catalog\ArcGIS.Desktop.Catalog.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="ArcGIS.Desktop.Layouts"><HintPath>$(ProInstallDir)bin\Extensions\Layout\ArcGIS.Desktop.Layouts.dll</HintPath><Private>False</Private></Reference>
+    <Reference Include="ArcGIS.Desktop.Shared.Wpf"><HintPath>$(ProInstallDir)bin\ArcGIS.Desktop.Shared.Wpf.dll</HintPath><Private>False</Private></Reference>
+  </ItemGroup>
+  <Import Project="$(ProInstallDir)bin\Esri.ProApp.SDK.Desktop.targets" Condition="Exists('$(ProInstallDir)bin\Esri.ProApp.SDK.Desktop.targets')" />
+</Project>

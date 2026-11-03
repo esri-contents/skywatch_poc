@@ -226,9 +226,12 @@ def fetch_building_title_info(
             page_items = [page_items]
 
         for it in page_items:
+            # platGbCd(0=대지, 1=산)와 PNU 11번째 자리(1=일반, 2=산)는 코드 체계가 다르다
+            # (project_acquisition.acquire_building_permits와 같은 변환).
+            plat = {"0": "1", "1": "2"}.get(str(it.get("platGbCd", "0")), str(it.get("platGbCd", "0")))
             it["pnu"] = (
                 f"{it.get('sigunguCd','')}{it.get('bjdongCd','')}"
-                f"{it.get('platGbCd','0')}{it.get('bun','0').zfill(4)}{it.get('ji','0').zfill(4)}"
+                f"{plat}{str(it.get('bun','0')).zfill(4)}{str(it.get('ji','0')).zfill(4)}"
             )
         all_items.extend(page_items)
 

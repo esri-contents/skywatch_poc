@@ -106,10 +106,30 @@ def acquire_reference_vectors(cfg: dict[str, Any], aoi: gpd.GeoDataFrame) -> dic
     return {"buildings": len(buildings), "cadastre": len(cadastre), "bbox": bbox}
 
 
+def register_legal_dong_codes(buildings: gpd.GeoDataFrame, cadastre: gpd.GeoDataFrame | None,
+                              aoi_area_m2: float, min_share: float = 0.001) -> list[str]:
+    """건축물대장을 수집할 법정동 코드(10자리).
+
+    건물 PNU에 나온 법정동 중, 지구 안 지적 면적이 지구 면적의 min_share 이상인 것만 남긴다.
+    광명시흥에서는 경계에 걸친 건물 1동의 PNU 때문에 부천시 소사구 옥길동(지구 안 지적 363㎡)
+    전체가 수집돼 대장의 8.7%가 지구 밖 건물이었다.
+    """
+    pnu = buildings.get("pnu")
+    codes = {str(v)[:10] for v in pnu.dropna() if len(str(v)) >= 10} if pnu is not None else set()
+    if cadastre is None or "pnu" not in cadastre:
+        return sorted(codes)
+    c = cadastre[cadastre["pnu"].notna()]
+    area = c.geometry.area.groupby(c["pnu"].astype(str).str[:10]).sum()
+    return sorted(code for code in codes if area.get(code, 0.0) >= min_share * aoi_area_m2)
+
+
 def acquire_building_register(cfg: dict[str, Any]) -> dict[str, Any]:
     buildings = gpd.read_file(cfg["paths"]["buildings"])
-    pnu = buildings.get("pnu")
-    codes = sorted({str(v)[:10] for v in pnu.dropna() if len(str(v)) >= 10}) if pnu is not None else []
+    crs = cfg["project"]["analysis_crs"]
+    cad_path = Path(cfg["paths"].get("cadastre", ""))
+    cadastre = gpd.read_file(cad_path).to_crs(crs) if cfg["paths"].get("cadastre") and cad_path.exists() else None
+    aoi_area = float(gpd.read_file(cfg["paths"]["aoi"]).to_crs(crs).geometry.area.sum())
+    codes = register_legal_dong_codes(buildings, cadastre, aoi_area)
     all_items: list[dict[str, Any]] = []
     errors: dict[str, str] = {}
     for code in codes:

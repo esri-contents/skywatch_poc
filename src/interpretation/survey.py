@@ -34,6 +34,10 @@ RESULT_FIELDS = {  # gdb 필드 → (엑셀 열, 허용 값)
     "NOTE": ("비고", None),
 }
 KINDS = {"U": "미등재(독립)", "A": "신규 의심", "G": "소멸 의심"}
+# gdb 필드 이름이 내부 이름과 다른 것. EXISTS는 파일 지오데이터베이스 예약어라 GDAL이 EXISTS_로 바꿔 쓰고(실측),
+# 그러면 Pro의 도메인 지정·Field Maps 결과 가져오기가 그 필드를 못 찾는다 - gdb에서는 EXIST_YN을 쓴다.
+GDB_NAMES = {"EXISTS": "EXIST_YN"}
+_FROM_GDB = {"EXIST_YN": "EXISTS", "EXISTS_": "EXISTS"}  # EXISTS_: 이 수정 전에 내보낸 gdb
 
 
 def _dates(cfg: dict) -> tuple[dict, dict, str, str]:
@@ -170,7 +174,7 @@ def export(cfg: dict, log=print) -> Path:
     gdb = sdir / "survey.gdb"
     base = t.drop(columns="geometry")
     for f in RESULT_FIELDS:
-        base[f] = ""
+        base[GDB_NAMES.get(f, f)] = ""
     pts = gpd.GeoDataFrame(base, geometry=t.geometry.representative_point(), crs=t.crs)
     pts.to_file(gdb, layer="survey_points", driver="OpenFileGDB")
     multi = t.geometry.apply(lambda g: MultiPolygon([g]) if g.geom_type == "Polygon" else g)  # gdb 레이어는 한 가지 도형형식만
@@ -205,6 +209,7 @@ def import_results(cfg: dict, src: str | Path, log=print) -> Path:
         if layer is None and layers != [None]:
             raise ValueError(f"{src.name}에서 SID 필드가 있는 조사 레이어를 찾지 못함(레이어: {', '.join(layers)})")
         t = pd.DataFrame(gpd.read_file(src, layer=layer).drop(columns="geometry"))
+        t = t.rename(columns={k: v for k, v in _FROM_GDB.items() if k in t and v not in t})
     missing = [c for c in ("SID", "KIND", "PNU") if c not in t]
     if missing:
         raise ValueError(f"조사 결과에 {', '.join(missing)} 열이 없음 - 내보낸 조사표·survey.gdb를 쓰세요")

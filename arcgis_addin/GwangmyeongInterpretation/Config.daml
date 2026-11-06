@@ -2,7 +2,7 @@
 <ArcGIS defaultAssembly="GwangmyeongInterpretation.dll" defaultNamespace="GwangmyeongInterpretation"
         xmlns="http://schemas.esri.com/DADF/Registry" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:schemaLocation="http://schemas.esri.com/DADF/Registry file:///C:/Program%20Files/ArcGIS/Pro/bin/ArcGIS.Desktop.Framework.xsd">
-  <AddInInfo id="{6b1f4c2e-8d3a-4f57-9a1e-2c7d5e9b4a10}" version="1.0" desktopVersion="3.7.0">
+  <AddInInfo id="{6b1f4c2e-8d3a-4f57-9a1e-2c7d5e9b4a10}" version="1.2" desktopVersion="3.5.0">
     <Name>광명시흥 필지 구조물 판독</Name>
     <Description>항공사진 두 장(형식 무관)을 넣으면 광명시흥 공공주택지구 필지 단위 구조물 판독을 수행하고 공공기관 보고서 HTML과 결과 레이어를 만듭니다.</Description>
     <Author>skywatch_poc</Author>

@@ -44,7 +44,10 @@ namespace GwangmyeongInterpretation
             var rows = new List<Row>();
             if (!Directory.Exists(root)) return rows;
             var current = Settings.Current.Last?.@out;
-            foreach (var dir in Directory.GetDirectories(root).OrderByDescending(d => d))
+            string[] dirs;
+            try { dirs = Directory.GetDirectories(root); }
+            catch (Exception) { return rows; }  // 권한 없음·드라이브 분리 - 빈 목록(창 생성자에서 예외가 나가지 않게)
+            foreach (var dir in dirs.OrderByDescending(d => d))
             {
                 var f = Path.Combine(dir, "run_info.json");
                 if (!File.Exists(f)) continue;

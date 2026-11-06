@@ -1,6 +1,6 @@
 # 광명시흥 필지 구조물 판독 - ArcGIS Pro Add-in
 
-ArcGIS Pro 3.7 리본에 **광명시흥 판독** 탭을 추가한다. 항공사진 두 장(기준·비교 시기)을 넣으면 `src/interpretation`의 판독 전 과정을 돌려 공공기관 보고서 HTML(A4)·붙임 1 SHP·결과 레이어를 만든다.
+ArcGIS Pro **3.5 이상**(3.5·3.6·3.7) 리본에 **광명시흥 판독** 탭을 추가한다. 항공사진 두 장(기준·비교 시기)을 넣으면 `src/interpretation`의 판독 전 과정을 돌려 공공기관 보고서 HTML(A4)·붙임 1 SHP·결과 레이어를 만든다.
 
 ## 리본
 
@@ -48,7 +48,7 @@ Pro(Add-in, C#) ──하위 프로세스──▶ 분석 Python: python -u -m s
             ──Pro 안──▶ 레이어 추가, 표본 검수 창, survey.gdb 도메인·첨부(지오프로세싱)
 ```
 
-- 판독을 Pro 프로세스 안에서 돌리지 않는 이유: 분할 단계가 다중 프로세스를 쓰고, Pro 3.7 기본 환경의 `rasterio.warp`가 DLL 오류로 불러와지지 않는다. Pro 밖의 arcpy는 라이선스가 초기화되지 않아, gdb 도메인·첨부는 Add-in(C#)이 Pro 안에서 처리한다.
+- 판독을 Pro 프로세스 안에서 돌리지 않는 이유: 분할 단계가 다중 프로세스를 쓰고, Pro 기본 환경(3.7에서 확인)의 `rasterio.warp`가 DLL 오류로 불러와지지 않는다. Pro 밖의 arcpy는 라이선스가 초기화되지 않아, gdb 도메인·첨부는 Add-in(C#)이 Pro 안에서 처리한다.
 - 배포 Python 패키지는 `requirements-runtime.txt`(고정 버전). `build_dist.ps1`이 마지막에 `check_imports.py`로 판독 코드의 모든 import를 배포 Python에서 불러 보고, 빠진 것이 있으면 중단한다(v1.0에서 rasterstats 누락). `tests/test_addin.py`도 같은 것을 정적으로 검사한다.
 - 입력 영상: GeoTIFF·ECW·JPEG2000·MrSID·IMG·JPG/PNG(+월드파일). 좌표계가 없으면 EPSG:5186으로 보고, 좌표가 없으면 2022-12-01 기준 영상에 SIFT+위상상관으로 자동 정합한다(원본 2024 JPG로 시험: 기존 수작업 정합과 0.10m 차이).
 - 재사용 캐시(`<출력 상위 폴더>/_cache/`): 영상 정리 결과는 원본 파일 SHA-256으로, 분할·판독기·화소 변화탐지 결과는 두 영상 해시·기초자료 해시·관련 설정으로 찾는다. 하드링크라 디스크를 더 쓰지 않는다. 끄려면 `--no-cache`.
@@ -59,8 +59,13 @@ Pro(Add-in, C#) ──하위 프로세스──▶ 분석 Python: python -u -m s
 개발 PC(Visual Studio 불필요):
 ```powershell
 cd arcgis_addin\GwangmyeongInterpretation
-dotnet build -c Release          # .NET 10 SDK, Pro 3.7 → bin\Release\GwangmyeongInterpretation.esriAddinX
+dotnet build -c Release          # .NET 10 SDK + 설치된 Pro 3.x → bin\Release\GwangmyeongInterpretation.esriAddinX
 ```
+
+**지원 Pro 버전(3.5 이상 공용 빌드)**: Pro 3.5 SDK 참조 어셈블리(NuGet `Esri.ArcGISPro.Extensions30` 3.5.0.57366, .NET 8)로 빌드하고 `Config.daml`의 `desktopVersion`을 `3.5.0`으로 둔다. Esri 문서상 Add-in은 3.x 안에서 상위 버전으로 호환되고(ProConcepts-Advanced-Topics "Add-in Versioning"), 3.0~3.6용 Add-in은 3.7(.NET 10)에서 다시 빌드 없이 동작한다(ProGuide-NET-10-Upgrade). 그래서 `.esriAddinX` 하나를 3.5·3.6·3.7에 같이 쓴다.
+- NuGet 패키지 버전을 올리거나 `desktopVersion`을 바꾸면 그 미만 버전에서 로드되지 않는다.
+- NuGet 3.5 패키지의 패키징 targets는 `dotnet build`에서 실패해(`CodeTaskFactory`), 참조만 NuGet에서 쓰고 패키징은 빌드 PC에 설치된 Pro의 `Esri.ProApp.SDK.Desktop.targets`를 쓴다.
+- .NET 10에서 바뀐 끌어놓기(`ClipboardItem`) API는 이 Add-in이 쓰지 않는다.
 
 다른 실무자 PC 배포:
 ```powershell
@@ -68,7 +73,7 @@ powershell -ExecutionPolicy Bypass -File arcgis_addin\build_dist.ps1 -Zip      #
 # 대상 PC에서 압축을 풀고
 powershell -ExecutionPolicy Bypass -File install.ps1                            # C:\GwangmyeongInterpretation
 ```
-배포 폴더는 `addin\`(Add-in), `app\`(판독 코드·광명시흥 기초자료·2022 기준 영상), `python\`(분석 Python 3.12 + `requirements-runtime.txt` 고정 버전)으로 되어 있어 저장소·개인 Python이 필요 없다. 대상 PC에는 ArcGIS Pro 3.7만 있으면 된다(ECW·MrSID 변환에 Pro의 GDAL 사용).
+배포 폴더는 `addin\`(Add-in), `app\`(판독 코드·광명시흥 기초자료·2022 기준 영상), `python\`(분석 Python 3.12 + `requirements-runtime.txt` 고정 버전)으로 되어 있어 저장소·개인 Python이 필요 없다. 대상 PC에는 ArcGIS Pro 3.5 이상만 있으면 된다(ECW·MrSID 변환에 Pro의 GDAL 사용).
 
 ### 코드 서명
 

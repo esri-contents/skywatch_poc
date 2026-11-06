@@ -308,3 +308,67 @@ def test_round_selection_for_report():
     assert _latest(rounds, lambda q: q["stratum"].eq("unreg_대")) == "round4"  # 라벨 없는 review1은 건너뜀
     assert _latest(rounds, lambda q: q["stratum"].eq("gone_AB")) is None
     assert _rn("round4") == "4차" and _rn("review1") == "검수 1차" and _rn(None) == "-"
+
+
+ADDIN = addin_run.ROOT / "arcgis_addin" / "GwangmyeongInterpretation"
+
+
+def test_addin_builds_for_pro_35_and_later():
+    """3.5·3.6·3.7 공용: Pro 3.5 SDK 참조(.NET 8)와 desktopVersion 3.5가 맞아야 한다.
+    3.7 어셈블리(.NET 10)로 빌드하거나 desktopVersion을 올리면 3.5·3.6에서 로드되지 않는다."""
+    import re
+    proj = (ADDIN / "GwangmyeongInterpretation.csproj").read_text(encoding="utf-8")
+    daml = (ADDIN / "Config.daml").read_text(encoding="utf-8-sig")
+    assert "<TargetFramework>net8.0-windows</TargetFramework>" in proj
+    nuget = re.search(r'Include="Esri.ArcGISPro.Extensions30" Version="(\d+)\.(\d+)\.', proj)
+    desktop = re.search(r'desktopVersion="(\d+)\.(\d+)\.\d+"', daml)
+    assert nuget and desktop and nuget.groups() == desktop.groups() == ("3", "5")
+    assert "HintPath" not in proj  # Pro 설치 폴더 어셈블리를 직접 참조하면 빌드 PC의 Pro 버전에 묶인다
+
+
+def test_addin_result_keys_match_runresult():
+    """addin_run이 @@RESULT로 내는 키는 모두 C# RunResult에 있어야 한다(없으면 Add-in이 조용히 버린다)."""
+    import re
+    cs = (ADDIN / "Module1.cs").read_text(encoding="utf-8")
+    body = cs[cs.index("class RunResult"):cs.index("class Settings")]
+    props = {m.lstrip("@") for m in re.findall(r"public [\w<>?]+ (@?\w+) \{ get; set; \}", body)}
+    cfg = {"interpretation": {"out_dir": "o", "epochs": ["t0", "t2"]}, "imagery": {"epochs": [{"path": "a"}, {"path": "b"}]}}
+    keys = set(addin_run._result(cfg, Path("o"), Path("r.html"), {}))
+    keys |= {"survey_dir", "survey_gdb", "survey_xlsx", "sheets_pdf", "sheets_pages"}  # 후속 작업이 더하는 키(addin_run.run)
+    assert keys <= props, f"RunResult에 없음: {keys - props}"
+
+
+def test_survey_gdb_fields_match_python():
+    """Survey.cs(도메인·별칭)와 survey.py(gdb 필드·허용 값)가 같은 결과 필드를 써야 한다."""
+    import re
+    from src.interpretation.survey import GDB_NAMES, RESULT_FIELDS
+    cs = (ADDIN / "Survey.cs").read_text(encoding="utf-8")
+    rows = re.findall(r'\("(\w+)", "([^"]+)", (?:"\w+"|null), (?:new\[\] \{ ([^}]*) \}|null)\)', cs)
+    internal = {v: k for k, v in GDB_NAMES.items()}
+    assert {internal.get(f, f) for f, *_ in rows} == set(RESULT_FIELDS)
+    for field, alias, values in rows:
+        col, allowed = RESULT_FIELDS[internal.get(field, field)]
+        assert alias == col
+        assert (re.findall(r'"([^"]+)"', values) if values else None) == allowed
+
+
+def test_survey_gdb_field_names_survive_and_import(tmp_path):
+    """gdb 결과 필드 이름이 GDAL 쓰기 후에도 그대로여야 하고(EXISTS는 예약어라 EXISTS_로 바뀌었던 버그),
+    Field Maps에서 채운 gdb(새 이름·예전 EXISTS_ 이름 모두)를 가져오면 구조물 실재가 살아 있어야 한다."""
+    import pyogrio
+    from shapely.geometry import Point
+    from src.interpretation import survey
+    names = [survey.GDB_NAMES.get(f, f) for f in survey.RESULT_FIELDS]
+    for exist_name in (survey.GDB_NAMES["EXISTS"], "EXISTS_"):
+        gdb = tmp_path / f"{exist_name}.gdb"
+        cols = {"SID": ["U001", "U002"], "KIND": ["미등재(독립)"] * 2, "PNU": ["1", "2"]}
+        cols.update({n: ["", ""] for n in names})
+        cols[exist_name] = ["있음", "없음"]
+        if exist_name != names[0]:
+            cols.pop(names[0])
+        gpd.GeoDataFrame(cols, geometry=[Point(0, 0), Point(1, 1)], crs="EPSG:5186").to_file(gdb, layer="survey_points", driver="OpenFileGDB")
+        if exist_name == names[0]:
+            assert list(pyogrio.read_info(gdb, layer="survey_points")["fields"])[3:] == names
+        cfg = {"interpretation": {"out_dir": str(tmp_path / exist_name)}}
+        res = pd.read_csv(survey.import_results(cfg, gdb, log=lambda *_: None), encoding="utf-8-sig", dtype=str)
+        assert res["EXISTS"].tolist() == ["있음", "없음"]

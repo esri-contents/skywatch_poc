@@ -8,7 +8,8 @@
     app\                                         판독 코드(src)·광명시흥 설정·기초자료·2022 기준 영상
     python\                                      분석 Python 3.12 + requirements-runtime.txt 패키지(고정 버전)
     install.ps1, 설치안내.txt
-  대상 PC 조건: Windows 10/11 64비트, ArcGIS Pro 3.7(ECW·MrSID 형식 변환에 Pro의 GDAL을 쓴다).
+  대상 PC 조건: Windows 10/11 64비트, ArcGIS Pro 3.5 이상(3.5·3.6·3.7, ECW·MrSID 형식 변환에 Pro의 GDAL을 쓴다).
+  빌드 PC 조건: .NET 10 SDK(.NET 8 대상으로 빌드), ArcGIS Pro 3.x 설치(.esriAddinX 패키징 도구). Pro 3.5 참조는 NuGet에서 받는다.
   python\은 이 PC의 Python 3.12 설치본을 복사한 뒤 패키지를 그 안에 설치한다(인터넷 필요, 약 1.5GB).
 
 .EXAMPLE
@@ -83,7 +84,7 @@ Copy-Item "$PSScriptRoot\install.ps1" "$Dest\install.ps1" -Force
 @"
 광명시흥 필지 구조물 판독 - ArcGIS Pro Add-in 설치 안내
 
-1. ArcGIS Pro 3.7을 닫는다.
+1. ArcGIS Pro(3.5 이상)를 닫는다.
 2. 이 폴더에서 PowerShell을 열고 실행:
      powershell -ExecutionPolicy Bypass -File install.ps1
    (설치 위치를 바꾸려면 -InstallDir D:\광명시흥판독)

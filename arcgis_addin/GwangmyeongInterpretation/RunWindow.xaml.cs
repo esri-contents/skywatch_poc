@@ -18,6 +18,7 @@ namespace GwangmyeongInterpretation
         private const string ImageFilter = "항공사진|*.tif;*.tiff;*.ecw;*.jp2;*.j2k;*.sid;*.img;*.jpg;*.jpeg;*.png;*.vrt;*.bil;*.dat|모든 파일|*.*";
         private static readonly Regex DateRe = new(@"^\d{4}(-\d{2}(-\d{2})?)?$");
         private CancellationTokenSource _cts;
+        private bool _closed;
         private string _task = "판독 실행";
         private readonly Stopwatch _clock = new();
         private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
@@ -177,6 +178,8 @@ namespace GwangmyeongInterpretation
 
         private async Task Execute(string py, string args, string outDir, Func<RunResult, Task> after = null, bool addAndOpen = true)
         {
+            // Python 확인(10~30초) 중에 창을 닫았으면 시작하지 않는다 - 닫힌 창에서는 취소할 수 없는 실행이 숨어서 돌게 된다
+            if (_closed) return;
             SetBusy(true);
             Progress.Value = 0;
             AppendLog($"출력 폴더: {outDir}");
@@ -243,6 +246,7 @@ namespace GwangmyeongInterpretation
                 e.Cancel = true;
                 return;
             }
+            _closed = true;
             _cts?.Cancel();
             base.OnClosing(e);
         }

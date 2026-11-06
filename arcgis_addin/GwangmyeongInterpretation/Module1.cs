@@ -52,9 +52,18 @@ namespace GwangmyeongInterpretation
 
         private static bool IsRepo(string p) => !string.IsNullOrEmpty(p) && File.Exists(Path.Combine(p, "src", "interpretation", "addin_run.py"));
 
-        /// <summary>판독 코드 폴더 기본값: 각 고정 드라이브의 \github\skywatch_poc 중 있는 것(여유 공간 큰 드라이브 먼저).</summary>
+        /// <summary>
+        /// 판독 코드 폴더 기본값: 이 Add-in을 빌드한 저장소 → 각 고정 드라이브의 \github\skywatch_poc(여유 공간 큰 드라이브 먼저).
+        /// 빌드한 저장소를 먼저 보는 이유: 같은 PC에 예전 사본(예: D:\github\skywatch_poc)이 있으면 여유 공간 순으로는 그 사본의 옛 코드를 돌리게 된다.
+        /// 배포 설치(install.ps1)는 settings.json에 RepoPath를 직접 적으므로 이 기본값을 쓰지 않는다.
+        /// </summary>
         private static string DefaultRepo() =>
-            FixedDrives().Select(d => Path.Combine(d.RootDirectory.FullName, "github", "skywatch_poc")).FirstOrDefault(IsRepo) ?? @"C:\github\skywatch_poc";
+            new[] { BuildRepo() }.Concat(FixedDrives().Select(d => Path.Combine(d.RootDirectory.FullName, "github", "skywatch_poc")))
+                .FirstOrDefault(IsRepo) ?? @"C:\github\skywatch_poc";
+
+        private static string BuildRepo() =>
+            typeof(Settings).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyMetadataAttribute), false)
+                .OfType<System.Reflection.AssemblyMetadataAttribute>().FirstOrDefault(a => a.Key == "BuildRepo")?.Value;
 
         /// <summary>출력 기본값: 여유 공간이 가장 큰 고정 드라이브의 \광명시흥_판독(한 번 실행에 1~2GB를 쓴다).</summary>
         private static string DefaultOutRoot()
@@ -119,6 +128,13 @@ namespace GwangmyeongInterpretation
             }
         }
 
+        /// <summary>리본 버튼 처리기 본문을 감싼다 - 처리기 밖으로 나간 예외는 Pro를 종료시킬 수 있다.</summary>
+        public static void Guard(string title, Action body)
+        {
+            try { body(); }
+            catch (Exception ex) { MessageBox.Show($"{title} 중 오류가 났습니다.\n{ex.Message}", "광명시흥 판독"); }
+        }
+
         public static RunResult LastOrWarn()
         {
             var r = Settings.Current.Last;
@@ -130,7 +146,7 @@ namespace GwangmyeongInterpretation
 
     internal class RunButton : Button
     {
-        protected override void OnClick() => new RunWindow { Owner = FrameworkApplication.Current.MainWindow }.Show();
+        protected override void OnClick() => Shell.Guard("판독 실행 창 열기", () => new RunWindow { Owner = FrameworkApplication.Current.MainWindow }.Show());
     }
 
     internal class OpenReportButton : Button
@@ -144,14 +160,14 @@ namespace GwangmyeongInterpretation
 
     internal class RebuildReportButton : Button
     {
-        protected override void OnClick()
+        protected override void OnClick() => Shell.Guard("보고서 다시 만들기", () =>
         {
             var r = Shell.LastOrWarn();
             if (r == null) return;
             var w = new RunWindow { Owner = FrameworkApplication.Current.MainWindow };
             w.Show();
             w.StartReportOnly(r.@out);
-        }
+        });
     }
 
     internal class AddLayersButton : Button
@@ -176,12 +192,12 @@ namespace GwangmyeongInterpretation
 
     internal class HistoryButton : Button
     {
-        protected override void OnClick() => new HistoryWindow { Owner = FrameworkApplication.Current.MainWindow }.Show();
+        protected override void OnClick() => Shell.Guard("실행 이력 열기", () => new HistoryWindow { Owner = FrameworkApplication.Current.MainWindow }.Show());
     }
 
     internal class ReviewButton : Button
     {
-        protected override void OnClick() => ReviewPaneViewModel.Show();
+        protected override void OnClick() => Shell.Guard("표본 검수 창 열기", ReviewPaneViewModel.Show);
     }
 
     internal class SurveyExportButton : Button
@@ -192,14 +208,21 @@ namespace GwangmyeongInterpretation
             if (r == null) return;
             try { await Survey.RemoveLayersAsync(); }
             catch (Exception ex) { MessageBox.Show($"이전 현장조사 레이어를 지도에서 빼지 못했습니다. 직접 제거한 뒤 다시 실행하세요.\n{ex.Message}", "현장조사 내보내기"); return; }
-            var w = new RunWindow { Owner = FrameworkApplication.Current.MainWindow };
-            w.Show();
+            RunWindow w = null;
+            Shell.Guard("현장조사 내보내기 창 열기", () => { w = new RunWindow { Owner = FrameworkApplication.Current.MainWindow }; w.Show(); });
+            if (w == null) return;
             w.StartTask("현장조사 내보내기", $"--out {Runner.Quote(r.@out)} --survey-export", r.@out, async res =>
             {
                 w.AppendLog("조사용 지오데이터베이스에 도메인·별칭·사진 첨부 설정(Pro 지오프로세싱)");
-                await Survey.PrepareGdbAsync(res.survey_gdb, w.AppendLog);
+                var failed = await Survey.PrepareGdbAsync(res.survey_gdb, w.AppendLog);
                 await Survey.AddLayerAsync(res.survey_gdb);
                 w.AppendLog("완료 - 엑셀 조사표와 survey.gdb는 결과 폴더의 interpretation\\survey에 있습니다");
+                if (failed.Count > 0)
+                    MessageBox.Show("엑셀 조사표와 survey.gdb는 만들었지만, survey.gdb 설정 중 일부가 실패했습니다" +
+                                    "(Field Maps의 드롭다운·사진 첨부가 빠질 수 있음. 엑셀 조사표는 그대로 쓸 수 있습니다).\n\n- " +
+                                    string.Join("\n- ", failed.Take(8)) + (failed.Count > 8 ? $"\n… 외 {failed.Count - 8}건" : "") +
+                                    "\n\n메시지에 license·라이선스가 있으면 ArcGIS Pro 라이선스(Basic 이상)·로그인 상태를 확인하세요.",
+                                    "현장조사 내보내기");
                 Shell.Open(res.survey_dir);
             });
         }
@@ -207,7 +230,9 @@ namespace GwangmyeongInterpretation
 
     internal class SurveyImportButton : Button
     {
-        protected override void OnClick()
+        protected override void OnClick() => Shell.Guard("현장조사 결과 가져오기", Pick);
+
+        private static void Pick()
         {
             var r = Shell.LastOrWarn();
             if (r == null) return;
@@ -235,7 +260,9 @@ namespace GwangmyeongInterpretation
     /// <summary>붙임 1 필지 도면 PDF. 분석 Python이 만든다(Pro 레이아웃으로 300쪽을 내보내면 Pro가 종료되는 문제가 있었다).</summary>
     internal class ParcelSheetsButton : Button
     {
-        protected override void OnClick()
+        protected override void OnClick() => Shell.Guard("필지 도면 PDF", Start);
+
+        private static void Start()
         {
             var r = Shell.LastOrWarn();
             if (r == null) return;

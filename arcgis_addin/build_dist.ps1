@@ -70,10 +70,13 @@ if (-not $SkipPython) {
     $env:TEMP = $env:TMP = $tmp
     & "$Dest\python\python.exe" -s -m ensurepip --upgrade | Out-Null
     & "$Dest\python\python.exe" -s -m pip install --no-cache-dir --no-warn-script-location -r "$app\arcgis_addin\requirements-runtime.txt"
+    $pipExit = $LASTEXITCODE
     Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
-    if ($LASTEXITCODE -ne 0) { throw "패키지 설치 실패" }
-    & "$Dest\python\python.exe" -s -c "import rasterio.warp, sklearn, cv2, skimage, geopandas, yaml, pyarrow, matplotlib, openpyxl; print('python ok')"
+    if ($pipExit -ne 0) { throw "패키지 설치 실패" }
 }
+# 판독 코드의 모든 import(함수 안 지연 import 포함)가 배포 Python에서 되는지 확인 - 누락 패키지가 있으면 중단
+& "$Dest\python\python.exe" -s "$PSScriptRoot\check_imports.py" $app
+if ($LASTEXITCODE -ne 0) { throw "배포 Python에 없는 패키지가 있음 - requirements-runtime.txt에 추가할 것" }
 
 # 4) 설치 스크립트·안내
 Copy-Item "$PSScriptRoot\install.ps1" "$Dest\install.ps1" -Force

@@ -621,15 +621,17 @@ Add-in의 <b>보고서 다시 만들기</b>를 실행하면 이 장과 요약의
             f'<div class="toolbar noprint">A4 보고서 · 인쇄(Ctrl+P) 시 쪽 단위로 나뉨</div>{doc}</body></html>')
 
 
-def generate(cfg: dict, config_path: str | None = None) -> Path:
+def generate(cfg: dict, config_path: str | None = None, suffix: str = "") -> Path:
+    """보고서 HTML과 붙임 1 SHP를 쓴다. suffix(예: _20261106_102522)를 주면 둘 다 그 이름을 붙여 새로 만든다
+    - 다시 만들 때 이전 보고서를 덮어쓰지 않고, Pro가 잠근 이전 SHP도 건드리지 않는다."""
     ic = cfg["interpretation"]
     reports = Path(ic["out_dir"]) / "reports"
-    out = reports / f'{cfg["project"]["id"]}_parcel_interpretation_official.html'
-    out.write_text(_html(cfg, config_path), encoding="utf-8")
+    out = reports / f'{cfg["project"]["id"]}_parcel_interpretation_official{suffix}.html'
+    out.write_text(_html(cfg, config_path).replace(f"reports/{SHP_NAME}.zip", f"reports/{SHP_NAME}{suffix}.zip"), encoding="utf-8")
     parcels = gpd.read_file(Path(ic["out_dir"]) / "vectors" / "parcel_interpretation.gpkg")
     t1, t2 = ic["epochs"]
     dates = {e["id"]: e["date"] for e in cfg["imagery"]["epochs"]}
-    write_appendix1_shp(parcels, f"status_{t1}", reports / SHP_NAME,
+    write_appendix1_shp(parcels, f"status_{t1}", reports / f"{SHP_NAME}{suffix}", name=f"{SHP_NAME}{suffix}",
                         note=f"{cfg['project']['official_name']} · 판독 영상 {dates[t1]}·{dates[t2]} · 보고서 {out.name}")
     return out
 

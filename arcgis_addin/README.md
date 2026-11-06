@@ -22,7 +22,7 @@ ArcGIS Pro 3.7 리본에 **광명시흥 판독** 탭을 추가한다. 항공사�
 | 표본 검수 | 도킹 창에서 검수 표본(`qa/review1/*.jpg`)을 한 장씩 보며 구조물 맞음·아님·판단 불가(단축키 1·2·3, ←/→). 판정마다 `qa_labels.csv`의 label·note·judge(판독자)를 바로 저장, 지도가 표본 위치로 따라감, 다 끝나면 보고서 다시 만들기 |
 | 현장조사 내보내기 | 붙임 1(U001…)·신규 A(A01…)·소멸 A·B(G01…)를 근거 영상이 붙은 `현장조사표.xlsx`(결과 칸 드롭다운)와 Field Maps용 `survey.gdb`(survey_points·survey_areas)로. gdb에는 Pro 지오프로세싱으로 코드값 도메인·한글 별칭·사진 첨부를 설정하고 지도에 올린다. 다시 내보내면 이전 조사표·gdb는 지우지 않고 `_날짜시각`을 붙여 보관 |
 | 현장조사 결과 가져오기 | 작성한 엑셀 또는 Field Maps에서 동기화한 gdb를 읽어 `survey/survey_results.csv`로 정리하고 보고서에 "Ⅳ-3 현장조사 결과"(구분별 현장 정밀도, 물건조서 누락 의심 = 실재 + 미등재, 용도)와 붙임 1 "현장" 열을 넣는다 |
-| 필지 도면 PDF | 붙임 1 필지마다 A4 1쪽(위 기준 시기, 아래 비교 시기, 필지 정보 칸, 축척·방위)을 공간 지도 시리즈로 만들어 `필지도면_붙임1.pdf` 한 파일로. 만든 지도·레이아웃은 프로젝트에 남아 손볼 수 있다 |
+| 필지 도면 PDF | 붙임 1 필지마다 A4 1쪽(위 기준 시기, 아래 비교 시기, 필지 정보 칸, 축척·방위)을 분석 Python(`sheets.py`)이 그려 `필지도면_붙임1_<생성 시각>.pdf` 한 파일로(320쪽 약 3분). Pro 레이아웃·지도 시리즈로 내보내던 v1.0은 Pro가 종료되는 문제가 있어 바꿨다 |
 
 ## 사용설명서
 
@@ -31,7 +31,8 @@ ArcGIS Pro 3.7 리본에 **광명시흥 판독** 탭을 추가한다. 항공사�
 
 ## 산출물(실행 폴더 `<출력 상위 폴더>/<실행 시각>/`)
 
-- `interpretation/reports/…_official.html` 보고서, `appendix1_unregistered_parcels/`(.shp·.csv·필드설명.txt)와 같은 이름의 `.zip` - **보고서 붙임 1과 같은 목록·연번(SEQ)**
+- `interpretation/reports/…_official.html` 보고서, `appendix1_unregistered_parcels/`(.shp·.csv·필드설명.txt)와 같은 이름의 `.zip` - **보고서 붙임 1과 같은 목록·연번(SEQ)**.
+  보고서 다시 만들기·현장조사 가져오기는 둘 다 `_YYYYMMDD_HHMMSS`를 붙여 새로 쓴다(열려 있거나 Pro가 잠근 이전 파일은 그대로). `run_info.json`의 `result`가 가장 최근 것을 가리킨다
 - `interpretation/vectors/*.gpkg`, `reports/parcel_interpretation.csv`, `evidence/`, `qa/review1/`, `survey/`
 - `run_info.json`(입력 영상 해시·정합 결과·소요 시간·주요 수치), `project.yaml`(이 실행의 설정)
 
@@ -42,11 +43,13 @@ Pro(Add-in, C#) ──하위 프로세스──▶ 분석 Python: python -u -m s
                                     ├ 1·2 영상 정리(ingest.py) ──형식 변환만──▶ Pro Python(arcgispro-py3) gdal_convert.py
                                     ├ 3 화소 변화탐지(project_pipeline)  - 신규·소멸 A·B 등급의 교차 확인
                                     ├ 4 조각화·판독기 학습·필지 판정(pipeline.run)
-                                    └ 5 보고서 + 붙임 1 SHP(generate_interpretation_official, deliver.py)
-            ──Pro 안──▶ 레이어 추가, 표본 검수 창, survey.gdb 도메인·첨부(지오프로세싱), 지도 시리즈 PDF
+                                    ├ 5 보고서 + 붙임 1 SHP(generate_interpretation_official, deliver.py)
+                                    └ (버튼) 필지 도면 PDF(sheets.py), 현장조사 내보내기·가져오기(survey.py)
+            ──Pro 안──▶ 레이어 추가, 표본 검수 창, survey.gdb 도메인·첨부(지오프로세싱)
 ```
 
-- 판독을 Pro 프로세스 안에서 돌리지 않는 이유: 분할 단계가 다중 프로세스를 쓰고, Pro 3.7 기본 환경의 `rasterio.warp`가 DLL 오류로 불러와지지 않는다. Pro 밖의 arcpy는 라이선스가 초기화되지 않아, gdb 도메인·첨부와 PDF 도면은 Add-in(C#)이 Pro 안에서 처리한다.
+- 판독을 Pro 프로세스 안에서 돌리지 않는 이유: 분할 단계가 다중 프로세스를 쓰고, Pro 3.7 기본 환경의 `rasterio.warp`가 DLL 오류로 불러와지지 않는다. Pro 밖의 arcpy는 라이선스가 초기화되지 않아, gdb 도메인·첨부는 Add-in(C#)이 Pro 안에서 처리한다.
+- 배포 Python 패키지는 `requirements-runtime.txt`(고정 버전). `build_dist.ps1`이 마지막에 `check_imports.py`로 판독 코드의 모든 import를 배포 Python에서 불러 보고, 빠진 것이 있으면 중단한다(v1.0에서 rasterstats 누락). `tests/test_addin.py`도 같은 것을 정적으로 검사한다.
 - 입력 영상: GeoTIFF·ECW·JPEG2000·MrSID·IMG·JPG/PNG(+월드파일). 좌표계가 없으면 EPSG:5186으로 보고, 좌표가 없으면 2022-12-01 기준 영상에 SIFT+위상상관으로 자동 정합한다(원본 2024 JPG로 시험: 기존 수작업 정합과 0.10m 차이).
 - 재사용 캐시(`<출력 상위 폴더>/_cache/`): 영상 정리 결과는 원본 파일 SHA-256으로, 분할·판독기·화소 변화탐지 결과는 두 영상 해시·기초자료 해시·관련 설정으로 찾는다. 하드링크라 디스크를 더 쓰지 않는다. 끄려면 `--no-cache`.
 - 저장소 결과와 검수 라벨(round1~4)은 건드리지 않는다. 새 실행의 검수 표본은 `review1` 회차.

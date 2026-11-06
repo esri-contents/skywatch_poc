@@ -33,7 +33,7 @@ if (-not $cfg.OutRoot) { $cfg | Add-Member -Force NoteProperty OutRoot (Join-Pat
 
 # 점검
 $env:PYTHONNOUSERSITE = "1"
-& "$InstallDir\python\python.exe" -s -c "import rasterio.warp, sklearn, cv2, skimage, geopandas, yaml, pyarrow, matplotlib, openpyxl; print('분석 Python 정상')"
+& "$InstallDir\python\python.exe" -s -c "import rasterio.warp, rasterstats, sklearn, cv2, skimage, geopandas, yaml, pyarrow, matplotlib, openpyxl; print('분석 Python 정상')"
 if (-not (Test-Path "${env:ProgramFiles}\ArcGIS\Pro\bin\Python\envs\arcgispro-py3\python.exe")) {
     Write-Warning "ArcGIS Pro 파이썬을 찾지 못함 - ECW·MrSID 입력은 변환할 수 없습니다(GeoTIFF·JPG 등은 가능)."
 }

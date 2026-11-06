@@ -1,5 +1,6 @@
 """ArcGIS Pro Add-in 실행 경로(src.interpretation.ingest, addin_run, 보고서 회차 선택) 테스트."""
 
+import zipfile
 from pathlib import Path
 
 import geopandas as gpd
@@ -183,6 +184,56 @@ def test_appendix1_shapefile_matches_table(tmp_path):
     assert t.crs.to_epsg() == 5186 and abs(t["PARCEL_M2"].iloc[0] - 100) < 1e-6
     assert (tmp_path / "a1" / "appendix1_unregistered_parcels.cpg").read_text().strip().upper().replace("-", "") == "UTF8"
     assert z.exists()
+    # Pro가 레이어로 열면 같은 폴더에 잠금 파일이 생긴다 - 다시 써도 zip에 넣지 않는다
+    (tmp_path / "a1" / "appendix1_unregistered_parcels.shp.PC.123.sr.lock").write_text("x")
+    z = write_appendix1_shp(g, "status_t0", tmp_path / "a1")
+    with zipfile.ZipFile(z) as zf:
+        names = {Path(n).name for n in zf.namelist()}
+    assert not any(n.endswith(".lock") for n in names) and "appendix1_unregistered_parcels.shp" in names
+    # 다시 만들 때는 시각을 붙인 새 이름으로 쓴다
+    write_appendix1_shp(g, "status_t0", tmp_path / "a1_x", name="a1_x")
+    assert (tmp_path / "a1_x" / "a1_x.shp").exists() and (tmp_path / "a1_x.zip").exists()
+
+
+def test_runtime_requirements_cover_imports():
+    """배포 Python(requirements-runtime.txt)에 판독 코드가 import하는 외부 패키지가 모두 있어야 한다(rasterstats 누락 재발 방지)."""
+    import ast
+    import sys as _sys
+    dist = {"cv2": "opencv-python", "PIL": "pillow", "sklearn": "scikit-learn", "skimage": "scikit-image",
+            "yaml": "pyyaml", "dotenv": "python-dotenv", "dateutil": "python-dateutil"}
+    req = {l.split("==")[0].strip().lower().replace("_", "-")
+           for l in (addin_run.ROOT / "arcgis_addin" / "requirements-runtime.txt").read_text(encoding="utf-8").splitlines()
+           if l.strip() and not l.startswith("#")}
+    names = set()
+    for py in (addin_run.ROOT / "src").rglob("*.py"):
+        for node in ast.walk(ast.parse(py.read_text(encoding="utf-8"))):
+            if isinstance(node, ast.Import):
+                names.update(a.name.split(".")[0] for a in node.names)
+            elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+                names.add(node.module.split(".")[0])
+    skip = {"src", "arcgis", "arcpy", "osgeo", "winreg", "__future__"}
+    missing = [n for n in names - skip - set(_sys.stdlib_module_names)
+               if dist.get(n, n).lower().replace("_", "-") not in req]
+    assert not missing, f"requirements-runtime.txt에 없음: {missing}"
+
+
+def test_parcel_sheet_page(tmp_path):
+    from rasterio.transform import from_origin
+    from src.interpretation import sheets
+    img = tmp_path / "t.tif"
+    with rasterio.open(img, "w", driver="GTiff", width=400, height=400, count=3, dtype="uint8", crs="EPSG:5186",
+                       transform=from_origin(0, 100, 0.25, 0.25)) as ds:
+        ds.write(np.full((3, 400, 400), 120, dtype="uint8"))
+    parcels = gpd.GeoDataFrame({"pnu": ["1"]}, geometry=[box(20, 20, 60, 50)], crs="EPSG:5186")
+    objs = gpd.GeoDataFrame({"kind": ["unregistered"], "tier": ["U"]}, geometry=[box(30, 30, 40, 40)], crs="EPSG:5186")
+    r = pd.Series({"SEQ": 1, "pnu": "1", "jimok": "전", "status": "있음(판독만)", "addr": "경기도 광명시 노온사동 1",
+                   "registered_m2": 0.0, "unregistered_m2": 100.0, "unregistered_n": 1, "geometry": box(20, 20, 60, 50)})
+    r = type("Row", (), r.to_dict())
+    pg = sheets.page(r, {"t0": str(img), "t2": str(img)}, {"t0": "2022-12-01", "t2": "2024"}, parcels,
+                     {"t0": objs, "t2": objs}, 1, "광명시흥")
+    assert pg.size == (sheets._px(210), sheets._px(297))
+    b, mpp = sheets._extent(box(20, 20, 60, 50))
+    assert b[2] - b[0] >= 40 * sheets.MARGIN and abs((b[2] - b[0]) / (b[3] - b[1]) - 180 / 102) < 1e-9
 
 
 def test_file_hash_memo_and_analysis_key(tmp_path):

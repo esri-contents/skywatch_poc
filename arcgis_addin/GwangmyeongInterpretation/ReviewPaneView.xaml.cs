@@ -53,15 +53,33 @@ namespace GwangmyeongInterpretation
         private List<int> _order = new();
         private int _pos;
 
-        public ReviewPaneView() => InitializeComponent();
+        /// <summary>열려 있는 검수 창(실행 이력에서 현재 결과를 바꾸면 다시 읽게).</summary>
+        internal static ReviewPaneView Current { get; private set; }
+
+        public ReviewPaneView()
+        {
+            InitializeComponent();
+            Current = this;
+        }
 
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
             Judge.Text = Settings.Current.Judge;
-            if (_qa == null) Reload();
+            if (_qa == null || !string.Equals(_qa.Path, Settings.Current.Last?.qa, StringComparison.OrdinalIgnoreCase)) Reload();
         }
 
-        private void Reload()
+        internal void Reload()
+        {
+            try { LoadTable(); }
+            catch (Exception ex)  // 손상·잠긴 검수표 - 처리기 밖으로 나가면 Pro가 종료된다
+            {
+                _qa = null;
+                FileText.Text = $"검수표를 읽지 못했습니다: {ex.Message}";
+                Render();
+            }
+        }
+
+        private void LoadTable()
         {
             var path = Settings.Current.Last?.qa;
             if (string.IsNullOrEmpty(path) || !File.Exists(path))
@@ -119,12 +137,16 @@ namespace GwangmyeongInterpretation
 
         private static BitmapImage LoadImage(string path)
         {
-            var b = new BitmapImage();
-            b.BeginInit();
-            b.CacheOption = BitmapCacheOption.OnLoad;  // 파일을 잠그지 않게
-            b.UriSource = new Uri(path);
-            b.EndInit();
-            return b;
+            try
+            {
+                var b = new BitmapImage();
+                b.BeginInit();
+                b.CacheOption = BitmapCacheOption.OnLoad;  // 파일을 잠그지 않게
+                b.UriSource = new Uri(path);
+                b.EndInit();
+                return b;
+            }
+            catch (Exception) { return null; }  // 손상된 영상은 비워 두고 판정은 계속
         }
 
         private async System.Threading.Tasks.Task ZoomAsync(int i)
@@ -148,7 +170,7 @@ namespace GwangmyeongInterpretation
             _qa.Set(i, "note", Note.Text.Trim());
             _qa.Set(i, "judge", Judge.Text.Trim());
             try { _qa.Save(); }
-            catch (IOException ex)
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 MessageBox.Show($"검수표를 저장하지 못했습니다(엑셀 등에서 열려 있으면 닫으세요).\n{ex.Message}", "표본 검수");
                 return;
@@ -192,7 +214,7 @@ namespace GwangmyeongInterpretation
         private void JudgeChanged(object sender, RoutedEventArgs e)
         {
             Settings.Current.Judge = Judge.Text.Trim();
-            Settings.Current.Save();
+            Settings.Current.TrySave();
         }
 
         private void ReportClick(object sender, RoutedEventArgs e)

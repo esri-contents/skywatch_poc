@@ -151,24 +151,43 @@ def run(args) -> dict:
     out.mkdir(parents=True, exist_ok=True)
     cfg_path = out / "project.yaml"
     t_start = time.time()
-    if args.report_only or args.survey_export or args.survey_import:
+    if args.report_only or args.survey_export or args.survey_import or args.sheets:
         from ..evaluation import generate_interpretation_official as official
         from . import survey
         cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8"))
+        info_path = out / "run_info.json"
+        info = json.loads(info_path.read_text(encoding="utf-8")) if info_path.exists() else {}
+        prev = info.get("result") or {}
+        html = Path(prev.get("report") or Path(cfg["interpretation"]["out_dir"]) / "reports" / f'{cfg["project"]["id"]}_parcel_interpretation_official.html')
+        shp = prev.get("appendix1")
         res = {}
         if args.survey_export:
             _step(1, "현장조사표·조사용 지오데이터베이스 작성", n=1)
             sdir = survey.export(cfg, log=_log)
             res = {"survey_dir": str(sdir), "survey_gdb": str(sdir / "survey.gdb"), "survey_xlsx": str(sdir / "현장조사표.xlsx")}
+        elif args.sheets:
+            from . import sheets
+            _step(1, "필지 도면 PDF 작성", n=1)
+            pdf, pages = sheets.export(cfg, out / f"필지도면_붙임1_{datetime.now():%Y%m%d_%H%M%S}.pdf", log=_log)
+            res = {"sheets_pdf": str(pdf), "sheets_pages": pages}
         else:
             if args.survey_import:
                 _step(1, "현장조사 결과 읽기", n=2)
                 survey.import_results(cfg, args.survey_import, log=_log)
             _step(2 if args.survey_import else 1, STEPS[4], n=2 if args.survey_import else 1)
-            official.generate(cfg, config_path=str(cfg_path))
-        info = json.loads((out / "run_info.json").read_text(encoding="utf-8")) if (out / "run_info.json").exists() else {}
-        html = Path(cfg["interpretation"]["out_dir"]) / "reports" / f'{cfg["project"]["id"]}_parcel_interpretation_official.html'
-        return {**_result(cfg, out, html, info), **res}
+            # 이전 보고서·붙임 1 SHP는 그대로 두고(열려 있거나 Pro가 잠갔을 수 있음) 생성 시각을 붙여 새로 쓴다
+            stamp = f"_{datetime.now():%Y%m%d_%H%M%S}"
+            html = official.generate(cfg, config_path=str(cfg_path), suffix=stamp)
+            shp = str(html.parent / f"{SHP_NAME}{stamp}" / f"{SHP_NAME}{stamp}.shp")
+            _log(f"   보고서 저장: {html}")
+            _log(f"   붙임 1 SHP 저장: {shp}")
+        # 처음 실행 때 알린 주의 사항은 다시 띄우지 않는다(실행 이력·로그에는 남아 있음)
+        result = {**_result(cfg, out, html, info, shp), "warnings": [], **res}
+        if info and not args.sheets and not args.survey_export:
+            info["result"] = {k: v for k, v in result.items() if k not in res}
+            info.setdefault("rebuilt_reports", []).append(str(html))
+            info_path.write_text(json.dumps(info, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
+        return result
 
     free_gb = shutil.disk_usage(out).free / 1e9
     if free_gb < MIN_FREE_GB:  # 실행 하나에 분할·변화탐지·근거 영상 등 약 1~2GB(새 영상이면 정리본 +2GB)를 쓴다
@@ -272,12 +291,12 @@ def counts(cfg: dict) -> dict:
             "new_A": n("new_A"), "gone_AB": n("gone_A") + n("gone_B")}
 
 
-def _result(cfg: dict, out: Path, html: Path, info: dict) -> dict:
+def _result(cfg: dict, out: Path, html: Path, info: dict, shp: str | None = None) -> dict:
     io = Path(cfg["interpretation"]["out_dir"])
     return {"report": str(html), "out": str(out), "parcels": str(io / "vectors" / "parcel_interpretation.gpkg"),
             "objects": str(io / "vectors" / "structure_change_objects.gpkg"),
             "csv": str(io / "reports" / "parcel_interpretation.csv"), "qa": str(io / "qa" / REVIEW_ROUND / "qa_labels.csv"),
-            "appendix1": str(io / "reports" / SHP_NAME / f"{SHP_NAME}.shp"),
+            "appendix1": shp or str(io / "reports" / SHP_NAME / f"{SHP_NAME}.shp"),
             "image_t0": cfg["imagery"]["epochs"][0]["path"], "image_t2": cfg["imagery"]["epochs"][1]["path"],
             "status_field": f"status_{cfg['interpretation']['epochs'][0]}", "minutes": info.get("minutes"),
             "warnings": warnings(info)}
@@ -312,8 +331,9 @@ def main() -> None:
     ap.add_argument("--report-only", action="store_true")
     ap.add_argument("--survey-export", action="store_true", help="현장조사표(xlsx)·survey.gdb 작성")
     ap.add_argument("--survey-import", help="채운 현장조사표(xlsx) 또는 Field Maps gdb를 읽어 보고서에 반영")
+    ap.add_argument("--sheets", action="store_true", help="붙임 1 필지 도면 PDF(필지마다 A4 1쪽) 작성")
     args = ap.parse_args()
-    if not (args.report_only or args.survey_export or args.survey_import) and not all([args.t0, args.t0_date, args.t2, args.t2_date]):
+    if not (args.report_only or args.survey_export or args.survey_import or args.sheets) and not all([args.t0, args.t0_date, args.t2, args.t2_date]):
         ap.error("--t0, --t0-date, --t2, --t2-date가 필요합니다")
     os.chdir(ROOT)
     try:

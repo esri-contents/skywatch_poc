@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -19,7 +19,7 @@ namespace GwangmyeongInterpretation
     /// </summary>
     internal static class Runner
     {
-        public const string RequiredImports = "import rasterio.warp, sklearn, cv2, skimage, geopandas, yaml, pyarrow, matplotlib";
+        public const string RequiredImports = "import rasterio.warp, rasterstats, sklearn, cv2, skimage, geopandas, yaml, pyarrow, matplotlib, openpyxl";
         private static readonly Regex StepRe = new(@"^@@STEP (\d+)/(\d+) (.*)$");
 
         public static string ProPython()
@@ -42,15 +42,21 @@ namespace GwangmyeongInterpretation
                     yield return Path.Combine(d.Trim(), "python.exe");
         }
 
-        /// <summary>판독에 필요한 패키지를 모두 불러오는 첫 후보. 없으면 null과 마지막 오류.</summary>
-        public static async Task<(string python, string error)> FindPythonAsync(string configured)
+        // 한 번 확인한 Python은 Pro 세션 동안 다시 확인하지 않는다(패키지 import에 10~30초 걸림)
+        private static string _verified;
+
+        /// <summary>판독에 필요한 패키지를 모두 불러오는 첫 후보. 없으면 null과 마지막 오류. force면 이전 확인을 무시.</summary>
+        public static async Task<(string python, string error)> FindPythonAsync(string configured, bool force = false)
         {
+            if (!force && _verified != null && File.Exists(_verified) &&
+                (string.IsNullOrWhiteSpace(configured) || string.Equals(configured, _verified, StringComparison.OrdinalIgnoreCase)))
+                return (_verified, null);
             string err = "Python을 찾지 못함";
             foreach (var py in PythonCandidates(configured).Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 if (!File.Exists(py)) continue;
-                var (code, output) = await CaptureAsync(py, $"-c \"{RequiredImports}; print('ok')\"", null, TimeSpan.FromSeconds(90));
-                if (code == 0 && output.Contains("ok")) return (py, null);
+                var (code, output) = await CaptureAsync(py, $"-c \"{RequiredImports}; print('ok')\"", null, TimeSpan.FromSeconds(120));
+                if (code == 0 && output.Contains("ok")) return (_verified = py, null);
                 err = $"{py}: {output.Trim().Split('\n').LastOrDefault()}";
             }
             return (null, err);
@@ -79,19 +85,39 @@ namespace GwangmyeongInterpretation
 
         private static async Task<(int code, string output)> CaptureAsync(string exe, string args, string workDir, TimeSpan timeout)
         {
+            Process p = null;
             try
             {
-                using var p = Process.Start(Info(exe, args, workDir));
+                p = Process.Start(Info(exe, args, workDir));
                 var o = p.StandardOutput.ReadToEndAsync();
                 var e = p.StandardError.ReadToEndAsync();
                 using var cts = new CancellationTokenSource(timeout);
                 await p.WaitForExitAsync(cts.Token);
                 return (p.ExitCode, await o + await e);
             }
+            catch (OperationCanceledException)
+            {
+                try { p?.Kill(entireProcessTree: true); } catch (Exception) { /* 이미 종료 */ }
+                return (-1, $"응답 없음({timeout.TotalSeconds:0}초 초과)");
+            }
             catch (Exception ex) { return (-1, ex.Message); }
+            finally { p?.Dispose(); }
         }
 
-        public static string Quote(string s) => "\"" + s.Replace("\"", "\\\"") + "\"";
+        /// <summary>명령줄 인자 하나를 따옴표로 감싼다. 따옴표 앞·끝의 역슬래시는 두 배로(예: "D:\"가 따옴표를 삼키지 않게).</summary>
+        public static string Quote(string s)
+        {
+            var sb = new StringBuilder("\"");
+            int slashes = 0;
+            foreach (var c in s)
+            {
+                if (c == '\\') { slashes++; continue; }
+                sb.Append('\\', c == '"' ? slashes * 2 + 1 : slashes);
+                slashes = 0;
+                sb.Append(c);
+            }
+            return sb.Append('\\', slashes * 2).Append('"').ToString();
+        }
 
         /// <summary>실행기를 돌린다. 반환: (종료 코드, 결과 JSON 또는 null, 오류 메시지 또는 null).</summary>
         public static async Task<(int code, string resultJson, string error)> RunAsync(

@@ -82,8 +82,8 @@ module.exports = {
     ["fig", "ribbon", "The [광명시흥 판독] tab (drawing of the button layout; labels are shown in Korean in the add-in)"],
     ["table", ["Button", "Function"], [
       ["판독 실행 (Run)", "Runs the whole interpretation from the images, dates and output folder (5.1)"],
-      ["보고서 열기 (Open report)", "Opens the current report HTML in the default browser"],
-      ["보고서 다시 만들기 (Rebuild report)", "Rebuilds only the report and Appendix 1 shapefile with review and survey input"],
+      ["보고서 열기 (Open report)", "Opens the current report HTML in the default browser (the most recent one if rebuilt)"],
+      ["보고서 다시 만들기 (Rebuild report)", "Makes a new report and Appendix 1 shapefile with review and survey input; earlier ones are not overwritten (5.3)"],
       ["결과 레이어 추가 (Add result layers)", "Adds the result layers and both images to the current map as a group (5.2)"],
       ["결과 폴더 (Result folder)", "Opens the output folder in File Explorer"],
       ["실행 이력 (Run history)", "Lists previous runs; reopen a report, layers or folder, or make a run the current result (5.6)"],
@@ -130,6 +130,7 @@ module.exports = {
       "Each judgement is saved immediately and the next sample opens. Use ←/→ to move, '미검수만' (unreviewed only) to filter, and '지도 따라가기' (follow on map) to pan the map to each sample.",
       "When finished, click [보고서 다시 만들기] (Rebuild report) to put the precision figures into the report.",
     ]],
+    ["note", "Reports are saved in <output root>\\<run time>\\interpretation\\reports\\. [보고서 다시 만들기] (Rebuild report) and [현장조사 결과 가져오기] (Import field survey) never overwrite an earlier report: the new report and Appendix 1 shapefile get a creation-time suffix (_YYYYMMDD_HHMMSS), so they work even while the old report is open in a browser or the Appendix 1 layer is on a Pro map. The completion message shows the new paths, and [보고서 열기] (Open report) opens the most recent report."],
     ["table", ["Sample stratum", "When to choose 'structure'"], [
       ["Unregistered · land category / attached", "At least one yellow blob is a structure that is not part of a registered building (shed, greenhouse, container, temporary building, etc.). Roof edges of registered buildings, paving and trees are 'not a structure'"],
       ["Unregistered · road/river land", "Same rule (stratum with many paving and vehicle false positives)"],
@@ -161,8 +162,8 @@ module.exports = {
     ["h2", "5.5 Parcel sheets PDF"],
     ["ul", [
       "One A4 portrait page per Appendix 1 parcel: baseline image on top, comparison image below (same extent), target parcel (red), detected blobs (yellow), parcel boundaries (white), scale bar, north arrow and an information box (PNU, address, land category, status, parcel/registered/unregistered area, field check boxes).",
-      "Built with a Pro spatial map series and saved as one file, 필지도면_붙임1.pdf, in the run folder (297 pages for 297 parcels).",
-      "The two maps and the layout '필지 도면(붙임 1)' stay in the project, so text and layout can be adjusted in Pro and exported again.",
+      "Progress is shown in the run window; the result is one file, 필지도면_붙임1_<creation time>.pdf, in the run folder (about 3 minutes and 115 MB for 320 parcels) and can be opened straight away.",
+      "The sheets are drawn by the analysis Python, not by Pro maps or layouts, so the Pro session is not affected. Print quality is A4 at 150 dpi.",
     ]],
     ["h2", "5.6 Run history and reuse"],
     ["ul", [

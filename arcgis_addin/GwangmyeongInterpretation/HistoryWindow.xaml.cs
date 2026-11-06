@@ -50,7 +50,8 @@ namespace GwangmyeongInterpretation
                 if (!File.Exists(f)) continue;
                 try
                 {
-                    var j = JsonDocument.Parse(File.ReadAllText(f)).RootElement;
+                    using var doc = JsonDocument.Parse(File.ReadAllText(f));
+                    var j = doc.RootElement;
                     if (!j.TryGetProperty("result", out var res)) continue;  // 끝나지 않은 실행
                     var reused = new List<string>();
                     bool Yes(string v) => string.Equals(v, "true", StringComparison.OrdinalIgnoreCase);
@@ -97,8 +98,9 @@ namespace GwangmyeongInterpretation
             var r = Selected();
             if (r == null) return;
             Settings.Current.Last = r;
-            Settings.Current.Save();
+            Settings.Current.TrySave();
             Load();
+            ReviewPaneView.Current?.Reload();  // 열려 있는 표본 검수 창도 새 실행의 검수표로
         }
 
         private void ReportClick(object sender, RoutedEventArgs e) { var r = Selected(); if (r != null) Shell.Open(r.report); }

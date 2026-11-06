@@ -30,6 +30,8 @@ namespace GwangmyeongInterpretation
         public string survey_dir { get; set; }
         public string survey_gdb { get; set; }
         public string survey_xlsx { get; set; }
+        public string sheets_pdf { get; set; }
+        public int? sheets_pages { get; set; }
         public string image_t0 { get; set; }
         public string image_t2 { get; set; }
         public string status_field { get; set; }
@@ -89,10 +91,15 @@ namespace GwangmyeongInterpretation
             return new Settings();
         }
 
-        public void Save()
+        /// <summary>설정 저장. 실패해도(권한·디스크) 작업은 계속한다 - 다음 Pro 실행에서 마지막 결과를 기억하지 못할 뿐.</summary>
+        public void TrySave()
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(FilePath));
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }));
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(FilePath));
+                File.WriteAllText(FilePath, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping }));
+            }
+            catch (Exception ex) { Debug.WriteLine($"settings save failed: {ex.Message}"); }
         }
     }
 
@@ -105,7 +112,11 @@ namespace GwangmyeongInterpretation
                 MessageBox.Show($"파일이 없습니다:\n{path}", "광명시흥 판독");
                 return;
             }
-            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+            try { Process.Start(new ProcessStartInfo(path) { UseShellExecute = true }); }
+            catch (Exception ex)  // 연결 프로그램 없음(예: PDF 뷰어 미설치) 등 - 예외가 처리기 밖으로 나가면 Pro가 종료된다
+            {
+                MessageBox.Show($"파일을 열 프로그램이 없거나 열 수 없습니다. 탐색기에서 직접 여세요.\n{path}\n\n{ex.Message}", "광명시흥 판독");
+            }
         }
 
         public static RunResult LastOrWarn()
@@ -179,7 +190,8 @@ namespace GwangmyeongInterpretation
         {
             var r = Shell.LastOrWarn();
             if (r == null) return;
-            await Survey.RemoveLayersAsync();
+            try { await Survey.RemoveLayersAsync(); }
+            catch (Exception ex) { MessageBox.Show($"이전 현장조사 레이어를 지도에서 빼지 못했습니다. 직접 제거한 뒤 다시 실행하세요.\n{ex.Message}", "현장조사 내보내기"); return; }
             var w = new RunWindow { Owner = FrameworkApplication.Current.MainWindow };
             w.Show();
             w.StartTask("현장조사 내보내기", $"--out {Runner.Quote(r.@out)} --survey-export", r.@out, async res =>
@@ -220,21 +232,22 @@ namespace GwangmyeongInterpretation
         }
     }
 
+    /// <summary>붙임 1 필지 도면 PDF. 분석 Python이 만든다(Pro 레이아웃으로 300쪽을 내보내면 Pro가 종료되는 문제가 있었다).</summary>
     internal class ParcelSheetsButton : Button
     {
-        protected override async void OnClick()
+        protected override void OnClick()
         {
             var r = Shell.LastOrWarn();
             if (r == null) return;
-            var pdf = Path.Combine(r.@out, "필지도면_붙임1.pdf");
-            try
+            var w = new RunWindow { Owner = FrameworkApplication.Current.MainWindow };
+            w.Show();
+            w.StartTask("필지 도면 PDF", $"--out {Runner.Quote(r.@out)} --sheets", r.@out, res =>
             {
-                var pages = await ParcelSheets.ExportAsync(r, pdf);
-                if (MessageBox.Show($"필지 도면 {pages}쪽을 PDF로 저장했습니다.\n{pdf}\n\n지금 열까요?", "필지 도면 PDF", System.Windows.MessageBoxButton.YesNo)
-                    == System.Windows.MessageBoxResult.Yes)
-                    Shell.Open(pdf);
-            }
-            catch (Exception ex) { MessageBox.Show($"도면 작성 실패:\n{ex.Message}", "필지 도면 PDF"); }
+                if (MessageBox.Show($"필지 도면 {res.sheets_pages}쪽을 PDF로 저장했습니다.\n{res.sheets_pdf}\n\n지금 열까요?", "필지 도면 PDF",
+                                    System.Windows.MessageBoxButton.YesNo) == System.Windows.MessageBoxResult.Yes)
+                    Shell.Open(res.sheets_pdf);
+                return Task.CompletedTask;
+            });
         }
     }
 }

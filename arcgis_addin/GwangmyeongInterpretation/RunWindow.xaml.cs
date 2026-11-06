@@ -18,6 +18,7 @@ namespace GwangmyeongInterpretation
         private const string ImageFilter = "항공사진|*.tif;*.tiff;*.ecw;*.jp2;*.j2k;*.sid;*.img;*.jpg;*.jpeg;*.png;*.vrt;*.bil;*.dat|모든 파일|*.*";
         private static readonly Regex DateRe = new(@"^\d{4}(-\d{2}(-\d{2})?)?$");
         private CancellationTokenSource _cts;
+        private string _task = "판독 실행";
         private readonly Stopwatch _clock = new();
         private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
 
@@ -71,7 +72,7 @@ namespace GwangmyeongInterpretation
             s.T2Path = T2Path.Text.Trim(); s.T2Date = T2Date.Text.Trim();
             s.OutRoot = OutRoot.Text.Trim(); s.RepoPath = RepoPath.Text.Trim(); s.AnalysisPython = PythonPath.Text.Trim();
             s.ChangeDetection = ChangeDetection.IsChecked == true; s.AddToMap = AddToMap.IsChecked == true; s.OpenReport = OpenReport.IsChecked == true;
-            s.Save();
+            s.TrySave();
         }
 
         private string ValidateInputs()
@@ -89,10 +90,10 @@ namespace GwangmyeongInterpretation
             return null;
         }
 
-        private async Task<string> ResolvePythonAsync()
+        private async Task<string> ResolvePythonAsync(bool force = false)
         {
             AppendLog("분석 Python 확인 중…");
-            var (py, err) = await Runner.FindPythonAsync(PythonPath.Text.Trim());
+            var (py, err) = await Runner.FindPythonAsync(PythonPath.Text.Trim(), force);
             if (py == null)
             {
                 AppendLog("✖ " + err);
@@ -106,7 +107,7 @@ namespace GwangmyeongInterpretation
             return py;
         }
 
-        private async void CheckEnv(object sender, RoutedEventArgs e) => await ResolvePythonAsync();
+        private async void CheckEnv(object sender, RoutedEventArgs e) => await ResolvePythonAsync(force: true);
 
         private void SetBusy(bool busy)
         {
@@ -117,35 +118,61 @@ namespace GwangmyeongInterpretation
 
         private async void RunClick(object sender, RoutedEventArgs e)
         {
-            var err = ValidateInputs();
-            if (err != null) { MessageBox.Show(err, "광명시흥 판독"); return; }
-            SaveSettings();
-            var py = await ResolvePythonAsync();
-            if (py == null) return;
-            SaveSettings();
-            var outDir = Path.Combine(OutRoot.Text.Trim(), DateTime.Now.ToString("yyyyMMdd_HHmmss"));
-            var args = $"--out {Runner.Quote(outDir)} --t0 {Runner.Quote(T0Path.Text.Trim())} --t0-date {T0Date.Text.Trim()} " +
-                       $"--t2 {Runner.Quote(T2Path.Text.Trim())} --t2-date {T2Date.Text.Trim()}";
-            var pro = Runner.ProPython();
-            if (pro != null) args += $" --pro-python {Runner.Quote(pro)}";
-            if (ChangeDetection.IsChecked != true) args += " --no-change";
-            await Execute(py, args, outDir);
+            try
+            {
+                var err = ValidateInputs();
+                if (err != null) { MessageBox.Show(err, "광명시흥 판독"); return; }
+                SaveSettings();
+                RunBtn.IsEnabled = false;  // Python 확인 중 두 번 눌러 실행이 둘 생기지 않게
+                var py = await ResolvePythonAsync();
+                if (py == null) { RunBtn.IsEnabled = true; return; }
+                SaveSettings();
+                var outDir = Path.Combine(OutRoot.Text.Trim(), DateTime.Now.ToString("yyyyMMdd_HHmmss"));
+                var args = $"--out {Runner.Quote(outDir)} --t0 {Runner.Quote(T0Path.Text.Trim())} --t0-date {T0Date.Text.Trim()} " +
+                           $"--t2 {Runner.Quote(T2Path.Text.Trim())} --t2-date {T2Date.Text.Trim()}";
+                var pro = Runner.ProPython();
+                if (pro != null) args += $" --pro-python {Runner.Quote(pro)}";
+                if (ChangeDetection.IsChecked != true) args += " --no-change";
+                await Execute(py, args, outDir);
+            }
+            catch (Exception ex) { Fail(ex); }
+        }
+
+        /// <summary>창 처리기에서 잡히지 않은 예외는 Pro 전체를 종료시킬 수 있어 여기서 받아 알린다.</summary>
+        private void Fail(Exception ex)
+        {
+            SetBusy(false);
+            RunBtn.IsEnabled = true;
+            StepText.Text = "오류";
+            AppendLog($"✖ {ex.GetType().Name}: {ex.Message}");
+            MessageBox.Show($"{_task} 중 오류가 났습니다.\n{ex.Message}\n\n창의 로그를 확인하세요.", "광명시흥 판독");
         }
 
         /// <summary>검수표 입력 후 보고서만 다시 만든다(리본의 [보고서 다시 만들기]).</summary>
         public void StartReportOnly(string outDir) => StartTask("보고서 다시 만들기", $"--out {Runner.Quote(outDir)} --report-only", outDir,
-            r => { Shell.Open(r.report); return Task.CompletedTask; });
+            r =>
+            {
+                MessageBox.Show("보고서를 새로 만들었습니다(이전 보고서는 지우지 않고 그대로 둡니다).\n\n" +
+                                $"보고서: {r.report}\n붙임 1 SHP: {r.appendix1}\n\n[보고서 열기]는 이제 이 보고서를 엽니다.", "보고서 다시 만들기");
+                Shell.Open(r.report);
+                return Task.CompletedTask;
+            });
 
         /// <summary>판독 이외의 작업(보고서 재작성·현장조사 내보내기/가져오기)을 같은 창에서 돌린다. after는 성공 후 할 일.</summary>
         internal async void StartTask(string title, string args, string outDir, Func<RunResult, Task> after = null)
         {
             Title = $"광명시흥 판독 - {title}";
+            _task = title;
             // 작업 모드: 판독 입력란과 [판독 실행]은 쓰지 않으므로 숨긴다
             InputGrid.Visibility = OptionsBox.Visibility = RunBtn.Visibility = Visibility.Collapsed;
             Height = 520;
-            var py = await ResolvePythonAsync();
-            if (py == null) return;
-            await Execute(py, args, outDir, after, addAndOpen: after == null);
+            try
+            {
+                var py = await ResolvePythonAsync();
+                if (py == null) return;
+                await Execute(py, args, outDir, after, addAndOpen: after == null);
+            }
+            catch (Exception ex) { Fail(ex); }
         }
 
         private async Task Execute(string py, string args, string outDir, Func<RunResult, Task> after = null, bool addAndOpen = true)
@@ -162,16 +189,22 @@ namespace GwangmyeongInterpretation
                     StepText.Text = $"{i}/{n} {text}";
                 }), _cts.Token);
             SetBusy(false);
+            if (code == -2)
+            {
+                StepText.Text = "취소함";
+                AppendLog("취소했습니다 - 만들던 파일은 완성되지 않았을 수 있습니다");
+                return;
+            }
             if (code != 0 || json == null)
             {
                 StepText.Text = "실패";
-                MessageBox.Show($"판독 실행이 실패했습니다.\n{error ?? $"종료 코드 {code}"}\n\n자세한 내용은 창의 로그를 확인하세요.", "광명시흥 판독");
+                MessageBox.Show($"{_task}이(가) 실패했습니다.\n{error ?? $"종료 코드 {code}"}\n\n자세한 내용은 창의 로그를 확인하세요.", "광명시흥 판독");
                 return;
             }
             Progress.Value = Progress.Maximum;
             var r = JsonSerializer.Deserialize<RunResult>(json);
             Settings.Current.Last = r;
-            Settings.Current.Save();
+            Settings.Current.TrySave();
             StepText.Text = $"완료 ({_clock.Elapsed:hh\\:mm\\:ss})";
             AppendLog($"보고서: {r.report}");
             if (r.warnings is { Count: > 0 })

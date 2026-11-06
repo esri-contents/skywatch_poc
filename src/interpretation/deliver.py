@@ -32,7 +32,7 @@ def appendix1(parcels: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     return u.assign(SEQ=range(1, len(u) + 1))
 
 
-def write_appendix1_shp(parcels: gpd.GeoDataFrame, status_field: str, out_dir: Path, note: str = "") -> Path:
+def write_appendix1_shp(parcels: gpd.GeoDataFrame, status_field: str, out_dir: Path, note: str = "", name: str = NAME) -> Path:
     """SHP 묶음(shp·shx·dbf·prj·cpg)과 필드설명.txt, 같은 내용의 CSV, 전부 담은 zip을 만든다. 반환: zip 경로."""
     u = appendix1(parcels)
     t = gpd.GeoDataFrame({"SEQ": u["SEQ"].astype(int)}, geometry=u.geometry.values, crs=parcels.crs)
@@ -46,16 +46,18 @@ def write_appendix1_shp(parcels: gpd.GeoDataFrame, status_field: str, out_dir: P
     t["STATUS"] = u[status_field].to_numpy()
     t = t[[*FIELDS, "geometry"]]
     out_dir.mkdir(parents=True, exist_ok=True)
-    shp = out_dir / f"{NAME}.shp"
+    shp = out_dir / f"{name}.shp"
     t.to_file(shp, driver="ESRI Shapefile", encoding="UTF-8")
-    pd.DataFrame(t.drop(columns="geometry")).to_csv(out_dir / f"{NAME}.csv", index=False, encoding="utf-8-sig")
+    pd.DataFrame(t.drop(columns="geometry")).to_csv(shp.with_suffix(".csv"), index=False, encoding="utf-8-sig")
     desc = ["보고서 붙임 1. 독립 미등재 구조물 필지 - 필지 폴리곤(SHP)", f"필지 {len(t):,}개 · 좌표계 EPSG:5186(KGD2002 Central Belt 2010) · 인코딩 UTF-8", ""]
     desc += [f"{f:<10} {d}" for f, (_, d) in FIELDS.items()]
     if note:
         desc += ["", note]
     (out_dir / "필드설명.txt").write_text("\n".join(desc) + "\n", encoding="utf-8-sig")
     z = out_dir.with_suffix(".zip")
+    # 직접 쓴 파일만 담는다 - Pro가 레이어로 열면 같은 폴더에 *.sr.lock 같은 잠긴 파일을 만든다
     with zipfile.ZipFile(z, "w", zipfile.ZIP_DEFLATED) as zf:
         for p in sorted(out_dir.iterdir()):
-            zf.write(p, f"{out_dir.name}/{p.name}")
+            if p.stem == shp.stem and p.suffix.lower() in (".shp", ".shx", ".dbf", ".prj", ".cpg", ".csv") or p.name == "필드설명.txt":
+                zf.write(p, f"{out_dir.name}/{p.name}")
     return z

@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 
 from ..data.project_acquisition import load_project
-from . import classifier, evidence, parcels, qa, reference, tiling
+from . import buildings_ref, classifier, deliver, evidence, parcels, qa, reference, tiling
 
 
 def run(project_config: str, resegment: bool = False, refit: bool = False, evidence_n: int = 40) -> dict:
@@ -32,10 +32,12 @@ def run(project_config: str, resegment: bool = False, refit: bool = False, evide
     dates = {e: str(epochs[e]["date"]) for e in (t1, t2)}
     crs = cfg["project"]["analysis_crs"]
     seg_dir = out / "segments"
+    # 판독 기준 건물 레이어(v2.0: 건물통합정보 + 도로명주소 + 대장). 없으면(이전 설정) 도로명주소 건물만.
+    ref_path = cfg["paths"].get("buildings_ref") or cfg["paths"]["buildings"]
 
     if resegment or not all((seg_dir / f"segments_{e}.parquet").exists() for e in images):
         print("1) 타일 분할")
-        tiling.run(images, cfg["paths"]["aoi"], cfg["paths"]["buildings"], seg_dir, ic, crs=crs)
+        tiling.run(images, cfg["paths"]["aoi"], ref_path, seg_dir, ic, crs=crs)
 
     (out / "reports").mkdir(parents=True, exist_ok=True)
     prob_path, metrics_path = seg_dir / "segment_prob.parquet", out / "reports" / "classifier_metrics.json"
@@ -77,19 +79,32 @@ def run(project_config: str, resegment: bool = False, refit: bool = False, evide
         shadow = dark if shadow is None else shadow | dark
     change = Path(cfg["paths"]["output_root"]) / "comparisons" / f"{t1}_{t2}" / "rasters" / "change_probability.tif"
     change_prob = parcels._resample_to(change, profile) if change.exists() else None
-    bld = gpd.read_file(cfg["paths"]["buildings"]).to_crs(crs)
-    bld = bld[bld.area > 0]
-    masks = parcels.footprint_masks(bld, profile, rc["tolerance_m"])
+    bld = buildings_ref.load(ref_path, crs)
+    if "reg" not in bld:  # 이전 설정(도로명주소 건물만): 전부 등재로 본다(v1.x 동작)
+        bld = bld.assign(reg=buildings_ref.LINKED, violt=False)
+    print(f"  기준 건물 {len(bld):,}동(대장 연계 {int((bld['reg'] == buildings_ref.LINKED).sum()):,}, "
+          f"위반건축물 {int(bld['violt'].sum())})")
+    linked = bld[bld["reg"] == buildings_ref.LINKED]
+    masks = parcels.footprint_masks(linked, profile, rc["tolerance_m"])  # 등재 = 대장 연계 윤곽
+    map_fp, _ = parcels.footprint_masks(bld, profile, rc["tolerance_m"])
+    _, unreg_near = parcels.footprint_masks(bld[bld["reg"] != buildings_ref.LINKED], profile, rc["tolerance_m"])
+    violt_fp, _ = parcels.footprint_masks(bld[bld["violt"].astype(bool)], profile, rc["tolerance_m"])
     objs = pd.concat([
         parcels.change_objects(probs[t1], probs[t2], rc, res, profile["transform"], crs, change_prob, "new", shadow),
         parcels.change_objects(probs[t2], probs[t1], rc, res, profile["transform"], crs, change_prob, "gone", shadow),
-        parcels.unregistered_objects(probs[t1], masks[1], rc, res, profile["transform"], crs, fp=masks[0]),
+        parcels.unregistered_objects(probs[t1], masks[1], rc, res, profile["transform"], crs, fp=masks[0],
+                                     unreg_map=unreg_near, violt_map=violt_fp),
     ], ignore_index=True)
     objs = gpd.GeoDataFrame(objs, geometry="geometry", crs=crs)
     cad_all = gpd.read_file(cfg["paths"]["cadastre"]).to_crs(crs)
     cad = parcels.drop_aggregate_parcels(cad_all)
     print(f"  지적 {len(cad_all):,}개 중 상위(중복) 폴리곤 {len(cad_all) - len(cad):,}개 제외")
-    table, objs = parcels.parcel_table(cad, probs, profile, res, bld, objs, rc, t1, t2, masks)
+    table, objs = parcels.parcel_table(cad, probs, profile, res, bld, objs, rc, t1, t2, masks, map_fp=map_fp)
+    table["violt_n"] = buildings_ref.count_in_parcels(bld[bld["violt"].astype(bool)], table)
+    reg = reference.register_by_parcel(cfg["paths"].get("building_register"), cfg["paths"].get("building_register_basis"),
+                                       cfg["paths"].get("building_register_atch"))
+    table = reference.attach_register(table, reg, t1, rc)
+    print(f"  건축물대장 대조: {table['register_check'].value_counts().to_dict()}")
     metrics["footprint_recall"] = {e: parcels.footprint_recall(bld, probs[e], profile, rc["prob_hi"]) for e in images}
     (out / "vectors").mkdir(parents=True, exist_ok=True)
     table.to_file(out / "vectors" / "parcel_interpretation.gpkg", layer="parcels")
@@ -132,6 +147,10 @@ def run(project_config: str, resegment: bool = False, refit: bool = False, evide
         "status_t1": table[f"status_{t1}"].value_counts().to_dict(),
         "change": table["change"].value_counts().to_dict(),
         "unregistered_parcels": int(table["unregistered_flag"].sum()),
+        "register_check": table["register_check"].value_counts().drop("", errors="ignore").to_dict(),
+        "unregistered_noreg_parcels": int(len(deliver.appendix1b(table))),
+        "violt_parcels": int((table["violt_n"] > 0).sum()),
+        "buildings_ref": buildings_ref.summary(bld) if "source" in bld else None,
         "objects": {f"{k}_{t}": v for (k, t), v in objs.groupby(["kind", "tier"]).agg(
             n=("area_m2", "size"), m2=("area_m2", "sum")).round(1).to_dict("index").items()},
     }

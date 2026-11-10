@@ -16,6 +16,12 @@ paths:
   cadastre: "data/projects/gwangmyeong_siheung_aerial/processed/cadastre.gpkg"
   building_register: "data/projects/gwangmyeong_siheung_aerial/raw/building_register/title_info.json"
   building_permits: "data/projects/gwangmyeong_siheung_aerial/raw/building_permits/basic_outline.json"
+  building_register_atch: "data/projects/gwangmyeong_siheung_aerial/raw/building_register/atch_jibun.json"
+  building_register_basis: "data/projects/gwangmyeong_siheung_aerial/raw/building_register/basis_outline.json"
+  # v2.0 판독 기준 건물 레이어(src/interpretation/buildings_ref.py): GIS건물통합정보(VWorld NED) + 도로명주소 건물 + 대장.
+  # 판독기 학습 정답·등재 판정은 이것을 쓴다. 위 buildings(도로명주소 건물)는 화소 변화탐지 단계에서만 쓴다.
+  gis_buildings: "data/projects/gwangmyeong_siheung_aerial/raw/gis_buildings/gis_buildings.geojson"
+  buildings_ref: "data/projects/gwangmyeong_siheung_aerial/processed/buildings_ref.gpkg"
   output_gdb: "outputs/gwangmyeong_siheung_aerial/arcgis/gwangmyeong_siheung_aerial.gdb"
   output_aprx: "outputs/gwangmyeong_siheung_aerial/arcgis/gwangmyeong_siheung_aerial.aprx"
   reports: "outputs/gwangmyeong_siheung_aerial/reports"
@@ -176,6 +182,10 @@ interpretation:
     tolerance_m: 1.0      # 정합 오차(RMSE 0.42m) 여유 - 상대 시기 구조물을 이만큼 넓혀 뺌
     min_object_m2: 20     # 신규·소멸·미등재 객체 최소 면적
     min_struct_m2: 10     # 필지에 '구조물 있음'으로 볼 최소 면적
+    # 건축물대장 대조(reference.attach_register). 대장 건축면적 대비 판독 면적 비는 중앙값 0.98, 상위 5% 1.6이라
+    # 2배·50㎡를 넘을 때만 "대장 면적 초과"(증축·가설물 의심)로 본다. 여러 필지에 걸친 대장은 비교하지 않음.
+    register_excess_ratio: 2.0
+    register_excess_min_m2: 50
     corroborate_min: 0.5  # 객체 안 평균 앙상블 변화확률이 이 이상이면 '두 방법 일치'
     # 1차 육안 검수(신규 A 30건: 실제 3 / 오탐 23 / 불명 4) 후 추가. 오탐 9건이 그림자 위치 변화,
     # 나머지 다수가 불규칙한 포장·적치물이었다. 그림자 차단 기준은 segmentation.shadow_l_max.

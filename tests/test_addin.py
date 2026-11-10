@@ -313,16 +313,16 @@ def test_round_selection_for_report():
 ADDIN = addin_run.ROOT / "arcgis_addin" / "GwangmyeongInterpretation"
 
 
-def test_addin_builds_for_pro_35_and_later():
-    """3.5·3.6·3.7 공용: Pro 3.5 SDK 참조(.NET 8)와 desktopVersion 3.5가 맞아야 한다.
-    3.7 어셈블리(.NET 10)로 빌드하거나 desktopVersion을 올리면 3.5·3.6에서 로드되지 않는다."""
+def test_addin_builds_for_pro_36():
+    """v2.0은 Pro 3.6 기준: Pro 3.6 SDK 참조(.NET 8)와 desktopVersion 3.6이 맞아야 한다(3.6·3.7에서 로드, 3.5는 안 됨).
+    3.7 어셈블리(.NET 10)로 빌드하면 3.6에서 로드되지 않는다."""
     import re
     proj = (ADDIN / "GwangmyeongInterpretation.csproj").read_text(encoding="utf-8")
     daml = (ADDIN / "Config.daml").read_text(encoding="utf-8-sig")
     assert "<TargetFramework>net8.0-windows</TargetFramework>" in proj
     nuget = re.search(r'Include="Esri.ArcGISPro.Extensions30" Version="(\d+)\.(\d+)\.', proj)
     desktop = re.search(r'desktopVersion="(\d+)\.(\d+)\.\d+"', daml)
-    assert nuget and desktop and nuget.groups() == desktop.groups() == ("3", "5")
+    assert nuget and desktop and nuget.groups() == desktop.groups() == ("3", "6")
     assert "HintPath" not in proj  # Pro 설치 폴더 어셈블리를 직접 참조하면 빌드 PC의 Pro 버전에 묶인다
 
 

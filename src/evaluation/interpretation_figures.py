@@ -28,6 +28,7 @@ plt.rcParams.update({"axes.unicode_minus": False, "font.size": 9})
 
 STATUS = [("있음(등재+판독)", "#1f6f78"), ("있음(등재만)", "#8fb8bd"), ("있음(판독만)", "#c8414b"), ("영상 부족", "#9aa3aa")]
 C_IND, C_ATT, C_LOW = "#c8414b", "#e9a23b", "#8a8f94"
+C_NOREG = "#7b4fa0"  # 미등재 · 도면 있음·대장 없음(v2.0)
 C_NEW, C_GONE = "#ffb703", "#3a7bd5"
 
 
@@ -123,14 +124,15 @@ def distribution_maps(cfg, parcels, objs, t1: str, out: Path) -> Path:
         aoi.boundary.plot(ax=ax, color="#111", linewidth=1.0, zorder=4)
         ax.set_xlim(b[0], b[2]); ax.set_ylim(b[1], b[3]); ax.set_axis_off()
     ax = axes[0]
-    for conf, color in [("저신뢰", C_LOW), ("부속 의심", C_ATT), ("독립", C_IND)]:
+    for conf, color in [("저신뢰", C_LOW), ("부속 의심", C_ATT), ("대장 없음", C_NOREG), ("독립", C_IND)]:
         sub = parcels[parcels["unregistered_conf"] == conf]
         if len(sub):
             sub.plot(ax=ax, color=color, linewidth=.3, edgecolor=color, zorder=3)
             c = sub.geometry.representative_point()
             ax.scatter(c.x, c.y, s=7 if conf != "독립" else 11, color=color, zorder=5, linewidths=0)
-    ax.set_title("(가) 건물 레이어 미등재 구조물 필지", fontsize=10.5, fontweight="bold", loc="left")
-    ax.legend(handles=[Patch(color=C_IND, label=f'독립 ({(parcels["unregistered_conf"] == "독립").sum()}필지)'),
+    ax.set_title("(가) 미등재 구조물 필지", fontsize=10.5, fontweight="bold", loc="left")
+    ax.legend(handles=[Patch(color=C_IND, label=f'독립 · 도면·대장 없음 ({(parcels["unregistered_conf"] == "독립").sum()}필지)'),
+                       Patch(color=C_NOREG, label=f'대장 없음 · 도면 있음 ({(parcels["unregistered_conf"] == "대장 없음").sum()})'),
                        Patch(color=C_ATT, label=f'부속 의심 ({(parcels["unregistered_conf"] == "부속 의심").sum()})'),
                        Patch(color=C_LOW, label=f'저신뢰 ({(parcels["unregistered_conf"] == "저신뢰").sum()})')],
               loc="upper left", fontsize=8, framealpha=.92)
@@ -171,7 +173,7 @@ def method_panels(cfg, parcels, objs, buildings, t1: str, out: Path, half_m: flo
     edge[:, :-1] |= seg[:, :-1] != seg[:, 1:]
     fig, axes = plt.subplots(2, 2, figsize=(9.6, 9.8), dpi=200)
     ext = (b[0], b[2], b[1], b[3])
-    titles = ["① 원본 항공 정사영상", "② 조각화(색·밝기가 비슷한 화소 묶음)", "③ 조각별 구조물 확률", "④ 판정: 건물 레이어 대조"]
+    titles = ["① 원본 항공 정사영상", "② 조각화(색·밝기가 비슷한 화소 묶음)", "③ 조각별 구조물 확률", "④ 판정: 기준 건물·대장 대조"]
     for ax, t in zip(axes.ravel(), titles):
         ax.set_title(t, fontsize=10.5, fontweight="bold", loc="left")
         ax.set_xlim(b[0], b[2]); ax.set_ylim(b[1], b[3]); ax.set_axis_off()
@@ -188,13 +190,17 @@ def method_panels(cfg, parcels, objs, buildings, t1: str, out: Path, half_m: flo
     bl = buildings[buildings.intersects(win)]
     pc = parcels[parcels.intersects(win)]
     pc.boundary.plot(ax=ax, color="white", linewidth=.8)
+    if "reg" in bl:  # v2.0: 대장 연계 = 청록, 대장 미연계 윤곽 = 회색
+        bl[bl["reg"] != "연계"].plot(ax=ax, facecolor="#9aa3aa", alpha=.45, edgecolor="#9aa3aa", linewidth=1)
+        bl = bl[bl["reg"] == "연계"]
     bl.plot(ax=ax, facecolor="#1f6f78", alpha=.45, edgecolor="#1f6f78", linewidth=1)
     uu = objs[(objs["kind"] == "unregistered") & objs.intersects(win)]
-    for tier, color in [("U", C_IND), ("UA", C_ATT)]:
+    for tier, color in [("U", C_IND), ("R", C_NOREG), ("UA", C_ATT)]:
         s = uu[uu["tier"] == tier]
         if len(s):
             s.plot(ax=ax, facecolor="none", edgecolor=color, linewidth=2.2)
-    ax.legend(handles=[Patch(facecolor="#1f6f78", alpha=.5, label="건물 레이어(등재)"), Patch(facecolor="none", edgecolor=C_IND, lw=2, label="미등재 · 독립"),
+    ax.legend(handles=[Patch(facecolor="#1f6f78", alpha=.5, label="대장 연계 건물(등재)"), Patch(facecolor="#9aa3aa", alpha=.5, label="대장 없는 건물 윤곽"),
+                       Patch(facecolor="none", edgecolor=C_IND, lw=2, label="미등재 · 독립"), Patch(facecolor="none", edgecolor=C_NOREG, lw=2, label="미등재 · 대장 없음"),
                        Patch(facecolor="none", edgecolor=C_ATT, lw=2, label="미등재 · 부속 의심"), Line2D([], [], color="white", lw=1.5, label="필지 경계")],
               loc="lower right", fontsize=7.5, framealpha=.9, facecolor="#333", labelcolor="white")
     for a in axes.ravel():

@@ -24,7 +24,8 @@
           <GridViewColumn Header="비교 시기 영상" DisplayMemberBinding="{Binding T2}" Width="190"/>
           <GridViewColumn Header="소요(분)" DisplayMemberBinding="{Binding Minutes}" Width="60"/>
           <GridViewColumn Header="필지" DisplayMemberBinding="{Binding Parcels}" Width="60"/>
-          <GridViewColumn Header="독립 미등재" DisplayMemberBinding="{Binding Unreg}" Width="75"/>
+          <GridViewColumn Header="미등재(도면·대장 없음)" DisplayMemberBinding="{Binding Unreg}" Width="75"/>
+          <GridViewColumn Header="미등재(대장 없음)" DisplayMemberBinding="{Binding NoReg}" Width="75"/>
           <GridViewColumn Header="신규 A" DisplayMemberBinding="{Binding NewA}" Width="55"/>
           <GridViewColumn Header="소멸 A·B" DisplayMemberBinding="{Binding Gone}" Width="60"/>
           <GridViewColumn Header="재사용" DisplayMemberBinding="{Binding Reused}" Width="55"/>

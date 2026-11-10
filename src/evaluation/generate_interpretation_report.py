@@ -196,7 +196,7 @@ def _timing(baseline: str | None, d1: str) -> tuple[bool, int, str]:
 _ROUNDS = {"round1": "1차 · 규칙 보정용", "round2": "2차 · 평가", "round3": "3차 · 필지 평가(부속 분리 규칙 보정에도 사용)",
            "round4": "4차 · 미등재 독립/부속 평가", "review1": "검수 1차"}
 _STRATA = {"new_A": "신규 의심 A", "new_C": "신규 C(판독만)", "unregistered": "미등재(조각 단위)", "gone_AB": "소멸 의심(전수)",
-           "unreg_linear": "미등재 · 도로·하천류 지목", "seen_linear": "판독만 · 도로·하천류 지목", "unreg_attached": "미등재 · 부속 의심",
+           "unreg_linear": "미등재 · 도로·하천류 지목", "seen_linear": "판독만 · 도로·하천류 지목", "unreg_noreg": "미등재 · 도면 있음·대장 없음", "unreg_attached": "미등재 · 부속 의심",
            **{f"unreg_{g}": f"미등재 · 지목 {g}" for g in ["대", "전", "답", "목", "임", "기타"]}}
 
 

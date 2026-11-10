@@ -20,16 +20,23 @@ namespace GwangmyeongInterpretation
     {
         private const string Id = "GwangmyeongInterpretation_ReviewPane";
 
-        public static void Show()
+        public static void Show() => Show(null);
+
+        /// <summary>창을 연다. screen이 true/false면 그 모드(후보 판독/표본 검수)로 바꿔 다시 읽는다.</summary>
+        public static void Show(bool? screen)
         {
+            if (screen.HasValue) ReviewPaneView.ScreenMode = screen.Value;
             var pane = FrameworkApplication.DockPaneManager.Find(Id);
             pane?.Activate();
+            if (screen.HasValue) ReviewPaneView.Current?.SyncMode();
         }
     }
 
     /// <summary>
-    /// 표본 검수 창: 검수표(qa/review1/qa_labels.csv)의 표본 영상을 한 장씩 보고 판정한다. 판정마다 바로 저장(label·note·judge).
-    /// 층별 판정 기준은 src/interpretation/qa.py build_parcel_round의 설명과 같다.
+    /// 검수·판독 창. 두 모드가 같은 화면·같은 표 형식(QaTable)을 쓴다. 판정마다 바로 저장(label·note·judge, 후보 판독은 reason도).
+    /// - 표본 검수: 검수표(qa/review1/qa_labels.csv) 표본으로 정밀도를 잰다. 층별 기준은 src/interpretation/qa.py build_parcel_round와 같다.
+    /// - 후보 판독: 모델 후보 전체(screen/screen_labels.csv, 번호는 현장조사와 같음)를 육안 판독해 오탐을 현장조사에서 뺀다
+    ///   (src/interpretation/screen.py).
     /// </summary>
     public partial class ReviewPaneView : UserControl
     {
@@ -37,6 +44,7 @@ namespace GwangmyeongInterpretation
         {
             ["new_A"] = "신규 의심 A", ["gone_AB"] = "소멸 의심(전수)", ["unreg_linear"] = "미등재 · 도로·하천류 지목",
             ["seen_linear"] = "판독만 · 도로·하천류 지목", ["unreg_attached"] = "미등재 · 부속 의심",
+            ["unreg_noreg"] = "미등재 · 도면 있음·대장 없음",
         };
 
         private static string StratumName(string s) => StratumNames.TryGetValue(s, out var n) ? n : s.StartsWith("unreg_") ? $"미등재 · 지목 {s[6..]}" : s;
@@ -49,6 +57,21 @@ namespace GwangmyeongInterpretation
             _ => "노란 선 안 덩어리 중 하나라도 등재 건물의 일부가 아닌 구조물(창고·하우스·컨테이너·가설물 등)이면 '맞음'. 등재 건물 지붕 가장자리·포장면·수목은 '아님'",
         };
 
+        private static readonly string[] ScreenLabelTexts = { "현장조사 대상", "오탐(제외)", "판단 보류" };
+        private static readonly string[] Reasons = { "", "그림자 위치 변화", "경사지붕 일조·밝기 차이", "나지→포장면", "차량·적치물",
+                                                     "비닐하우스·컨테이너 색·반사", "수목·식생", "기타" };
+
+        /// <summary>true = 후보 판독, false = 표본 검수.</summary>
+        internal static bool ScreenMode { get; set; }
+
+        private static string GuideForScreen(string stratum) => stratum switch
+        {
+            "screen_A" => "왼쪽(기준 시기)에 없던 구조물이 오른쪽(비교 시기) 노란 선 안에 실제로 생겼으면 ① 현장조사 대상. 그림자·지붕 밝기·포장·차량·적치물·하우스 색 변화면 ② 오탐(원인 선택). 확대·행정자료 확인이 더 필요하면 ③",
+            "screen_G" => "왼쪽(기준 시기) 노란 선 안 구조물이 오른쪽(비교 시기)에 실제로 없어졌으면 ① 현장조사 대상. 그림자·밝기 차이로 안 보일 뿐이면 ② 오탐",
+            "screen_R" => "노란 선 안이 건물통합정보에는 있으나 대장이 없는 건물이다. 영상에 실제 구조물(창고·하우스·컨테이너·가설물 등)이 있으면 ① 현장조사 대상. 이미 철거됐거나 포장면·수목이면 ② 오탐",
+            _ => "노란 선 안에 건물 레이어에 없는 실제 구조물(창고·하우스·컨테이너·가설물 등)이 있으면 ① 현장조사 대상. 등재 건물 지붕 가장자리·포장면·수목·차량이면 ② 오탐",
+        };
+
         private QaTable _qa;
         private List<int> _order = new();
         private int _pos;
@@ -59,13 +82,36 @@ namespace GwangmyeongInterpretation
         public ReviewPaneView()
         {
             InitializeComponent();
+            Reason.ItemsSource = Reasons;  // Render가 선택을 맞추기 전에 목록이 있어야 한다
             Current = this;
         }
 
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
             Judge.Text = Settings.Current.Judge;
-            if (_qa == null || !string.Equals(_qa.Path, Settings.Current.Last?.qa, StringComparison.OrdinalIgnoreCase)) Reload();
+            SyncMode();
+        }
+
+        /// <summary>모드 표시(버튼 글자·원인 목록)를 맞추고, 열린 표가 현재 모드·결과의 표가 아니면 다시 읽는다.</summary>
+        internal void SyncMode()
+        {
+            if (Mode.SelectedIndex != (ScreenMode ? 1 : 0)) Mode.SelectedIndex = ScreenMode ? 1 : 0;
+            var texts = ScreenMode ? ScreenLabelTexts : QaTable.Labels.Select(l => l.text).ToArray();
+            B1.Content = "① " + texts[0]; B2.Content = "② " + texts[1]; B3.Content = "③ " + texts[2];
+            ReasonRow.Visibility = ScreenMode ? Visibility.Visible : Visibility.Collapsed;
+            ReportBtn.Content = ScreenMode ? "현장조사 내보내기" : "보고서 다시 만들기";
+            var want = ScreenMode ? Settings.Current.Last?.screen : Settings.Current.Last?.qa;
+            if (_qa == null || !string.Equals(_qa.Path, want, StringComparison.OrdinalIgnoreCase)) Reload();
+        }
+
+        private void ModeChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!IsLoaded) return;
+            var screen = Mode.SelectedIndex == 1;
+            if (screen == ScreenMode) return;
+            ScreenMode = screen;
+            _qa = null;
+            SyncMode();
         }
 
         internal void Reload()
@@ -81,10 +127,10 @@ namespace GwangmyeongInterpretation
 
         private void LoadTable()
         {
-            var path = Settings.Current.Last?.qa;
+            var path = ScreenMode ? Settings.Current.Last?.screen : Settings.Current.Last?.qa;
             if (string.IsNullOrEmpty(path) || !File.Exists(path))
             {
-                FileText.Text = "검수표가 없습니다 - 먼저 [판독 실행]을 하세요";
+                FileText.Text = ScreenMode ? "판독표가 없습니다 - 리본의 [후보 판독]을 누르면 만듭니다" : "검수표가 없습니다 - 먼저 [판독 실행]을 하세요";
                 _qa = null;
                 Render();
                 return;
@@ -110,11 +156,11 @@ namespace GwangmyeongInterpretation
             var done = _qa?.Done ?? 0;
             Bar.Maximum = Math.Max(total, 1);
             Bar.Value = done;
-            ProgressText.Text = $"검수 {done}/{total}";
+            ProgressText.Text = $"{(ScreenMode ? "판독" : "검수")} {done}/{total}";
             ReportBtn.IsEnabled = done > 0;
             if (_qa == null || _order.Count == 0)
             {
-                Heading.Text = _qa == null ? "" : "남은 표본이 없습니다";
+                Heading.Text = _qa == null ? "" : ScreenMode ? "남은 후보가 없습니다" : "남은 표본이 없습니다";
                 Guide.Text = "";
                 Chip.Source = null;
                 return;
@@ -123,10 +169,18 @@ namespace GwangmyeongInterpretation
             var sid = _qa.Get(i, "sample_id");
             var stratum = _qa.Get(i, "stratum");
             var label = _qa.Get(i, "label");
-            var text = QaTable.Labels.FirstOrDefault(l => l.code == label).text;
-            Heading.Text = $"{_pos + 1}/{_order.Count}  {sid} · {StratumName(stratum)}  PNU {_qa.Get(i, "pnu")}" + (text != null ? $"  [{text}]" : "");
-            Guide.Text = GuideFor(stratum);
+            var li = Array.FindIndex(QaTable.Labels, l => l.code == label);
+            var text = li < 0 ? null : ScreenMode ? ScreenLabelTexts[li] : QaTable.Labels[li].text;
+            var what = ScreenMode ? $"{_qa.Get(i, "kind")} · {_qa.Get(i, "jimok")} {_qa.Get(i, "addr")}" : StratumName(stratum);
+            Heading.Text = $"{_pos + 1}/{_order.Count}  {sid} · {what}  PNU {_qa.Get(i, "pnu")}" + (text != null ? $"  [{text}]" : "");
+            Guide.Text = ScreenMode ? GuideForScreen(stratum) : GuideFor(stratum);
             Note.Text = _qa.Get(i, "note");
+            if (ScreenMode)
+            {
+                var rs = _qa.Get(i, "reason");
+                var ri = Array.IndexOf(Reasons, rs);
+                if (ri >= 0) Reason.SelectedIndex = ri; else Reason.Text = rs;
+            }
             foreach (var b in new[] { B1, B2, B3 })
                 b.FontWeight = (string)b.Tag == label ? FontWeights.Bold : FontWeights.Normal;
             var img = Path.Combine(Path.GetDirectoryName(_qa.Path), sid + ".jpg");
@@ -169,6 +223,7 @@ namespace GwangmyeongInterpretation
             _qa.Set(i, "label", code);
             _qa.Set(i, "note", Note.Text.Trim());
             _qa.Set(i, "judge", Judge.Text.Trim());
+            if (ScreenMode) _qa.Set(i, "reason", code == "not_structure" ? (Reason.Text ?? "").Trim() : "");
             try { _qa.Save(); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
@@ -178,7 +233,10 @@ namespace GwangmyeongInterpretation
             if (_qa.Done == _qa.Rows.Count)
             {
                 Render();
-                if (MessageBox.Show("모든 표본을 검수했습니다. 정밀도를 반영해 보고서를 다시 만들까요?", "표본 검수", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+                var ask = ScreenMode
+                    ? "모든 후보를 판독했습니다. 오탐을 뺀 대상으로 현장조사표·survey.gdb를 내보낼까요?"
+                    : "모든 표본을 검수했습니다. 정밀도를 반영해 보고서를 다시 만들까요?";
+                if (MessageBox.Show(ask, ScreenMode ? "후보 판독" : "표본 검수", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
                     ReportClick(this, null);
                 return;
             }
@@ -204,6 +262,9 @@ namespace GwangmyeongInterpretation
         private void NextClick(object sender, RoutedEventArgs e) => Move(+1);
         private void ReloadClick(object sender, RoutedEventArgs e) => Reload();
 
+        /// <summary>원인을 고른 뒤 바로 2를 누를 수 있게 포커스를 창으로 돌린다(콤보상자에 있으면 단축키를 무시한다).</summary>
+        private void ReasonClosed(object sender, EventArgs e) => Focus();
+
         private void FilterClick(object sender, RoutedEventArgs e)
         {
             if (_qa == null) return;
@@ -221,6 +282,7 @@ namespace GwangmyeongInterpretation
         {
             var r = Settings.Current.Last;
             if (r == null) return;
+            if (ScreenMode) { SurveyExportButton.Start(); return; }
             var w = new RunWindow { Owner = FrameworkApplication.Current.MainWindow };
             w.Show();
             w.StartReportOnly(r.@out);
@@ -228,7 +290,7 @@ namespace GwangmyeongInterpretation
 
         private void OnKey(object sender, KeyEventArgs e)
         {
-            if (e.OriginalSource is TextBox) return;  // 메모·판독자 입력 중에는 단축키 무시
+            if (e.OriginalSource is TextBox || e.OriginalSource is System.Windows.Controls.ComboBox || e.OriginalSource is System.Windows.Controls.ComboBoxItem) return;  // 메모·판독자·원인 입력 중에는 단축키 무시
             switch (e.Key)
             {
                 case Key.D1: case Key.NumPad1: SetLabel("structure"); break;

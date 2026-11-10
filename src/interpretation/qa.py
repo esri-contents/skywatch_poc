@@ -121,13 +121,16 @@ def build_parcel_round(out_dir: Path, images: dict, dates: dict, table: gpd.GeoD
     unreg = objects[objects["kind"] == "unregistered"]
     flagged = t[t["unregistered_flag"]].copy()
     conf = flagged.get("unregistered_conf", pd.Series("독립", index=flagged.index))
-    flagged["group"] = np.select([flagged["linear_jimok"], conf == "부속 의심"], ["linear", "attached"],
-                                 _jimok_group(flagged["jimok"]))
+    # v2.0: '대장 없음'(도면 있음·대장 없음)은 독립(도면·대장 없음)과 정밀도를 따로 재도록 별도 층
+    flagged["group"] = np.select([flagged["linear_jimok"], conf == "부속 의심", conf == "대장 없음"],
+                                 ["linear", "attached", "noreg"], _jimok_group(flagged["jimok"]))
     strata = []
     if "unreg" in parts:
         strata += [(f"unreg_{g}", flagged[flagged["group"] == g], per_group) for g in [*JIMOK_GROUPS.values(), "기타"]]
         if (flagged["group"] == "attached").any():
             strata.append(("unreg_attached", flagged[flagged["group"] == "attached"], per_attached))
+        if (flagged["group"] == "noreg").any():
+            strata.append(("unreg_noreg", flagged[flagged["group"] == "noreg"], per_attached))
     if "linear" in parts:
         strata.append(("unreg_linear", flagged[flagged["group"] == "linear"], per_linear))
     if "seen" in parts:

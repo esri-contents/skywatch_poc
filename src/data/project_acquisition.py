@@ -25,7 +25,9 @@ from .build_cadastre import build_cadastre
 from .download import (
     VWORLD_BUILDING_LAYER,
     VWORLD_CADASTRE_LAYERS,
+    download_vworld_gis_buildings,
     download_vworld_wfs_layer,
+    fetch_building_register,
     fetch_building_title_info,
 )
 
@@ -123,19 +125,23 @@ def register_legal_dong_codes(buildings: gpd.GeoDataFrame, cadastre: gpd.GeoData
     return sorted(code for code in codes if area.get(code, 0.0) >= min_share * aoi_area_m2)
 
 
-def acquire_building_register(cfg: dict[str, Any]) -> dict[str, Any]:
+def _register_codes(cfg: dict[str, Any]) -> list[str]:
     buildings = gpd.read_file(cfg["paths"]["buildings"])
     crs = cfg["project"]["analysis_crs"]
     cad_path = Path(cfg["paths"].get("cadastre", ""))
     cadastre = gpd.read_file(cad_path).to_crs(crs) if cfg["paths"].get("cadastre") and cad_path.exists() else None
     aoi_area = float(gpd.read_file(cfg["paths"]["aoi"]).to_crs(crs).geometry.area.sum())
-    codes = register_legal_dong_codes(buildings, cadastre, aoi_area)
+    return register_legal_dong_codes(buildings, cadastre, aoi_area)
+
+
+def _fetch_register(codes: list[str], operation: str, out: Path, keep=None) -> dict[str, Any]:
     all_items: list[dict[str, Any]] = []
     errors: dict[str, str] = {}
     for code in codes:
         for attempt in range(3):
             try:
-                all_items.extend(fetch_building_title_info(code[:5], code[5:10]))
+                items = fetch_building_register(code[:5], code[5:10], operation)
+                all_items.extend(i for i in items if keep is None or keep(i))
                 break
             except Exception as exc:  # 일시적 비JSON 응답은 제한적으로 재시도
                 errors[code] = str(exc)
@@ -144,11 +150,42 @@ def acquire_building_register(cfg: dict[str, Any]) -> dict[str, Any]:
         else:
             continue
         errors.pop(code, None)
-    out = Path(cfg["paths"]["building_register"])
     out.parent.mkdir(parents=True, exist_ok=True)
     with open(out, "w", encoding="utf-8") as stream:
         json.dump(all_items, stream, ensure_ascii=False, indent=2)
     return {"legal_dong_codes": codes, "records": len(all_items), "errors": errors}
+
+
+def acquire_building_register(cfg: dict[str, Any]) -> dict[str, Any]:
+    return _fetch_register(_register_codes(cfg), "getBrTitleInfo", Path(cfg["paths"]["building_register"]))
+
+
+def acquire_register_linkage(cfg: dict[str, Any]) -> dict[str, Any]:
+    """대장 필지 연계용 부속지번·기본개요. 표제부(acquire_building_register)와 같은 법정동."""
+    codes = _register_codes(cfg)
+    out = {}
+    # 기본개요의 전유부(호실 단위, 광명시흥 2.6만 건)는 필지 대조에 쓰지 않아 저장하지 않는다(배포 크기 31MB → 5MB)
+    not_unit = lambda i: str(i.get("regstrKindCd")) != "4"  # noqa: E731
+    for key, operation, keep in (("building_register_atch", "getBrAtchJibunInfo", None),
+                                 ("building_register_basis", "getBrBasisOulnInfo", not_unit)):
+        if cfg["paths"].get(key):
+            out[key] = _fetch_register(codes, operation, Path(cfg["paths"][key]), keep)
+    return out
+
+
+def acquire_buildings_ref(cfg: dict[str, Any], aoi: gpd.GeoDataFrame) -> dict[str, Any]:
+    """GIS건물통합정보(VWorld NED)를 받고 도로명주소 건물·대장 표제부와 합쳐 판독 기준 건물 레이어를 만든다.
+
+    표제부(building_register)를 먼저 받아 둬야 대장 연계(주용도·관리번호)가 붙는다.
+    """
+    from ..interpretation import buildings_ref
+    if not cfg["paths"].get("gis_buildings") or not cfg["paths"].get("buildings_ref"):
+        return {}
+    x0, y0, x1, y1 = aoi.to_crs(5186).total_bounds
+    download_vworld_gis_buildings((x0 - 50, y0 - 50, x1 + 50, y1 + 50), cfg["paths"]["gis_buildings"])
+    ref = buildings_ref.build(cfg["paths"]["gis_buildings"], cfg["paths"]["buildings"], cfg["paths"]["building_register"],
+                              cfg["paths"]["aoi"], cfg["paths"]["buildings_ref"], cfg["project"]["analysis_crs"])
+    return buildings_ref.summary(ref)
 
 
 def acquire_building_permits(cfg: dict[str, Any], codes: list[str]) -> dict[str, Any]:
@@ -284,6 +321,9 @@ def acquire_all(project_config: str | Path) -> dict[str, Any]:
     result["building_permits"] = acquire_building_permits(
         cfg, result["building_register"]["legal_dong_codes"]
     )
+    result["register_linkage"] = {k: {"records": v["records"], "errors": v["errors"]}
+                                  for k, v in acquire_register_linkage(cfg).items()}
+    result["buildings_ref"] = acquire_buildings_ref(cfg, aoi)
     if cfg["imagery"].get("source") == "local":
         # 사용자가 제공한 로컬 영상은 내려받지 않고 경로/존재 여부만 기록한다.
         result["imagery"] = [

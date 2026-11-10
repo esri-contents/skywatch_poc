@@ -2,7 +2,7 @@
 <ArcGIS defaultAssembly="GwangmyeongInterpretation.dll" defaultNamespace="GwangmyeongInterpretation"
         xmlns="http://schemas.esri.com/DADF/Registry" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:schemaLocation="http://schemas.esri.com/DADF/Registry file:///C:/Program%20Files/ArcGIS/Pro/bin/ArcGIS.Desktop.Framework.xsd">
-  <AddInInfo id="{6b1f4c2e-8d3a-4f57-9a1e-2c7d5e9b4a10}" version="1.2" desktopVersion="3.5.0">
+  <AddInInfo id="{6b1f4c2e-8d3a-4f57-9a1e-2c7d5e9b4a10}" version="2.0" desktopVersion="3.6.0">
     <Name>광명시흥 필지 구조물 판독</Name>
     <Description>항공사진 두 장(형식 무관)을 넣으면 광명시흥 공공주택지구 필지 단위 구조물 판독을 수행하고 공공기관 보고서 HTML과 결과 레이어를 만듭니다.</Description>
     <Author>skywatch_poc</Author>
@@ -28,7 +28,8 @@
           <button refID="GwangmyeongInterpretation_History" size="middle" />
         </group>
         <group id="GwangmyeongInterpretation_FieldGroup" caption="검수·현장조사" appearsOnAddInTab="false" keytip="S">
-          <button refID="GwangmyeongInterpretation_Review" size="large" />
+          <button refID="GwangmyeongInterpretation_Screen" size="large" />
+          <button refID="GwangmyeongInterpretation_Review" size="middle" />
           <button refID="GwangmyeongInterpretation_SurveyExport" size="middle" />
           <button refID="GwangmyeongInterpretation_SurveyImport" size="middle" />
           <button refID="GwangmyeongInterpretation_ParcelSheets" size="middle" />
@@ -70,6 +71,11 @@
                 largeImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/InspectionViewer32.png">
           <tooltip heading="표본 검수">검수 표본 영상을 한 장씩 보며 구조물 맞음·아님·판단 불가를 판정합니다(단축키 1·2·3). 지도가 표본 위치로 따라갑니다.<disabledText /></tooltip>
         </button>
+        <button id="GwangmyeongInterpretation_Screen" caption="후보 판독" className="ScreenButton" loadOnClick="true" keytip="C"
+                smallImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/InspectionViewer16.png"
+                largeImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/InspectionViewer32.png">
+          <tooltip heading="후보 판독">모델 결과는 변화 후보입니다. 후보(붙임 1·신규·소멸)를 한 건씩 전후 영상으로 판독해 현장조사 대상·오탐·판단 보류로 나눕니다(단축키 1·2·3). 오탐은 현장조사 내보내기에서 빠집니다.<disabledText /></tooltip>
+        </button>
         <button id="GwangmyeongInterpretation_SurveyExport" caption="현장조사 내보내기" className="SurveyExportButton" loadOnClick="true" keytip="E"
                 smallImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/ExcelWorkbookFile16.png"
                 largeImage="pack://application:,,,/ArcGIS.Desktop.Resources;component/Images/ExcelWorkbookFile32.png">
@@ -87,7 +93,7 @@
         </button>
       </controls>
       <dockPanes>
-        <dockPane id="GwangmyeongInterpretation_ReviewPane" caption="표본 검수" className="ReviewPaneViewModel" dock="group" dockWith="esri_core_contentsDockPane">
+        <dockPane id="GwangmyeongInterpretation_ReviewPane" caption="검수·판독" className="ReviewPaneViewModel" dock="group" dockWith="esri_core_contentsDockPane">
           <content className="ReviewPaneView" />
         </dockPane>
       </dockPanes>

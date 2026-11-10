@@ -33,7 +33,8 @@ STEPS = ["기준 시기 영상 정리", "비교 시기 영상 정리", "화소 �
          "조각화·판독기 학습·필지 판정", "보고서 작성"]
 REVIEW_ROUND = "review1"  # 새 영상 실행의 검수 표본 회차(저장소 round1~4와 섞이지 않게 이름을 달리 둔다)
 MIN_FREE_GB = 3
-_DATA_KEYS =("aoi", "buildings", "cadastre", "building_register", "building_permits")
+_DATA_KEYS = ("aoi", "buildings", "cadastre", "building_register", "building_permits",
+              "building_register_atch", "building_register_basis", "gis_buildings", "buildings_ref")
 
 
 def _step(i: int, text: str, n: int | None = None) -> None:
@@ -146,12 +147,17 @@ def _cached_files(cfg: dict) -> dict[str, Path]:
     return files
 
 
+def _followup(args) -> bool:
+    """판독 결과 폴더에 대한 후속 명령(보고서·현장조사·도면·후보 판독)인지 - 영상 입력이 필요 없다."""
+    return bool(args.report_only or args.survey_export or args.survey_import or args.sheets or args.screen_export)
+
+
 def run(args) -> dict:
     out = Path(args.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
     cfg_path = out / "project.yaml"
     t_start = time.time()
-    if args.report_only or args.survey_export or args.survey_import or args.sheets:
+    if _followup(args):
         from ..evaluation import generate_interpretation_official as official
         from . import survey
         cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8"))
@@ -161,7 +167,11 @@ def run(args) -> dict:
         html = Path(prev.get("report") or Path(cfg["interpretation"]["out_dir"]) / "reports" / f'{cfg["project"]["id"]}_parcel_interpretation_official.html')
         shp = prev.get("appendix1")
         res = {}
-        if args.survey_export:
+        if args.screen_export:
+            from . import screen
+            _step(1, "후보 판독표·근거 영상 작성", n=1)
+            res = {"screen": str(screen.export(cfg, log=_log))}
+        elif args.survey_export:
             _step(1, "현장조사표·조사용 지오데이터베이스 작성", n=1)
             sdir = survey.export(cfg, log=_log)
             res = {"survey_dir": str(sdir), "survey_gdb": str(sdir / "survey.gdb"), "survey_xlsx": str(sdir / "현장조사표.xlsx")}
@@ -183,7 +193,7 @@ def run(args) -> dict:
             _log(f"   붙임 1 SHP 저장: {shp}")
         # 처음 실행 때 알린 주의 사항은 다시 띄우지 않는다(실행 이력·로그에는 남아 있음)
         result = {**_result(cfg, out, html, info, shp), "warnings": [], **res}
-        if info and not args.sheets and not args.survey_export:
+        if info and not (args.sheets or args.survey_export or args.screen_export):  # 보고서를 새로 쓴 경우만
             info["result"] = {k: v for k, v in result.items() if k not in res}
             info.setdefault("rebuilt_reports", []).append(str(html))
             info_path.write_text(json.dumps(info, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
@@ -228,7 +238,8 @@ def run(args) -> dict:
             "change_detection": None, "reused_analysis": False}
     akey = adir = None
     if cache:
-        data = [file_hash(cfg["paths"][k], memo) for k in ("aoi", "buildings", "cadastre")]
+        # 분할 특징의 건물 겹침(fp_frac)·판독기 정답이 기준 건물 레이어에서 오므로 그 해시를 키에 넣는다
+        data = [file_hash(cfg["paths"][k], memo) for k in ("aoi", "buildings_ref" if cfg["paths"].get("buildings_ref") else "buildings", "cadastre")]
         akey = analysis_key([hashes["t0"], hashes["t2"]], cfg, data, not args.no_change)
         adir = cache / "analysis" / akey
     if adir and (adir / "done.json").exists():
@@ -288,6 +299,7 @@ def counts(cfg: dict) -> dict:
     n = lambda k: int(o.get(k, {}).get("n", 0))
     return {"parcels": len(t), "unreg_independent": int((t["unregistered_conf"] == "독립").sum()),
             "unreg_attached": int((t["unregistered_conf"] == "부속 의심").sum()),
+            "unreg_noreg": int((t["unregistered_conf"] == "대장 없음").sum()),
             "new_A": n("new_A"), "gone_AB": n("gone_A") + n("gone_B")}
 
 
@@ -296,6 +308,7 @@ def _result(cfg: dict, out: Path, html: Path, info: dict, shp: str | None = None
     return {"report": str(html), "out": str(out), "parcels": str(io / "vectors" / "parcel_interpretation.gpkg"),
             "objects": str(io / "vectors" / "structure_change_objects.gpkg"),
             "csv": str(io / "reports" / "parcel_interpretation.csv"), "qa": str(io / "qa" / REVIEW_ROUND / "qa_labels.csv"),
+            "screen": str(io / "screen" / "screen_labels.csv"),
             "appendix1": shp or str(io / "reports" / SHP_NAME / f"{SHP_NAME}.shp"),
             "image_t0": cfg["imagery"]["epochs"][0]["path"], "image_t2": cfg["imagery"]["epochs"][1]["path"],
             "status_field": f"status_{cfg['interpretation']['epochs'][0]}", "minutes": info.get("minutes"),
@@ -332,8 +345,9 @@ def main() -> None:
     ap.add_argument("--survey-export", action="store_true", help="현장조사표(xlsx)·survey.gdb 작성")
     ap.add_argument("--survey-import", help="채운 현장조사표(xlsx) 또는 Field Maps gdb를 읽어 보고서에 반영")
     ap.add_argument("--sheets", action="store_true", help="붙임 1 필지 도면 PDF(필지마다 A4 1쪽) 작성")
+    ap.add_argument("--screen-export", action="store_true", help="후보 판독표(screen_labels.csv)·근거 영상 작성(이전 판독은 이어받음)")
     args = ap.parse_args()
-    if not (args.report_only or args.survey_export or args.survey_import or args.sheets) and not all([args.t0, args.t0_date, args.t2, args.t2_date]):
+    if not _followup(args) and not all([args.t0, args.t0_date, args.t2, args.t2_date]):
         ap.error("--t0, --t0-date, --t2, --t2-date가 필요합니다")
     os.chdir(ROOT)
     try:

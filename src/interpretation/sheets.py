@@ -23,7 +23,7 @@ FRAMES_TOP_MM = {"t0": 35, "t2": 143}       # 위쪽 여백 기준 지도 칸 �
 MARGIN = 1.8                                # 필지 범위 대비 지도 범위 배율
 MIN_WIDTH_M = 60                            # 작은 필지도 주변이 보이게 최소 지도 가로(m)
 NICE_M = (5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000)
-OBJ_WHERE = {"t0": lambda o: (o["kind"] == "unregistered") & (o["tier"] == "U"),
+OBJ_WHERE = {"t0": lambda o: (o["kind"] == "unregistered") & o["tier"].isin(["U", "R"]),
              "t2": lambda o: o["kind"].isin(["unregistered", "new", "gone"])}
 
 

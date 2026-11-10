@@ -8,8 +8,8 @@
     app\                                         판독 코드(src)·광명시흥 설정·기초자료·2022 기준 영상
     python\                                      분석 Python 3.12 + requirements-runtime.txt 패키지(고정 버전)
     install.ps1, 설치안내.txt
-  대상 PC 조건: Windows 10/11 64비트, ArcGIS Pro 3.5 이상(3.5·3.6·3.7, ECW·MrSID 형식 변환에 Pro의 GDAL을 쓴다).
-  빌드 PC 조건: .NET 10 SDK(.NET 8 대상으로 빌드), ArcGIS Pro 3.x 설치(.esriAddinX 패키징 도구). Pro 3.5 참조는 NuGet에서 받는다.
+  대상 PC 조건: Windows 10/11 64비트, ArcGIS Pro 3.6 이상(3.6·3.7, ECW·MrSID 형식 변환에 Pro의 GDAL을 쓴다).
+  빌드 PC 조건: .NET 10 SDK(.NET 8 대상으로 빌드). Pro 3.6 참조 어셈블리는 NuGet에서 받고 .esriAddinX도 직접 묶으므로 Pro 설치는 필요 없다(서명할 때만 Pro의 서명 도구 사용).
   python\은 이 PC의 Python 3.12 설치본을 복사한 뒤 패키지를 그 안에 설치한다(인터넷 필요, 약 1.5GB).
 
 .EXAMPLE
@@ -34,6 +34,25 @@ Write-Host "배포 폴더: $Dest"
 $addinProj = Join-Path $PSScriptRoot "GwangmyeongInterpretation"
 dotnet build $addinProj -c Release | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "Add-in 빌드 실패" }
+# Pro 3.6 기준 빌드 확인: 3.6보다 높은 Pro 어셈블리(13.7 이상)나 .NET 9 이상(3.7의 .NET 10)을 참조하면 3.6에서 로드되지 않는다
+$daml = [xml](Get-Content "$addinProj\Config.daml" -Encoding UTF8)
+if ($daml.ArcGIS.AddInInfo.desktopVersion -ne "3.6.0") { throw "Config.daml desktopVersion이 3.6.0이 아님" }
+$dll = [Reflection.Assembly]::ReflectionOnlyLoadFrom("$addinProj\bin\Release\GwangmyeongInterpretation.dll")
+foreach ($r in $dll.GetReferencedAssemblies()) {
+    if ($r.Name -like "ArcGIS.*" -and $r.Version -gt [version]"13.6.65535.65535") { throw "Pro 3.6보다 높은 어셈블리 참조: $($r.Name) $($r.Version)" }
+    if ($r.Name -eq "System.Runtime" -and $r.Version.Major -gt 8) { throw ".NET 8보다 높은 런타임 참조: $($r.Version)" }
+}
+# 패키지가 방금 빌드한 DLL·DAML을 담았는지 확인(패키징 단계가 다른 곳에 쓰면 bin\Release의 옛 패키지가 배포된다)
+Add-Type -AssemblyName System.IO.Compression.FileSystem
+$pkg = [IO.Compression.ZipFile]::OpenRead("$addinProj\bin\Release\GwangmyeongInterpretation.esriAddinX")
+try {
+    $sha = [Security.Cryptography.SHA256]::Create()
+    $inZip = $pkg.GetEntry("Install/GwangmyeongInterpretation.dll").Open()
+    $h1 = [BitConverter]::ToString($sha.ComputeHash($inZip)); $inZip.Dispose()
+    $h2 = (Get-FileHash "$addinProj\bin\Release\GwangmyeongInterpretation.dll" -Algorithm SHA256).Hash -replace '(..)(?!$)', '$1-'
+    if ($h1 -ne $h2) { throw "esriAddinX 안의 DLL이 방금 빌드한 DLL과 다름(옛 패키지)" }
+} finally { $pkg.Dispose() }
+Write-Host "Add-in: Pro 3.6 기준 확인(desktopVersion 3.6.0, ArcGIS 13.6, .NET 8), 패키지 = 이번 빌드"
 New-Item -ItemType Directory -Force "$Dest\addin" | Out-Null
 Copy-Item "$addinProj\bin\Release\GwangmyeongInterpretation.esriAddinX" "$Dest\addin\" -Force
 if ($SignCert) {
@@ -48,6 +67,8 @@ $files = @(
     "config\config.yaml", "config\projects\gwangmyeong_siheung_aerial.yaml",
     "$Proj\aoi\gwangmyeong_siheung_official.gpkg", "$Proj\processed\buildings.gpkg", "$Proj\processed\cadastre.gpkg",
     "$Proj\raw\building_register\title_info.json", "$Proj\raw\building_permits\basic_outline.json",
+    "$Proj\raw\building_register\atch_jibun.json", "$Proj\raw\building_register\basis_outline.json",
+    "$Proj\processed\buildings_ref.gpkg",                  # v2.0 판독 기준 건물(건물통합정보 + 도로명주소 + 대장)
     "$Proj\raw\imagery\aerial_20221201_0.25m.tif",          # 자동 정합 기준 영상(필수)
     "$Proj\raw\imagery\georef_2024_report.json",
     "arcgis_addin\requirements-runtime.txt"
@@ -84,7 +105,7 @@ Copy-Item "$PSScriptRoot\install.ps1" "$Dest\install.ps1" -Force
 @"
 광명시흥 필지 구조물 판독 - ArcGIS Pro Add-in 설치 안내
 
-1. ArcGIS Pro(3.5 이상)를 닫는다.
+1. ArcGIS Pro(3.6 이상)를 닫는다.
 2. 이 폴더에서 PowerShell을 열고 실행:
      powershell -ExecutionPolicy Bypass -File install.ps1
    (설치 위치를 바꾸려면 -InstallDir D:\광명시흥판독)

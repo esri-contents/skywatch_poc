@@ -4,6 +4,11 @@
              Focusable="True" KeyDown="OnKey" Loaded="OnLoaded">
   <DockPanel Margin="8">
     <StackPanel DockPanel.Dock="Top">
+      <ComboBox x:Name="Mode" Margin="0,0,0,4" SelectedIndex="0" SelectionChanged="ModeChanged"
+                ToolTip="표본 검수: 표본으로 정밀도를 잼 · 후보 판독: 후보 전체를 판독해 오탐을 현장조사에서 뺌">
+        <ComboBoxItem Content="표본 검수 (정밀도 측정)"/>
+        <ComboBoxItem Content="후보 판독 (현장조사 대상 선별)"/>
+      </ComboBox>
       <DockPanel Margin="0,0,0,4">
         <Button DockPanel.Dock="Right" Content="불러오기" Padding="8,1" Click="ReloadClick" Style="{DynamicResource Esri_Button}"
                 ToolTip="마지막 실행(또는 실행 이력에서 고른 결과)의 검수표를 다시 읽습니다"/>
@@ -25,6 +30,10 @@
     <StackPanel DockPanel.Dock="Bottom">
       <TextBlock Text="메모" Foreground="{DynamicResource Esri_TextStyleDefaultBrush}"/>
       <TextBox x:Name="Note" Height="44" TextWrapping="Wrap" AcceptsReturn="True" Margin="0,2,0,6"/>
+      <DockPanel x:Name="ReasonRow" Margin="0,0,0,6" Visibility="Collapsed">
+        <TextBlock Text="오탐 원인" VerticalAlignment="Center" Width="56" Foreground="{DynamicResource Esri_TextStyleDefaultBrush}"/>
+        <ComboBox x:Name="Reason" IsEditable="True" DropDownClosed="ReasonClosed" ToolTip="② 오탐으로 판정할 때 함께 기록됩니다(모델 개선 자료)"/>
+      </DockPanel>
       <UniformGrid Columns="3" Margin="0,0,0,6">
         <Button x:Name="B1" Content="① 구조물 맞음" Margin="0,0,4,0" Padding="0,6" Click="LabelClick" Tag="structure" Style="{DynamicResource Esri_Button}"/>
         <Button x:Name="B2" Content="② 구조물 아님" Margin="2,0,2,0" Padding="0,6" Click="LabelClick" Tag="not_structure" Style="{DynamicResource Esri_Button}"/>
@@ -35,7 +44,7 @@
         <Button DockPanel.Dock="Right" Content="다음 ▶" Padding="10,2" Click="NextClick" Style="{DynamicResource Esri_Button}"/>
         <Button x:Name="ReportBtn" Content="보고서 다시 만들기" Margin="8,0" Padding="8,2" Click="ReportClick" Style="{DynamicResource Esri_Button}"/>
       </DockPanel>
-      <TextBlock Text="단축키: 1·2·3 판정 후 다음, ←/→ 이동" Margin="0,4,0,0" FontSize="11" Foreground="{DynamicResource Esri_TextStyleSubduedBrush}"/>
+      <TextBlock Text="단축키: 1·2·3 판정 후 다음, ←/→ 이동 (오탐은 원인을 먼저 고른 뒤 2)" Margin="0,4,0,0" FontSize="11" Foreground="{DynamicResource Esri_TextStyleSubduedBrush}"/>
     </StackPanel>
     <Border BorderThickness="1" BorderBrush="{DynamicResource Esri_BorderBrush}" Margin="0,0,0,6">
       <Image x:Name="Chip" Stretch="Uniform" RenderOptions.BitmapScalingMode="HighQuality"/>

@@ -127,6 +127,8 @@ def footprint_masks(buildings: gpd.GeoDataFrame, profile: dict, tolerance_m: flo
     버퍼는 미등재 판정에서 건물 가장자리·정합 오차를 빼는 데만 쓴다.
     """
     shp = (profile["height"], profile["width"])
+    if not len(buildings):  # 예: 위반건축물이 없는 지구
+        return np.zeros(shp, bool), np.zeros(shp, bool)
     fp = rasterize(((g, 1) for g in buildings.geometry), out_shape=shp, transform=profile["transform"],
                    fill=0, dtype="uint8").astype(bool)
     near = rasterize(((g, 1) for g in buildings.geometry.buffer(tolerance_m)), out_shape=shp,
@@ -135,8 +137,12 @@ def footprint_masks(buildings: gpd.GeoDataFrame, profile: dict, tolerance_m: flo
 
 
 def unregistered_objects(p_t1: np.ndarray, near: np.ndarray, cfg: dict, res: float, transform, crs,
-                         fp: np.ndarray | None = None) -> gpd.GeoDataFrame:
-    """건물 레이어 버퍼 밖의 구조물 화소 연결 성분(미등재 구조물 객체).
+                         fp: np.ndarray | None = None, unreg_map: np.ndarray | None = None,
+                         violt_map: np.ndarray | None = None) -> gpd.GeoDataFrame:
+    """등재 건물(대장 연계 윤곽) 버퍼 밖의 구조물 화소 연결 성분(미등재 구조물 객체).
+
+    v2.0: near·fp는 대장 연계 윤곽만이다. unreg_map(대장 미연계 윤곽 버퍼)과 겹치는 비율을 map_frac으로,
+    violt_map(위반건축물 윤곽)과 겹치는 비율을 violt_frac으로 남긴다 - parcel_table이 '대장 없음(R)'을 나눈다.
 
     신규 객체와 같은 크기·채움률 조건을 쓴다. 이전에는 필지 안 미등재 화소 '합계'가 20㎡ 이상이면
     플래그했는데, 검수는 20㎡ 이상 단일 조각에서 뽑아 두 모집단이 달랐다(1,028필지 중 485곳만 겹침).
@@ -151,6 +157,8 @@ def unregistered_objects(p_t1: np.ndarray, near: np.ndarray, cfg: dict, res: flo
         return gdf.drop(columns="obj").assign(attached=pd.Series(dtype=bool))
     idx = gdf["obj"].to_numpy()
     gdf["prob_to"] = ndimage.mean(np.nan_to_num(p_t1), lab, idx).round(3)
+    gdf["map_frac"] = ndimage.mean(unreg_map.astype(np.float32), lab, idx).round(3) if unreg_map is not None else 0.0
+    gdf["violt_frac"] = ndimage.mean(violt_map.astype(np.float32), lab, idx).round(3) if violt_map is not None else 0.0
     if fp is not None:
         whole, _ = ndimage.label(struct | fp, structure=np.ones((3, 3), bool))
         touching = np.unique(whole[fp & (whole > 0)])
@@ -205,11 +213,15 @@ def drop_aggregate_parcels(cad: gpd.GeoDataFrame, covered_min: float = 0.9) -> g
 
 def parcel_table(cadastre: gpd.GeoDataFrame, probs: dict[str, np.ndarray], profile: dict, res: float,
                  buildings: gpd.GeoDataFrame, objects: gpd.GeoDataFrame, cfg: dict,
-                 t1: str, t2: str, masks: tuple[np.ndarray, np.ndarray] | None = None
-                 ) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
-    """필지별 구조물 면적(시기별), 건물 레이어 미등재 객체, 신규·소멸 객체를 집계하고 판정한다.
+                 t1: str, t2: str, masks: tuple[np.ndarray, np.ndarray] | None = None,
+                 map_fp: np.ndarray | None = None) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
+    """필지별 구조물 면적(시기별), 미등재 객체, 신규·소멸 객체를 집계하고 판정한다.
 
+    buildings: 기준 건물 레이어 전체(신규·소멸이 건물 지붕 위인지 - B등급 - 판단). masks: 등재(대장 연계) 윤곽의
+    (footprint, 버퍼) - 등재 면적·상태에 쓴다. map_fp: 윤곽 전체(대장 여부 무관) - 도면 면적(mapped_m2).
     objects에는 신규(new)·소멸(gone)·미등재(unregistered) 객체가 함께 들어온다. 반환: (필지 표, 필지가 붙은 객체).
+    미등재 객체 등급: R = 대장 미연계 윤곽 위(map_frac ≥ 0.5, 도면 있음·대장 없음), UA = 등재 지붕에 붙음(부속 의심),
+    U = 어느 윤곽에도 없음(도면·대장 모두 없음).
     """
     shp = (profile["height"], profile["width"])
     fp, near = masks if masks is not None else footprint_masks(buildings, profile, cfg["tolerance_m"])
@@ -232,6 +244,7 @@ def parcel_table(cadastre: gpd.GeoDataFrame, probs: dict[str, np.ndarray], profi
         out[f"struct_{e}_m2"] = area(s).round(1)
         out[f"unregistered_{e}_m2"] = area(s & ~near).round(1)
     out["registered_m2"] = area(fp & (pid > 0)).round(1)
+    out["mapped_m2"] = area(map_fp & (pid > 0)).round(1) if map_fp is not None else out["registered_m2"]
     out["jimok"] = cad["jibun"].str.extract(r"([가-힣]+)$")[0]
     out["linear_jimok"] = out["jimok"].isin(LINEAR_JIMOK)
 
@@ -241,9 +254,11 @@ def parcel_table(cadastre: gpd.GeoDataFrame, probs: dict[str, np.ndarray], profi
         obj["fp_overlap"] = (obj.geometry.intersection(bu).area / obj.geometry.area).round(3)
         corr = obj["corroborated"].fillna(False).astype(bool) if "corroborated" in obj else pd.Series(False, index=obj.index)
         attached = obj["attached"].fillna(False).astype(bool) if "attached" in obj else pd.Series(False, index=obj.index)
+        unreg = obj["kind"] == "unregistered"
+        mapped = obj["map_frac"].fillna(0).to_numpy() >= 0.5 if "map_frac" in obj else np.zeros(len(obj), bool)
         obj["tier"] = np.select(
-            [(obj["kind"] == "unregistered") & attached, obj["kind"] == "unregistered", corr & (obj["fp_overlap"] < 0.5), corr],
-            ["UA", "U", "A", "B"], "C")
+            [unreg & mapped, unreg & attached, unreg, corr & (obj["fp_overlap"] < 0.5), corr],
+            ["R", "UA", "U", "A", "B"], "C")
         rp = obj.geometry.representative_point()
         j = gpd.sjoin(gpd.GeoDataFrame(geometry=rp, crs=obj.crs), out[["geometry"]], predicate="within")
         j = j[~j.index.duplicated()]  # 지적도에 서로 겹치는 필지가 있어 대표점이 둘에 들 수 있음
@@ -257,6 +272,7 @@ def parcel_table(cadastre: gpd.GeoDataFrame, probs: dict[str, np.ndarray], profi
         out[f"{kind}_m2"] = k.groupby("parcel_idx")["area_m2"].sum().reindex(out.index, fill_value=0).round(1)
         if kind == "unregistered":
             out["unregistered_standalone_n"] = k[k["tier"] == "U"].groupby("parcel_idx").size().reindex(out.index, fill_value=0)
+            out["unregistered_noreg_n"] = k[k["tier"] == "R"].groupby("parcel_idx").size().reindex(out.index, fill_value=0)
         else:
             for tier in "ABC":
                 out[f"{kind}_{tier}_n"] = k[k["tier"] == tier].groupby("parcel_idx").size().reindex(out.index, fill_value=0)
@@ -268,9 +284,10 @@ def parcel_table(cadastre: gpd.GeoDataFrame, probs: dict[str, np.ndarray], profi
     out["unregistered_flag"] = out["unregistered_n"] > 0
     # round3 필지 검수에서 선형 지목 플래그는 20필지 중 실제 구조물 2곳(아스팔트·차량 오탐)이라 저신뢰로 둔다.
     # 독립 객체 없이 등재 건물과 이어진 객체(UA)만 있는 필지는 '부속 의심'으로 나눈다(round4로 평가).
+    # v2.0: '독립' = 도면·대장 모두 없는 구조물(U)이 있음, '대장 없음' = 대장 미연계 윤곽 위 구조물(R)만 있음
     out["unregistered_conf"] = np.select(
-        [~out["unregistered_flag"], out["linear_jimok"], out["unregistered_standalone_n"] > 0],
-        ["", "저신뢰", "독립"], "부속 의심")
+        [~out["unregistered_flag"], out["linear_jimok"], out["unregistered_standalone_n"] > 0, out["unregistered_noreg_n"] > 0],
+        ["", "저신뢰", "독립", "대장 없음"], "부속 의심")
     # 판독만 잡은 신규(C)는 2차 검수 30건이 모두 2022에도 있던 구조물이라(정밀도 0%) 변화로 세지
     # 않는다. 객체와 new_C_n 열에는 남겨 둔다.
     out["change"] = np.select(

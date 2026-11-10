@@ -1,6 +1,7 @@
 """사용설명서 그림 준비: 결과 그림 축소 JPG, 표본·조사 예시, 리본 모의도(Pro 내장 아이콘). 크기는 dims.json.
 
   python prep_images.py <Add-in 실행 폴더(현장조사 내보내기를 한 것)>
+  python prep_images.py            (리본 모의도만 다시 그림)
 img/·dims.json은 저장소에 들어 있으므로 그림을 바꿀 때만 다시 돌린다. 아이콘(icons/*.png)은
 ArcGIS.Desktop.Resources.dll에서 꺼낸 Pro 내장 이미지다(Imagery32, HtmlFile16 등).
 """
@@ -14,8 +15,8 @@ M = Path(__file__).parent
 IMG = M / "img"
 IMG.mkdir(exist_ok=True)
 R = Path(__file__).resolve().parents[3] / "outputs" / "gwangmyeong_siheung_aerial" / "interpretation"
-S = Path(sys.argv[1]) / "interpretation"
-dims = {}
+S = Path(sys.argv[1]) / "interpretation" if len(sys.argv) > 1 else None
+dims = json.loads((M / "dims.json").read_text(encoding="utf-8")) if (M / "dims.json").exists() else {}
 
 
 def save(src: Path, name: str, width: int = 1600):
@@ -27,13 +28,14 @@ def save(src: Path, name: str, width: int = 1600):
     dims[name] = [im.width, im.height]
 
 
-save(R / "reports" / "figures" / "method_panels.png", "method")
-save(R / "reports" / "figures" / "overview_official.png", "overview", 1300)
-save(R / "reports" / "figures" / "distribution.png", "distribution", 1600)
-qa4 = sorted((R / "qa" / "round4").glob("unreg_*_000.jpg"))
-save(qa4[0], "qa_sample", 900)
-save(S / "survey" / "images" / "A01.jpg", "survey_new", 1200)
-save(S / "survey" / "images" / "U001.jpg", "survey_unreg", 900)
+if S is not None:
+    save(R / "reports" / "figures" / "method_panels.png", "method")
+    save(R / "reports" / "figures" / "overview_official.png", "overview", 1300)
+    save(R / "reports" / "figures" / "distribution.png", "distribution", 1600)
+    qa4 = sorted((R / "qa" / "round4").glob("unreg_*_000.jpg"))
+    save(qa4[0], "qa_sample", 900)
+    save(S / "survey" / "images" / "A01.jpg", "survey_new", 1200)
+    save(S / "survey" / "images" / "U001.jpg", "survey_unreg", 900)
 
 # 리본 모의도 - 버튼 이름은 Add-in 화면 그대로(한국어)
 font = ImageFont.truetype(r"C:\Windows\Fonts\malgun.ttf", 15)
@@ -79,12 +81,13 @@ for i, (a, b) in enumerate(col):
     small(270, 46 + i * 28, a, b)
 d.line([380, 42, 380, 150], fill="#c8c8c8")
 d.text((150, 146), "필지 구조물 판독", font=fsmall, fill="#666")
-big(392, "inspectionviewer32.png", "표본\n검수")
-col = [("excelworkbookfile16.png", "현장조사 내보내기"), ("inspectionreport16.png", "현장조사 결과 가져오기"), ("mapseries16.png", "필지 도면 PDF")]
+big(392, "inspectionviewer32.png", "후보\n판독")
+col = [("inspectiontable16.png", "표본 검수"), ("excelworkbookfile16.png", "현장조사 내보내기"), ("inspectionreport16.png", "현장조사 결과 가져오기")]
 for i, (a, b) in enumerate(col):
     small(480, 46 + i * 28, a, b)
-d.line([680, 42, 680, 150], fill="#c8c8c8")
-d.text((500, 146), "검수·현장조사", font=fsmall, fill="#666")
+small(680, 46, "mapseries16.png", "필지 도면 PDF")
+d.line([820, 42, 820, 150], fill="#c8c8c8")
+d.text((560, 146), "검수·현장조사", font=fsmall, fill="#666")
 im.save(IMG / "ribbon.png")
 dims["ribbon"] = [W, H]
 (M / "dims.json").write_text(json.dumps(dims), encoding="utf-8")

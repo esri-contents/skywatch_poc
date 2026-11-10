@@ -19,6 +19,7 @@ namespace GwangmyeongInterpretation
             public string Minutes { get; set; }
             public string Parcels { get; set; }
             public string Unreg { get; set; }
+            public string NoReg { get; set; }
             public string NewA { get; set; }
             public string Gone { get; set; }
             public string Reused { get; set; }
@@ -68,6 +69,7 @@ namespace GwangmyeongInterpretation
                         Minutes = Get(j, "minutes"),
                         Parcels = Get(j, "counts", "parcels"),
                         Unreg = Get(j, "counts", "unreg_independent"),
+                        NoReg = Get(j, "counts", "unreg_noreg"),
                         NewA = Get(j, "counts", "new_A"),
                         Gone = Get(j, "counts", "gone_AB"),
                         Reused = string.Join("·", reused),

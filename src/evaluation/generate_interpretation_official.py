@@ -19,7 +19,7 @@ import pandas as pd
 
 from ..data.project_acquisition import load_project
 from ..interpretation.qa import LABELS, stratified_precision, summarize
-from ..interpretation.deliver import NAME as SHP_NAME, appendix1, write_appendix1_shp
+from ..interpretation.deliver import NAME as SHP_NAME, NAME_NOREG, appendix1, appendix1b, write_appendix1_shp
 from ..interpretation.survey import summarize as survey_summary
 from ..interpretation.tiling import grid
 from . import interpretation_figures as F
@@ -32,7 +32,7 @@ _FLOW = """<svg viewBox="0 0 860 300" width="100%" role="img" aria-label="판독
 <g fill="#eef2f6" stroke="#1f4e79" stroke-width="1.3">
 <rect x="10" y="20" width="150" height="64" rx="4"/><rect x="10" y="118" width="150" height="64" rx="4"/><rect x="10" y="216" width="150" height="64" rx="4"/></g>
 <text x="85" y="47" font-weight="700">항공 정사영상</text><text x="85" y="66" font-size="11">@D1@ · @D2@</text>
-<text x="85" y="145" font-weight="700">건물 레이어</text><text x="85" y="164" font-size="11">VWorld 도로명주소 건물</text>
+<text x="85" y="145" font-weight="700">기준 건물 레이어</text><text x="85" y="164" font-size="11">건물통합정보·도로명주소·대장</text>
 <text x="85" y="243" font-weight="700">연속지적도</text><text x="85" y="262" font-size="11">@N@필지</text>
 <g fill="#fff" stroke="#333" stroke-width="1.3">
 <rect x="215" y="20" width="160" height="64" rx="4"/><rect x="215" y="118" width="160" height="64" rx="4"/>
@@ -179,6 +179,9 @@ def _html(cfg: dict, config_path: str | None = None) -> str:
     has = int(sum(st.get(k, 0) for k, _, _ in _STATUS[:3]))
     unreg = parcels[parcels["unregistered_flag"]]
     u_ind, u_att, u_low = (unreg[unreg["unregistered_conf"] == c] for c in ("독립", "부속 의심", "저신뢰"))
+    u_nreg = unreg[unreg["unregistered_conf"] == "대장 없음"]
+    n_violt = int((parcels["violt_n"] > 0).sum()) if "violt_n" in parcels else 0
+    bref = s.get("buildings_ref") or {}
     new_a = objs[(objs["kind"] == "new") & (objs["tier"] == "A")].sort_values("area_m2", ascending=False).reset_index(drop=True)
     gone_ab = objs[(objs["kind"] == "gone") & objs["tier"].isin(["A", "B"])].sort_values("area_m2", ascending=False).reset_index(drop=True)
     qa = {}
@@ -192,7 +195,9 @@ def _html(cfg: dict, config_path: str | None = None) -> str:
                             f'{r["precision"] * 100:.0f}% ({r["ci_lo"] * 100:.0f}~{r["ci_hi"] * 100:.0f})' if r["precision"] == r["precision"] else "-"])
     # 결과별 정밀도는 그 층이 라벨된 마지막 회차로 낸다(저장소: 미등재 독립·부속 4차, 신규·소멸·선형 3차)
     r_ind, r_att = _latest(rounds, _is_ind), _latest(rounds, lambda q: q["stratum"].eq("unreg_attached"))
-    p_ind = stratified_precision(rounds[r_ind], "unreg_", exclude=("unreg_attached", "unreg_linear")) if r_ind else {}
+    p_ind = stratified_precision(rounds[r_ind], "unreg_", exclude=("unreg_attached", "unreg_linear", "unreg_noreg")) if r_ind else {}
+    r_noreg = _latest(rounds, lambda q: q["stratum"].eq("unreg_noreg"))
+    p_noreg = stratified_precision(rounds[r_noreg], "unreg_noreg") if r_noreg else {}
     p_att = stratified_precision(rounds[r_att], "unreg_attached") if r_att else {}
     p_loose = stratified_precision(rounds["round3"], "unreg_", exclude=("unreg_linear",)) if "round3" in rounds and r_ind != "round3" else {}
     last = {stratum: (name, r) for (name, stratum), r in qa.items()}
@@ -213,11 +218,15 @@ def _html(cfg: dict, config_path: str | None = None) -> str:
     late, gap, _ = _timing(base.get("baseline_date"), d1)
     today = date.today()
     cad_all = len(gpd.read_file(cfg["paths"]["cadastre"], columns=["pnu"], ignore_geometry=True))
-    n_bld = len(gpd.read_file(cfg["paths"]["buildings"], columns=["pnu"], ignore_geometry=True))
+    ref_path = cfg["paths"].get("buildings_ref") or cfg["paths"]["buildings"]
+    n_bld = len(gpd.read_file(ref_path, ignore_geometry=True))
     n_reg = len(json.loads(Path(cfg["paths"]["building_register"]).read_text(encoding="utf-8")))
     n_pms = len(json.loads(Path(cfg["paths"]["building_permits"]).read_text(encoding="utf-8")))
     aoi_km2 = float(gpd.read_file(cfg["paths"]["aoi"]).to_crs(proj["analysis_crs"]).area.sum()) / 1e6
     P = []
+    from ..interpretation import screen as _screen
+    scr = _screen.summary(cfg)
+    n_cand = len(appendix1(parcels)) + len(appendix1b(parcels)) + len(new_a) + len(gone_ab)
 
     # ── 표지
     P.append(f'''<section class="page cover"><div><span class="cls">보상 실무 참고자료 · 내부 검토용</span>
@@ -236,22 +245,24 @@ def _html(cfg: dict, config_path: str | None = None) -> str:
     P.append(f'''<section class="page"><h2>요 약</h2>
 <div class="kv"><div><div class="k">판독 필지</div><div class="v">{n:,}<small> 필지</small></div></div>
 <div><div class="k">{d1} 구조물 있음</div><div class="v">{has:,}<small> 필지</small></div></div>
-<div><div class="k">미등재 구조물(독립)</div><div class="v">{len(u_ind):,}<small> 필지</small></div></div>
+<div><div class="k">미등재(도면·대장 없음)</div><div class="v">{len(u_ind):,}<small> 필지</small></div></div>
 <div><div class="k">신규·소멸 의심</div><div class="v">{len(new_a)}·{len(gone_ab)}<small> 건</small></div></div></div>
 <ul class="b">
 <li>목적: 보상 대상 지구 내 지장물 누락 방지와 현장조사 우선순위 설정을 위해 항공 정사영상으로 필지별 구조물 현황을 판독함</li>
-<li>방법: {d1}·{d2} 항공 정사영상을 0.5m 격자로 조각화하고, 건물 레이어로 학습한 판독기로 조각별 구조물 여부를 판정한 뒤 지적 필지 단위로 집계함
-<ul class="o"><li>건물 레이어(VWorld 도로명주소 건물)와 대조하여 미등재 구조물을 추출하고, 두 시기 비교로 신규·소멸 의심을 선별함</li>
+<li>방법: {d1}·{d2} 항공 정사영상을 0.5m 격자로 조각화하고, 기준 건물 레이어(GIS건물통합정보·도로명주소 건물)로 학습한 판독기로 조각별 구조물 여부를 판정한 뒤 지적 필지 단위로 집계함
+<ul class="o"><li>건물마다 건축물대장 연계 여부를 붙여, 대장 연계 건물 밖의 구조물을 미등재로 추출하고(도면·대장 모두 없음 / 도면은 있으나 대장 없음) 두 시기 비교로 신규·소멸 의심을 선별함</li>
 <li>{f"판독 결과의 정확도는 층화 무작위 표본({len({k for k, _ in qa})}회, 총 {sum(int(r[2]) for r in qa_rows)}건)을 원본 영상으로 육안 검수하여 산정함" if reviewed
        else f"정확도 산정용 층화 무작위 표본 {n_samples}건을 추출함(검수 전). 담당자가 원본 영상으로 검수하면 정밀도를 산정함"}</li></ul></li>
 <li>주요 결과
 <ul class="o"><li>{d1} 기준 구조물이 있는 필지는 {has:,}필지(전체의 {has / n * 100:.1f}%)임</li>
-<li>건물 레이어에 없는 <b>독립 미등재 구조물 {len(u_ind):,}필지</b>를 추출함. {f"표본 정밀도 {_p(p_ind)}(95% 신뢰구간 {_ci(p_ind)})로, 물건조서 대조용 점검 목록으로 활용 가능함" if p_ind
+<li>건물 윤곽도 대장도 없는 <b>미등재 구조물 {len(u_ind):,}필지</b>(붙임 1)와, 건물 윤곽은 있으나 <b>대장이 없는 건물 위 구조물 {len(u_nreg):,}필지</b>(붙임 1-2)를 추출함{f". 위반건축물이 있는 필지는 {n_violt:,}필지임" if n_violt else ""}. {f"표본 정밀도 {_p(p_ind)}(95% 신뢰구간 {_ci(p_ind)})로, 물건조서 대조용 점검 목록으로 활용 가능함" if p_ind
        else "표본 검수 전으로, 정밀도 확인 후 물건조서 대조용 점검 목록으로 활용함"}</li>
 <li>등재 건물과 맞닿은 <b>부속 의심 {len(u_att):,}필지</b>는 {notes.get("attached", "등재 건물 지붕과 이어진 덩어리로")}, {f"표본 정밀도 {_p(p_att)}에 그쳐 " if p_att else ""}선별 확인용으로만 활용함</li>
 <li>{d1[:4]}→{d2} <b>신규 의심 {len(new_a)}건, 소멸 의심 {len(gone_ab)}건</b>은 {f"표본 정밀도가 각각 {_fr(a3)}, {_fr(g3)}로 낮아 " if a3 is not None or g3 is not None else ""}전수 영상 확인 후 활용함</li></ul></li>
 <li>유의사항
-<ul class="o"><li>{f"표본 검수는 {reviewer}한 판독이며, 담당 부서의 재판독 전까지 정확도 수치는 잠정값임" if reviewed
+<ul class="o"><li><b>모델 판독 결과는 확정이 아닌 '후보'임.</b> 변화 후보 무작위 표본 검수에서 실제 건물·구조 변화는 약 50~55%였고, 그림자 위치 변화·경사지붕 밝기 차이·나지→포장·차량·적치물·비닐하우스·컨테이너 색 변화 등 실제 변화와 영상 특성이 비슷한 오탐은 임계값 조정만으로 구분되지 않음.
+현장조사 전에 후보 {n_cand:,}건(붙임 1·2)을 전후 영상으로 전수 육안 판독(필지당 수 초, 1인 반나절 내외)하고 확인된 대상만 현장조사로 전달함{f" - 현재 {scr['done']:,}건 판독, 현장조사 대상 {scr['structure']:,}·판단 보류 {scr['uncertain']:,}·오탐 제외 {scr['not_structure']:,}건" if scr else ""}</li>
+<li>{f"표본 검수는 {reviewer}한 판독이며, 담당 부서의 재판독 전까지 정확도 수치는 잠정값임" if reviewed
        else f"표본 검수 전이므로 정확도 수치가 없음. 검수표({cur_csv})를 채운 뒤 보고서를 다시 만들면 반영됨"}</li>
 {f'<li>잠정 기준일({base["baseline_date"]}, 주민공람일)보다 영상이 {gap}개월 늦어 <b>기준일 당시 현황을 나타내지 않음</b></li>' if late else ""}
 {"" if has_change else "<li>화소 변화탐지 교차 확인을 하지 않아 신규·소멸 의심(A·B 등급)이 선별되지 않음</li>"}
@@ -264,7 +275,7 @@ def _html(cfg: dict, config_path: str | None = None) -> str:
 <li><span>Ⅰ.</span><span>개요</span></li><li><span>Ⅱ.</span><span>분석 자료 및 방법</span></li>
 <li><span>Ⅲ.</span><span>판독 결과</span></li><li><span>Ⅳ.</span><span>정확도 검증</span></li>
 <li><span>Ⅴ.</span><span>활용 방안 및 향후 과제</span></li>
-<li><span>붙임</span><span>1. 독립 미등재 구조물 필지 목록 · 2. 신규·소멸 의심 목록 · 3. 회차별 표본 검수 결과 · 4. 관련 고시·공고</span></li></ol></section>''')
+<li><span>붙임</span><span>1. 미등재(도면·대장 없음) 필지 목록 · 1-2. 미등재(도면 있음·대장 없음) 필지 목록 · 2. 신규·소멸 의심 목록 · 3. 회차별 표본 검수 결과 · 4. 관련 고시·공고</span></li></ol></section>''')
 
     # ── Ⅰ. 개요
     timeline = [[_e(x.get("notice_date")), _e(x["title"]), _e(x["notice_number"])] for x in cfg.get("official_sources", [])]
@@ -272,7 +283,7 @@ def _html(cfg: dict, config_path: str | None = None) -> str:
     P.append(f'''<section class="page"><h2>Ⅰ. 개 요</h2>
 <h3>1. 추진 배경 및 목적</h3><ul class="b">
 <li>공공주택지구 보상 과정에서 물건조사 누락·분쟁을 줄이려면 지구 전체 필지의 구조물 현황을 객관적 자료로 사전 점검할 필요가 있음</li>
-<li>본 분석은 항공 정사영상으로 ① 필지별 구조물 유무, ② 건물 레이어 미등재 구조물, ③ 두 시기 사이 신규·소멸 구조물을 판독하여 현장조사·물건조사의 우선순위를 제시함
+<li>본 분석은 항공 정사영상으로 ① 필지별 구조물 유무, ② 건축물대장 미등재 구조물(도면·대장 없음 / 도면 있음·대장 없음), ③ 두 시기 사이 신규·소멸 구조물을 판독하여 현장조사·물건조사의 우선순위를 제시함
 <ul class="o"><li>판독 결과는 조사 대상 선정용 보조자료이며, 불법 여부·보상 대상 여부·구조물 용도를 판정하지 않음</li></ul></li></ul>
 <h3>2. 대상 지구</h3>
 {_tbl("<표 1> 대상 지구 개요", ["구분", "내용"], [["사업명", _e(proj["official_name"])], ["시행자", _e(proj["operator"])],
@@ -288,7 +299,7 @@ def _html(cfg: dict, config_path: str | None = None) -> str:
 </section>''')
 
     figdir = out / "reports" / "figures"
-    bld = gpd.read_file(cfg["paths"]["buildings"]).to_crs(parcels.crs)
+    bld = gpd.read_file(ref_path).to_crs(parcels.crs)
     bld = bld[bld.area > 0]
     fig_method = F.method_panels(cfg, parcels, objs, bld, t1, figdir / "method_panels.png")
     fig_over = F.overview_map(cfg, parcels, objs, t1, figdir / "overview_official.png")
@@ -299,7 +310,8 @@ def _html(cfg: dict, config_path: str | None = None) -> str:
         lo, hi = wilson(k, m)
         return k / max(m, 1), lo, hi
     prow = [(name, d["precision"], d["ci_lo"], d["ci_hi"], col)
-            for name, d, col in [("미등재 · 독립", p_ind, "#c8414b"), ("미등재 · 부속 의심", p_att, "#e9a23b")] if d]
+            for name, d, col in [("미등재 · 독립", p_ind, "#c8414b"), ("미등재 · 대장 없음", p_noreg, "#7b4fa0"),
+                                 ("미등재 · 부속 의심", p_att, "#e9a23b")] if d]
     for name, r, col in [("미등재 · 도로·하천류", l3, "#8a8f94"), ("신규 의심(A)", a3, "#ffb703"), ("소멸 의심(A·B)", g3, "#3a7bd5")]:
         if r is not None:
             prow.append((name, *_wr(r), col))
@@ -317,31 +329,32 @@ def _html(cfg: dict, config_path: str | None = None) -> str:
         ["영상", f"{d1} 항공 정사영상", _e(ep[t1].get("spec", "")), "기준 시기 판독"],
         ["영상", f"{d2} 항공 정사영상", _e(ep[t2].get("spec", "")), "비교 시기 판독"],
         ["지적", "연속지적도(본번·부번)", f"{cad_all:,}개 → {n:,}필지", "필지 집계 단위"],
-        ["건물", "도로명주소 건물(VWorld)", f"{n_bld:,}동", "학습 정답·미등재 대조"],
-        ["대장", "건축물대장 표제부", f"{n_reg:,}건", "신축 재현율 검증"],
+        ["건물", "GIS건물통합정보(VWorld NED) + 도로명주소 건물", f"{n_bld:,}동" + (f" (대장 연계 {bref['linked']:,}, 위반건축물 {bref['violt']:,})" if bref else ""), "학습 정답·도면 대조"],
+        ["대장", "건축물대장 표제부·기본개요·부속지번", f"{n_reg:,}건(표제부)", "건물 단위 대장 연계·필지 대조·신축 재현율 검증"],
         ["허가", "건축인허가 기본개요", f"{n_pms:,}건", "착공일 기준 재현율 검증"],
         ["변화탐지", "화소 단위 앙상블 변화확률(별도 변화탐지)", f'{cfg["imagery"].get("resolution_m", 1):g}m 격자' if has_change else "미실시", "신규·소멸 교차 확인"]],
-        ["c", "", "", ""], "주: " + ". ".join(filter(None, [cfg["imagery"].get("report_note"), "대장·허가는 공공데이터포털 건축HUB API로 수집"])))}
+        ["c", "", "", ""], "주: " + ". ".join(filter(None, [cfg["imagery"].get("report_note"), "대장·허가는 공공데이터포털 건축HUB API, 건물통합정보는 VWorld 국가중점데이터 API로 수집", "화소 변화탐지는 도로명주소 건물을 그대로 사용"])))}
 <h3>2. 분석 방법</h3>
 <ul class="b">
 <li>(조각화) 0.25m 원본을 {ic["resolution_m"]:g}m로 평균하여 지구 전체를 {ic["tile_core_m"]:g}m 타일(여백 {ic["tile_pad_m"]:g}m) {n_tiles:,}개로 나누고 Felzenszwalb 그래프 분할로 색·밝기가 비슷한 화소를 조각으로 묶음
 <ul class="o"><li>조각 수: {d1} {s["segments"][t1]:,}개, {d2} {s["segments"][t2]:,}개</li>
 <li>조각마다 색조(밝기·색), 형태(사각형 채움률·볼록도·장단축비), 크기, 질감, 경계 강도, 방향별 그림자 비율 등 21개 판독 요소를 계산함</li></ul></li>
-<li>(판정) 건물 레이어와 80% 이상 겹치는 조각을 구조물, 2m 이상 떨어진 조각을 비구조물로 두고 경사부스팅 분류기를 학습함
+<li>(판정) 기준 건물 레이어(대장 여부와 무관하게 건물 윤곽 전체)와 80% 이상 겹치는 조각을 구조물, 2m 이상 떨어진 조각을 비구조물로 두고 경사부스팅 분류기를 학습함
 <ul class="o"><li>600m 블록 단위 5분할 공간 교차검증으로 학습 지역과 판정 지역을 분리함</li>
 <li>2단계에서 이웃 조각의 1단계 확률을 추가 입력으로 사용하여 큰 지붕이 여러 조각으로 갈리는 문제를 보완함</li>
 <li>조각 확률 {rc["prob_hi"]} 이상을 구조물로 판정함</li></ul></li>
-<li>(필지 집계) 지적 필지별로 구조물 면적과 건물 레이어 면적을 집계하여 다섯 상태(등재+판독, 등재만, 판독만, 없음, 영상 부족)로 구분함</li>
-<li>(미등재) 건물 레이어 1m 버퍼 밖 구조물 화소 덩어리 중 {rc["min_object_m2"]}㎡ 이상·사각형 채움률 {rc.get("min_rect_fill", 0)} 이상인 것을 추출하고, 판독된 지붕을 따라 등재 건물과 연결되면 '부속 의심'으로 분리함
-<ul class="o"><li>도로·구거·하천·제방·철도 지목 필지는 포장면 오탐이 많아 '저신뢰'로 표시함</li></ul></li>
+<li>(필지 집계) 지적 필지별로 구조물 면적과 대장 연계 건물 면적을 집계하여 다섯 상태(등재+판독, 등재만, 판독만, 없음, 영상 부족)로 구분함</li>
+<li>(미등재) 대장 연계 건물 1m 버퍼 밖 구조물 화소 덩어리 중 {rc["min_object_m2"]}㎡ 이상·사각형 채움률 {rc.get("min_rect_fill", 0)} 이상인 것을 추출하고, 판독된 지붕을 따라 등재 건물과 연결되면 '부속 의심'으로 분리함
+<ul class="o"><li>덩어리의 절반 이상이 대장 미연계 건물 윤곽 위면 '도면 있음·대장 없음', 어느 건물 윤곽에도 없으면 '도면·대장 없음(독립)'으로 구분함</li>
+<li>도로·구거·하천·제방·철도 지목 필지는 포장면 오탐이 많아 '저신뢰'로 표시함</li></ul></li>
 <li>(신규·소멸) {d1} 확률 {rc["prob_lo"]} 미만 → {d2} {rc["prob_hi"]} 이상 화소 덩어리를 신규, 반대를 소멸로 보고 다음 조건을 적용함
 <ul class="o"><li>정합 오차 여유 {rc["tolerance_m"]}m, 어느 시기든 그림자인 화소 제외, 사각형 채움률 {rc.get("min_rect_fill", 0)} 이상</li>
-<li>기존 화소 변화탐지 확률 {rc["corroborate_min"]} 이상(두 방법 일치)이고 건물 레이어와 겹치지 않는 것을 '신규 의심(A)'으로 함</li></ul></li>
+<li>기존 화소 변화탐지 확률 {rc["corroborate_min"]} 이상(두 방법 일치)이고 기준 건물 윤곽과 겹치지 않는 것을 '신규 의심(A)'으로 함</li></ul></li>
 </ul>
 {_tbl("<표 4> 기존 판독 방식(중앙선 매포 구간 판독 코드) 대비 개선 사항", ["항목", "기존", "본 분석"], [
         ["판독 단위", "조각 + 판독 요소(색조·형태·크기·그림자)", "동일, 질감·경계 강도·방향별 그림자 추가"],
         ["분할 범위", "필지마다 주변 영상을 따로 분할(여백에 따라 판정 변동)", "지구 전체 고정 타일로 1회 분할 후 필지 집계"],
-        ["판정 기준", "수작업 임계값(165필지로 설정·평가)", "건물 레이어 학습 분류기, 공간 교차검증"],
+        ["판정 기준", "수작업 임계값(165필지로 설정·평가)", "기준 건물 레이어 학습 분류기, 공간 교차검증"],
         ["시기 비교", "시기별 독립 판정", "이력 판정·정합 여유·그림자 차단·변화탐지 교차 확인"],
         ["검증", "기준 판독 일치율(전부 '없음' 기준선보다 낮음)", "층화 무작위 표본, 보정용·평가용 회차 분리, 95% 신뢰구간"]],
         ["c", "", ""])}
@@ -349,13 +362,13 @@ def _html(cfg: dict, config_path: str | None = None) -> str:
 <section class="page"><h3>3. 처리 흐름 및 판독 예시</h3>
 <figure>{flow}<figcaption>[그림 1] 판독 처리 흐름</figcaption></figure>
 <figure><img src="{_embedded_image(fig_method, 1800)}" alt="판독 과정 예시"><figcaption>[그림 2] 판독 과정 예시({d1}, 140m×140m 구역)</figcaption></figure>
-<ul class="b"><li>① 원본 영상을 ② 색·밝기가 비슷한 조각으로 나누고, ③ 판독기가 조각마다 구조물 확률을 매긴 뒤, ④ 확률이 높은 덩어리를 건물 레이어와 대조함
-<ul class="o"><li>건물 레이어에 없는 덩어리 중 등재 건물과 지붕이 이어지지 않으면 '독립'(적색), 이어지면 '부속 의심'(주황)으로 표시함</li></ul></li></ul>
+<ul class="b"><li>① 원본 영상을 ② 색·밝기가 비슷한 조각으로 나누고, ③ 판독기가 조각마다 구조물 확률을 매긴 뒤, ④ 확률이 높은 덩어리를 대장 연계 건물과 대조함
+<ul class="o"><li>대장 연계 건물 밖 덩어리 중 어느 건물 윤곽에도 없으면 '독립'(적색), 대장 없는 건물 윤곽 위면 '대장 없음'(보라), 등재 건물 지붕과 이어지면 '부속 의심'(주황)으로 표시함</li></ul></li></ul>
 </section>''')
 
     # ── Ⅲ. 판독 결과
     srows = [[k, f"{st.get(k, 0):,}", f"{st.get(k, 0) / n * 100:.1f}%", m] for (k, _, _), m in zip(_STATUS, [
-        "건물 레이어와 영상 판독이 모두 구조물", "레이어에는 있으나 판독 미검출(대부분 판독 누락)", "레이어에 없으나 영상에 구조물",
+        "대장 연계 건물과 영상 판독이 모두 구조물", "대장 연계 건물은 있으나 판독 미검출(대부분 판독 누락)", "대장 연계 건물 없이 영상에 구조물(대장 없는 건물 포함)",
         "두 자료 모두 구조물 없음(판독 누락 가능)", "지구 경계 자투리 필지"])]
     dong = parcels.assign(dong=_dong(parcels["addr"].fillna("")))
     drows = []
@@ -365,7 +378,8 @@ def _html(cfg: dict, config_path: str | None = None) -> str:
         c = g[f"status_{t1}"].value_counts()
         h = int(sum(c.get(k, 0) for k, _, _ in _STATUS[:3]))
         drows.append([name, f"{len(g):,}", f"{h:,}", f"{h / len(g) * 100:.0f}%", f"{c.get('있음(판독만)', 0):,}",
-                      f"{int((g['unregistered_conf'] == '독립').sum())}", f"{int((g['unregistered_conf'] == '부속 의심').sum())}",
+                      f"{int((g['unregistered_conf'] == '독립').sum())}", f"{int((g['unregistered_conf'] == '대장 없음').sum())}",
+                      f"{int((g['unregistered_conf'] == '부속 의심').sum())}",
                       f"{int((g['new_A_n'] > 0).sum())}"])
     drows.sort(key=lambda r: -int(r[1].replace(",", "")))
     jm = u_ind.assign(j=u_ind["jimok"].fillna("미상")).groupby("j").agg(n=("pnu", "size"), m2=("unregistered_m2", "sum")).sort_values("n", ascending=False)
@@ -412,18 +426,19 @@ def _html(cfg: dict, config_path: str | None = None) -> str:
 
     P.append(f'''<section class="page"><h2>Ⅲ. 판독 결과</h2>
 <h3>1. {d1} 필지별 구조물 현황</h3>
-<ul class="b"><li>전체 {n:,}필지 중 구조물이 있는 필지는 {has:,}필지({has / n * 100:.1f}%)이며, 이 중 건물 레이어에 없이 영상에서만 확인된 필지는 {st.get("있음(판독만)", 0):,}필지임</li>
+<ul class="b"><li>전체 {n:,}필지 중 구조물이 있는 필지는 {has:,}필지({has / n * 100:.1f}%)이며, 이 중 대장 연계 건물 없이 영상에서만 확인된 필지는 {st.get("있음(판독만)", 0):,}필지임</li>
 {dong_li}</ul>
 {_tbl("<표 5> 필지 상태별 현황", ["상태", "필지", "비율", "의미"], srows, ["", "n", "n", ""], sum_row=["계", f"{n:,}", "100.0%", ""])}
-{_tbl("<표 6> 법정동별 판독 현황", ["법정동", "필지", "구조물 있음", "구조물 비율", "판독만", "미등재(독립)", "부속 의심", "신규 의심"], drows, ["c", "n", "n", "n", "n", "n", "n", "n"])}
+{_tbl("<표 6> 법정동별 판독 현황", ["법정동", "필지", "구조물 있음", "구조물 비율", "판독만", "미등재(독립)", "대장 없음", "부속 의심", "신규 의심"], drows, ["c", "n", "n", "n", "n", "n", "n", "n", "n"])}
 </section>
 <section class="page figpage"><figure><img src="{_embedded_image(fig_over, 2000)}" alt="필지 상태 지도"><figcaption>[그림 3] {d1} 필지 상태 및 신규 의심 위치</figcaption></figure></section>
 <section class="page">
-<h3>2. 건물 레이어 미등재 구조물</h3>
-<ul class="b"><li>건물 레이어 밖에서 구조물이 판독된 필지는 {len(unreg):,}필지이며, 등재 건물과의 연결 여부와 지목에 따라 세 가지로 구분함</li>
-<li>독립 미등재 {len(u_ind):,}필지가 물건조서 대조의 1순위 대상임. 지목은 {"·".join(jm.index[:3])} 순으로 {"많으며 " + notes["unreg_types"] if notes.get("unreg_types") else "많음"}</li></ul>
+<h3>2. 미등재 구조물</h3>
+<ul class="b"><li>대장 연계 건물 밖에서 구조물이 판독된 필지는 {len(unreg):,}필지이며, 건물 윤곽·대장 유무, 등재 건물과의 연결 여부, 지목에 따라 네 가지로 구분함</li>
+<li>도면·대장 모두 없는 독립 미등재 {len(u_ind):,}필지(붙임 1)가 물건조서 대조의 1순위, 도면은 있으나 대장 없는 {len(u_nreg):,}필지(붙임 1-2)가 2순위 대상임. 지목은 {"·".join(jm.index[:3])} 순으로 {"많으며 " + notes["unreg_types"] if notes.get("unreg_types") else "많음"}</li></ul>
 {_tbl("<표 7> 미등재 구조물 구분별 현황 및 표본 정밀도", ["구분", "필지", "덩어리(개)", "면적(㎡)", "표본 정밀도", "95% 신뢰구간", "주된 오탐"], [
-        ["독립", f"{len(u_ind):,}", f"{int(u_ind['unregistered_n'].sum()):,}", f"{u_ind['unregistered_m2'].sum():,.0f}", _p(p_ind), _ci(p_ind), notes.get("unreg_fp", "-")],
+        ["독립(도면·대장 없음)", f"{len(u_ind):,}", f"{int(u_ind['unregistered_n'].sum()):,}", f"{u_ind['unregistered_m2'].sum():,.0f}", _p(p_ind), _ci(p_ind), notes.get("unreg_fp", "-")],
+        ["도면 있음·대장 없음", f"{len(u_nreg):,}", f"{int(u_nreg['unregistered_n'].sum()):,}", f"{u_nreg['unregistered_m2'].sum():,.0f}", _p(p_noreg), _ci(p_noreg), "-"],
         ["부속 의심", f"{len(u_att):,}", f"{int(u_att['unregistered_n'].sum()):,}", f"{u_att['unregistered_m2'].sum():,.0f}", _p(p_att), _ci(p_att), notes.get("attached_fp", "-")],
         ["저신뢰(도로·하천류)", f"{len(u_low)}", f"{int(u_low['unregistered_n'].sum()):,}", f"{u_low['unregistered_m2'].sum():,.0f}", _fr(l3), "-", notes.get("linear_fp", "-")]],
         ["", "n", "n", "n", "n", "c", ""],
@@ -439,6 +454,32 @@ def _html(cfg: dict, config_path: str | None = None) -> str:
 <div class="fig2">{chips([(p_, "부속 의심 · " + _e(c_)) for p_, c_ in ex_att] + [(p_, "독립 오탐 · " + _e(c_)) for p_, c_ in ex_fp], 900)}</div>''' if ex_ind else f'''<h4>[그림 5] 미등재 구조물 검수 표본 예시(검수 전 - 노란 선 안이 구조물인지 확인 필요)</h4>
 <div class="fig2">{chips(pend_ind + pend_att, 900)}</div><div class="src">노란 선: 판독 덩어리 · 흰 선: 필지 경계 · {d1} 영상 · 검수표 {cur_csv}</div>''') + '''
 <p class="note">독립 미등재 필지 전체 목록은 붙임 1 참조</p></section>''')
+
+    # 건물통합정보·건축물대장 대조
+    if "register_check" in parcels:
+        rcx = parcels[parcels["register_check"] != ""]
+        cnt = lambda d, c: f'{int((d["register_check"] == c).sum()):,}'
+        from ..interpretation.reference import register_area_ratio
+        ratio = register_area_ratio(parcels, t1)
+        ratio_txt = (f"대장 건축면적 대비 판독 면적은 중앙값 {ratio.median():.2f}배(비교 가능 {len(ratio):,}필지)"
+                     if len(ratio) else "면적을 비교할 수 있는 필지가 없음")
+        jm2 = u_nreg["jimok"].value_counts()
+        bl = ([["기준 건물(윤곽)", f"{bref['buildings']:,}동", f"건물통합정보 {bref['gis']:,} + 도로명주소에만 있는 건물 {bref['road_only']:,}"],
+               ["대장 연계", f"{bref['linked']:,}동", f"표제부와 건물 단위로 맞춘 것 {bref['register_matched']:,}동(필지·건축면적·연면적·사용승인일)"],
+               ["대장 미연계", f"{bref['unlinked']:,}동", "도면에는 있으나 대장이 없는 건물(창고·가설물 등)"],
+               ["위반건축물", f"{bref['violt']:,}동", f"필지 {n_violt:,}개"]] if bref else [])
+        P.append(f'''<section class="page">
+<h3>2-1. 건물통합정보·건축물대장 대조</h3>
+<ul class="b"><li>GIS건물통합정보는 건물 윤곽마다 건축물대장 연계 여부와 위반건축물 여부를 담고 있어, 대장 대조를 건물 단위로 함. 도로명주소 건물만 쓰던 이전 방식은 대장 없는 건물도 '등재'로 보았음</li>
+<li>도면은 있으나 <b>대장이 없는 건물 위 구조물 {len(u_nreg):,}필지</b>를 붙임 1-2(SHP·CSV)로 제공함{f". 지목은 {'·'.join(jm2.index[:3])} 순으로 많음" if len(jm2) else ""}</li>
+<li>필지 단위로도 대장(표제부·기본개요·부속지번)을 대조하여 '대장 없음·대장 면적 초과(판독 면적이 대장 건축면적의 {rc.get("register_excess_ratio", 2.0):g}배·{rc.get("register_excess_min_m2", 50):g}㎡ 초과)'를 표시함. {ratio_txt}</li></ul>
+{_tbl("<표 8-1> 기준 건물 레이어 구성", ["구분", "규모", "내용"], bl, ["c", "n", ""]) if bl else ""}
+{_tbl("<표 8-2> 필지 단위 건축물대장 대조(구조물 판독 필지)", ["구분", "필지", "대장 없음", "대장 면적 초과", "대장 있음"], [
+        ["구조물 판독 필지 전체", f"{len(rcx):,}", cnt(rcx, "대장 없음"), cnt(rcx, "대장 면적 초과"), cnt(rcx, "대장 있음")],
+        ["  (독립 미등재)", f"{len(u_ind):,}", cnt(u_ind, "대장 없음"), cnt(u_ind, "대장 면적 초과"), cnt(u_ind, "대장 있음")],
+        ["  (도면 있음·대장 없음)", f"{len(u_nreg):,}", cnt(u_nreg, "대장 없음"), cnt(u_nreg, "대장 면적 초과"), cnt(u_nreg, "대장 있음")]],
+        ["", "n", "n", "n", "n"], "주: 건물통합정보의 대장 연계 번호는 건축HUB 대장 관리번호와 체계가 달라 필지·면적·사용승인일로 맞춤. 필지 단위 대조는 지적 분할·합병 후 지번 불일치, 대장 대상이 아닌 농업용 가설물을 포함할 수 있음")}
+</section>''')
 
     # 신규·소멸
     verdicts = _qa_verdicts(out / "qa", new_a)
@@ -481,7 +522,7 @@ def _html(cfg: dict, config_path: str | None = None) -> str:
 
     # ── Ⅳ. 정확도 검증
     P.append(f'''<section class="page"><h2>Ⅳ. 정확도 검증</h2>
-<h3>1. 판독기 성능(건물 레이어 기준)</h3>
+<h3>1. 판독기 성능(기준 건물 레이어 기준)</h3>
 {_tbl("<표 10> 판독기 공간 교차검증 결과", ["지표", "값", "비고"], [
         ["조각 판별력(AUC)", f'{clf["auc"]:.3f}', f'1단계 {clf["stage1"]["auc"]:.3f} → 2단계(이웃 조각 정보) 적용' if clf.get("stage1") else ""],
         ["평균 정밀도(AP)", f'{clf["average_precision"]:.3f}', f'1단계 {clf["stage1"]["average_precision"]:.3f}' if clf.get("stage1") else ""],
@@ -490,9 +531,9 @@ def _html(cfg: dict, config_path: str | None = None) -> str:
          "1m 영상용 임계값으로 본 영상에서 작동하지 않음"]],
         ["", "n", ""])}
 <figure><img src="{_embedded_image(fig_rec, 1600)}" alt="건물 크기별 재현율"><figcaption>[그림 10] 건물 크기별 재현율(건물 면적의 50% 이상 판독된 비율)</figcaption></figure>
-<ul class="b"><li>판독기는 구조물로 판정한 곳의 신뢰도는 높으나 놓치는 건물이 많음(특히 50㎡ 미만, 건물 레이어 20㎡ 이상 {rec1['buildings']:,}동 기준)
+<ul class="b"><li>판독기는 구조물로 판정한 곳의 신뢰도는 높으나 놓치는 건물이 많음(특히 50㎡ 미만, 기준 건물 20㎡ 이상 {rec1['buildings']:,}동 기준)
 <ul class="o">{f"<li>{notes['recall_test']}</li>" if notes.get("recall_test") else ""}
-<li>따라서 필지 현황은 영상 판독 단독이 아닌 건물 레이어와 함께 판단하고, '없음'을 부존재 근거로 쓰지 않음</li></ul></li></ul>
+<li>따라서 필지 현황은 영상 판독 단독이 아닌 기준 건물 레이어와 함께 판단하고, '없음'을 부존재 근거로 쓰지 않음</li></ul></li></ul>
 </section>
 <section class="page">
 <h3>2. 표본 육안 검수</h3>''' + (f'''
@@ -524,7 +565,7 @@ Add-in의 <b>보고서 다시 만들기</b>를 실행하면 이 장과 요약의
                    f"{r.missing_in_register:,}"] for r in sv.itertuples()]
         uses = sres[(sres["EXISTS"] == "있음") & (sres["USE_TYPE"] != "")]["USE_TYPE"].value_counts()
         P.append(f'''<section class="page"><h3>3. 현장조사 결과</h3>
-<ul class="b"><li>판독 목록(붙임 1·2)을 현장조사표로 조사한 결과를 집계함. 현장 정밀도 = 실재 / (실재 + 없음)
+<ul class="b"><li>판독 목록(붙임 1·2)을 현장조사표로 조사한 결과를 집계함. 현장 정밀도 = 실재 / (실재 + 없음){" - 후보 판독에서 오탐으로 제외한 후보는 조사하지 않았으므로 판독을 거친 대상의 정밀도임" if scr and scr["not_structure"] else ""}
 <ul class="o"><li>미등재·신규는 현장에 구조물이 있으면, 소멸은 구조물이 실제로 없어졌으면 '실재'로 기록함</li>
 <li>'실재'이면서 물건조서에 없는 것을 <b>물건조서 누락 의심</b>으로 집계함</li></ul></li></ul>
 {_tbl("<표 14> 구분별 현장조사 결과", ["구분", "대상", "조사", "실재", "없음", "확인불가", "현장 정밀도(95%)", "물건조서 누락 의심"], srows_,
@@ -533,9 +574,22 @@ Add-in의 <b>보고서 다시 만들기</b>를 실행하면 이 장과 요약의
 </section>''')
 
     # ── Ⅴ. 활용 및 과제
+    if scr:
+        kinds = [[_e(k), f'{v["total"]:,}', f'{v["structure"]:,}', f'{v["uncertain"]:,}', f'{v["not_structure"]:,}',
+                  f'{v["total"] - v["structure"] - v["uncertain"] - v["not_structure"]:,}'] for k, v in scr["by_kind"].items()]
+        rs = ", ".join(f"{_e(k)} {v}" for k, v in scr["reasons"].items())
+        P.append(f'''<section class="page"><h3>4. 후보 육안 판독 결과</h3>
+<ul class="b"><li>모델 후보를 전후 영상으로 전수 판독하여 현장조사 대상을 선별함. 오탐으로 판독한 후보는 현장조사표에서 제외함</li>
+<li>오탐 원인: {rs or "-"}</li></ul>
+{_tbl("<표 16> 구분별 후보 판독 결과", ["구분", "후보", "현장조사 대상", "판단 보류", "오탐(제외)", "미판독"], kinds, ["c", "n", "n", "n", "n", "n"],
+      "자료: interpretation/screen/screen_labels.csv · 판단 보류와 미판독은 현장조사표에 포함됨")}
+</section>''')
+
     P.append(f'''<section class="page"><h2>Ⅴ. 활용 방안 및 향후 과제</h2>
 <h3>1. 활용 방안(우선순위)</h3>
 {_tbl("<표 12> 결과별 활용 방안", ["순위", "대상", "규모", "활용 방법", "신뢰 수준"], [
+        ["0", "후보 전수 육안 판독", f"{n_cand:,}건", "Add-in [후보 판독]으로 전후 영상 확인 - 오탐은 현장조사에서 제외, 확인된 대상과 판단 보류만 현장조사표로 전달",
+         f'<span class="pill p-ok">판독 {scr["done"]:,}/{scr["total"]:,}</span>' if scr else '<span class="pill p-mid">현장조사 전 필수</span>'],
         ["1", "독립 미등재 구조물", f"{len(u_ind):,}필지", "물건조서 등재 여부 대조, 미등재 시 현장조사 대상 지정",
          '<span class="pill p-ok">우선 활용</span>' if p_ind else '<span class="pill p-mid">검수 후 활용</span>'],
         ["2", "신규·소멸 의심", f"{len(new_a)}·{len(gone_ab)}건", "근거 영상 전수 확인 후 인허가·가설건축물 신고 대조", '<span class="pill p-mid">확인 후 활용</span>'],
@@ -545,7 +599,7 @@ Add-in의 <b>보고서 다시 만들기</b>를 실행하면 이 장과 요약의
 <h3>2. 한계</h3><ul class="b">
 {"" if not (late or not d2_full) else "<li>영상 시점: " + "이며, ".join(filter(None, ["두 영상 모두 잠정 기준일 이후 촬영분" + ("임" if d2_full else "") if late else "", "" if d2_full else f"{d2} 영상은 촬영 월일이 확인되지 않음"])) + "</li>"}
 <li>판독 누락: 건물 재현율 {rec1["recall"] * 100:.0f}%로 소형·어두운 지붕 구조물을 다수 놓침</li>
-<li>정답 자료: 학습 정답인 건물 레이어에 무허가·가설 구조물이 없어 판독기 평가에 한계가 있으며, {"표본 검수는 담당 부서 재판독 전 잠정치임" if reviewed else "표본 검수 전이라 정확도가 산정되지 않음"}</li>
+<li>정답 자료: 학습 정답인 기준 건물 레이어(건물통합정보)에도 무허가·가설 구조물은 일부만 있어 판독기 평가에 한계가 있고, 이미 철거된 건물 윤곽이 남아 있을 수 있으며, {"표본 검수는 담당 부서 재판독 전 잠정치임" if reviewed else "표본 검수 전이라 정확도가 산정되지 않음"}</li>
 <li>신규·소멸 판정: 지붕 도색·피복 교체·천막을 구조물 변화와 구분하지 못하며, 높이 정보(수치표면모델)가 필요함</li></ul>
 <h3>3. 향후 과제 및 협조 요청</h3>
 {_tbl("<표 13> 향후 과제", ["구분", "내용", "담당"], [r for r in [
@@ -558,14 +612,28 @@ Add-in의 <b>보고서 다시 만들기</b>를 실행하면 이 장과 요약의
 
     # ── 붙임 1
     field = sres.set_index("SID")["EXISTS"].to_dict() if len(sres) else {}
-    rows = [[r.SEQ, f'<span class="pnu">{_e(r.pnu)}</span>', _e(str(r.addr).replace("경기도 ", "")), _e(r.jimok), int(r.unregistered_n),
-             f"{r.unregistered_m2:,.0f}", f"{r.registered_m2:,.0f}"] + ([_e(field.get(f"U{r.SEQ:03d}", ""))] if field else [])
-            for r in appendix1(parcels).itertuples()]
-    P.append(f'''<section class="page"><h2>붙임 1. 독립 미등재 구조물 필지 목록</h2>
-{_tbl(f"<표 붙1> 독립 미등재 구조물 필지({len(u_ind):,}필지, 법정동·지번순)", ["연번", "PNU", "소재지", "지목", "덩어리", "미등재(㎡)", "등재(㎡)"] + (["현장"] if field else []), rows,
-      ["c", "pnu", "", "c", "n", "n", "n"] + (["c"] if field else []),"주: 미등재 = 건물 레이어 1m 밖 판독 구조물 덩어리 면적 합, 등재 = 필지 내 건물 레이어 면적. "
-      + (f"표본상 약 {round(p_ind['precision'] * 10)}할이 실제 미등재 구조물이며 필지별 영상 확인 필요" if p_ind else "표본 검수 전 - 필지별 영상 확인 필요")
+    has_reg = "register_check" in parcels
+
+    def _rows(lst, code):
+        return [[r.SEQ, f'<span class="pnu">{_e(r.pnu)}</span>', _e(str(r.addr).replace("경기도 ", "")), _e(r.jimok), int(r.unregistered_n),
+                 f"{r.unregistered_m2:,.0f}", f"{getattr(r, 'mapped_m2', r.registered_m2):,.0f}", f"{r.registered_m2:,.0f}"]
+                + ([_e(getattr(r, "register_check", "")).replace("대장 ", "")] if has_reg else [])
+                + ([_e(field.get(f"{code}{r.SEQ:03d}", ""))] if field else [])
+                for r in lst.itertuples()]
+
+    head = ["연번", "PNU", "소재지", "지목", "덩어리", "미등재(㎡)", "도면(㎡)", "대장 건물(㎡)"] + (["대장"] if has_reg else []) + (["현장"] if field else [])
+    align = ["c", "pnu", "", "c", "n", "n", "n", "n"] + (["c"] if has_reg else []) + (["c"] if field else [])
+    note = ("주: 미등재 = 대장 연계 건물 1m 밖 판독 구조물 덩어리 면적 합, 도면 = 필지 내 건물 윤곽 전체 면적(건물통합정보·도로명주소), "
+            "대장 건물 = 그중 대장 연계 건물 면적. " + ("대장 = 필지 단위 건축물대장 대조(없음 / 면적 초과 / 있음). " if has_reg else ""))
+    P.append(f'''<section class="page"><h2>붙임 1. 미등재(도면·대장 없음) 구조물 필지 목록</h2>
+{_tbl(f"<표 붙1> 건물 윤곽도 대장도 없는 구조물이 있는 필지({len(u_ind):,}필지, 법정동·지번순)", head, _rows(appendix1(parcels), "U"), align,
+      note + (f"표본상 약 {round(p_ind['precision'] * 10)}할이 실제 미등재 구조물이며 필지별 영상 확인 필요" if p_ind else "표본 검수 전 - 필지별 영상 확인 필요")
       + f". 같은 목록의 필지 폴리곤 SHP(연번 SEQ 동일): reports/{SHP_NAME}.zip")}
+</section>''')
+    if len(u_nreg):
+        P.append(f'''<section class="page"><h2>붙임 1-2. 미등재(도면 있음·대장 없음) 구조물 필지 목록</h2>
+{_tbl(f"<표 붙1-2> 건물 윤곽은 있으나 대장이 없는 건물 위 구조물만 있는 필지({len(u_nreg):,}필지, 법정동·지번순)", head, _rows(appendix1b(parcels), "R"), align,
+      note + f"같은 목록의 필지 폴리곤 SHP(연번 SEQ 동일): reports/{NAME_NOREG}.zip")}
 </section>''')
 
     # ── 붙임 2
@@ -633,6 +701,11 @@ def generate(cfg: dict, config_path: str | None = None, suffix: str = "") -> Pat
     dates = {e["id"]: e["date"] for e in cfg["imagery"]["epochs"]}
     write_appendix1_shp(parcels, f"status_{t1}", reports / f"{SHP_NAME}{suffix}", name=f"{SHP_NAME}{suffix}",
                         note=f"{cfg['project']['official_name']} · 판독 영상 {dates[t1]}·{dates[t2]} · 보고서 {out.name}")
+    rm = appendix1b(parcels)
+    if len(rm):
+        write_appendix1_shp(parcels, f"status_{t1}", reports / f"{NAME_NOREG}{suffix}", name=f"{NAME_NOREG}{suffix}", rows=rm,
+                            title="붙임 1-2. 미등재 - 건물 윤곽은 있으나 건축물대장이 없는 건물 위 구조물 필지",
+                            note=f"{cfg['project']['official_name']} · 건물통합정보 대장 연계 여부 기준 · 보고서 {out.name}")
     return out
 
 

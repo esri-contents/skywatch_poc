@@ -26,6 +26,7 @@ namespace GwangmyeongInterpretation
         public string objects { get; set; }
         public string csv { get; set; }
         public string qa { get; set; }
+        public string screen { get; set; }
         public string appendix1 { get; set; }
         public string survey_dir { get; set; }
         public string survey_gdb { get; set; }
@@ -197,12 +198,15 @@ namespace GwangmyeongInterpretation
 
     internal class ReviewButton : Button
     {
-        protected override void OnClick() => Shell.Guard("표본 검수 창 열기", ReviewPaneViewModel.Show);
+        protected override void OnClick() => Shell.Guard("표본 검수 창 열기", () => ReviewPaneViewModel.Show(false));
     }
 
     internal class SurveyExportButton : Button
     {
-        protected override async void OnClick()
+        protected override void OnClick() => Start();
+
+        /// <summary>현장조사 내보내기. 후보 판독 창의 [현장조사 내보내기]도 이것을 부른다.</summary>
+        internal static async void Start()
         {
             var r = Shell.LastOrWarn();
             if (r == null) return;
@@ -224,6 +228,26 @@ namespace GwangmyeongInterpretation
                                     "\n\n메시지에 license·라이선스가 있으면 ArcGIS Pro 라이선스(Basic 이상)·로그인 상태를 확인하세요.",
                                     "현장조사 내보내기");
                 Shell.Open(res.survey_dir);
+            });
+        }
+    }
+
+    /// <summary>후보 판독: 판독표·근거 영상을 만들고(이전 판독은 이어받음) 검수 창을 후보 판독 모드로 연다.</summary>
+    internal class ScreenButton : Button
+    {
+        protected override void OnClick() => Shell.Guard("후보 판독", Start);
+
+        private static void Start()
+        {
+            var r = Shell.LastOrWarn();
+            if (r == null) return;
+            var w = new RunWindow { Owner = FrameworkApplication.Current.MainWindow };
+            w.Show();
+            // 완료되면 RunWindow가 결과(screen 경로 포함)를 Settings.Last에 저장한 뒤 이 콜백을 부른다
+            w.StartTask("후보 판독표 준비", $"--out {Runner.Quote(r.@out)} --screen-export", r.@out, _ =>
+            {
+                ReviewPaneViewModel.Show(true);
+                return Task.CompletedTask;
             });
         }
     }

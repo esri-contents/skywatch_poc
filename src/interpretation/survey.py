@@ -1,7 +1,8 @@
 """현장조사 연계 - 판독 결과를 조사표(엑셀)·Field Maps용 파일 지오데이터베이스로 내보내고, 조사 결과를 다시 읽는다.
 
 조사 대상과 번호는 보고서와 같다.
-  U001…  붙임 1 독립 미등재 구조물 필지(연번 = 붙임 1 연번, 범위 = 필지 폴리곤)
+  U001…  붙임 1 미등재(도면·대장 없음) 구조물 필지(연번 = 붙임 1 연번, 범위 = 필지 폴리곤)
+  R001…  붙임 1-2 미등재(도면 있음·대장 없음) 구조물 필지(연번 = 붙임 1-2 연번)
   A01…   붙임 2 신규 의심(A) 객체(면적순)
   G01…   붙임 2 소멸 의심(A·B) 객체(면적순)
 내보내기: <out>/interpretation/survey/
@@ -21,7 +22,8 @@ import geopandas as gpd
 import pandas as pd
 from shapely.geometry import MultiPolygon
 
-from .deliver import appendix1
+from . import screen
+from .deliver import appendix1, appendix1b
 from .evidence import chip_pair
 
 RESULT_FIELDS = {  # gdb 필드 → (엑셀 열, 허용 값)
@@ -33,7 +35,9 @@ RESULT_FIELDS = {  # gdb 필드 → (엑셀 열, 허용 값)
     "PHOTO": ("사진 파일", None),
     "NOTE": ("비고", None),
 }
-KINDS = {"U": "미등재(독립)", "A": "신규 의심", "G": "소멸 의심"}
+# U의 이름은 v1.x 조사표와 맞추려고 그대로 둔다(v2.0부터 뜻은 '도면·대장 모두 없음')
+KINDS = {"U": "미등재(독립)", "R": "미등재(대장 없음)", "A": "신규 의심", "G": "소멸 의심"}
+UNREG_TIERS = {"U": ["U"], "R": ["R"]}  # 근거 영상에 그릴 미등재 덩어리 등급
 # gdb 필드 이름이 내부 이름과 다른 것. EXISTS는 파일 지오데이터베이스 예약어라 GDAL이 EXISTS_로 바꿔 쓰고(실측),
 # 그러면 Pro의 도메인 지정·Field Maps 결과 가져오기가 그 필드를 못 찾는다 - gdb에서는 EXIST_YN을 쓴다.
 GDB_NAMES = {"EXISTS": "EXIST_YN"}
@@ -53,9 +57,9 @@ def targets(cfg: dict) -> gpd.GeoDataFrame:
     parcels = gpd.read_file(io / "vectors" / "parcel_interpretation.gpkg")
     objs = gpd.read_file(io / "vectors" / "structure_change_objects.gpkg")
     info = parcels.drop(columns="geometry").drop_duplicates("pnu").set_index("pnu")
-    u = appendix1(parcels)
-    rows = [{"SID": f"U{r.SEQ:03d}", "KIND": KINDS["U"], "PNU": r.pnu, "AREA_M2": round(float(r.unregistered_m2), 1),
-             "geometry": r.geometry} for r in u.itertuples()]
+    rows = [{"SID": f"{code}{r.SEQ:03d}", "KIND": KINDS[code], "PNU": r.pnu, "AREA_M2": round(float(r.unregistered_m2), 1),
+             "geometry": r.geometry} for code, lst in (("U", appendix1(parcels)), ("R", appendix1b(parcels)))
+            for r in lst.itertuples()]
     for code, kind, tiers in (("A", "new", ["A"]), ("G", "gone", ["A", "B"])):
         o = objs[(objs["kind"] == kind) & objs["tier"].isin(tiers)].sort_values("area_m2", ascending=False)
         rows += [{"SID": f"{code}{i + 1:02d}", "KIND": KINDS[code], "PNU": r.pnu, "AREA_M2": round(float(r.area_m2), 1),
@@ -63,6 +67,7 @@ def targets(cfg: dict) -> gpd.GeoDataFrame:
     t = gpd.GeoDataFrame(rows, geometry="geometry", crs=parcels.crs)
     t["ADDR"] = t["PNU"].map(info["addr"]).fillna("")
     t["JIMOK"] = t["PNU"].map(info["jimok"]).fillna("")
+    t["VIOLT_N"] = t["PNU"].map(info["violt_n"]).fillna(0).astype(int) if "violt_n" in info else 0
     p = t.geometry.representative_point()
     ll = gpd.GeoSeries(p, crs=t.crs).to_crs(4326)
     t["X"], t["Y"], t["LON"], t["LAT"] = p.x.round(2), p.y.round(2), ll.x.round(6), ll.y.round(6)
@@ -101,14 +106,21 @@ def export(cfg: dict, log=print) -> Path:
     (sdir / "images").mkdir(parents=True, exist_ok=True)
     backup_previous(sdir, log)
     t = targets(cfg)
+    drop = screen.excluded(cfg)
+    if drop:  # 후보 판독에서 오탐으로 고른 대상은 현장조사로 보내지 않는다(번호는 그대로 - 보고서·판독표와 맞춤)
+        hit = [(s, p) in drop for s, p in zip(t["SID"], t["PNU"].astype(str))]
+        t = t[[not h for h in hit]].reset_index(drop=True)
+        log(f"   후보 판독에서 오탐으로 판정한 {sum(hit)}건 제외")
     images, dates, t1, _ = _dates(cfg)
     objs = gpd.read_file(io / "vectors" / "structure_change_objects.gpkg")
-    unreg = objs[(objs["kind"] == "unregistered") & (objs["tier"] == "U")]
-    log(f"   조사 대상 {len(t)}건(미등재 {int((t['KIND'] == KINDS['U']).sum())}, 신규 {int((t['KIND'] == KINDS['A']).sum())}, 소멸 {int((t['KIND'] == KINDS['G']).sum())}) - 근거 영상 작성")
+    unreg = objs[objs["kind"] == "unregistered"]
+    log(f"   조사 대상 {len(t)}건(미등재 도면·대장 없음 {int((t['KIND'] == KINDS['U']).sum())}, 대장 없음 {int((t['KIND'] == KINDS['R']).sum())}, "
+        f"신규 {int((t['KIND'] == KINDS['A']).sum())}, 소멸 {int((t['KIND'] == KINDS['G']).sum())}) - 근거 영상 작성")
     for i, r in enumerate(t.itertuples()):
         out = sdir / "images" / r.IMG
-        if r.SID.startswith("U"):
-            inside = unreg[unreg.intersects(r.geometry)].geometry.tolist()
+        if r.SID[0] in UNREG_TIERS:
+            mine = unreg[unreg["tier"].isin(UNREG_TIERS[r.SID[0]])]
+            inside = mine[mine.intersects(r.geometry)].geometry.tolist()
             chip_pair({t1: images[t1]}, dates, r.geometry, inside, out, half_m=25, title=f"{r.SID} {r.JIMOK} {r.ADDR}", parcel=r.geometry)
         else:
             chip_pair(images, dates, r.geometry, [r.geometry], out, title=f"{r.SID} {r.KIND} {r.AREA_M2:.0f}m2")
@@ -131,7 +143,9 @@ def export(cfg: dict, log=print) -> Path:
     thumbs = sdir / "images" / "_thumb"
     thumbs.mkdir(exist_ok=True)
     for k, r in enumerate(t.itertuples(), start=2):
-        ws.append([r.SID, r.KIND, r.PNU, r.ADDR.replace("경기도 ", ""), r.JIMOK, r.AREA_M2, r.LAT, r.LON, ""] + [""] * len(RESULT_FIELDS))
+        # 위반건축물(건물통합정보)이 있는 필지는 소재지 칸에 표시한다(구분 열은 결과 가져오기에서 쓰므로 그대로 둔다)
+        addr = r.ADDR.replace("경기도 ", "") + (f" [위반건축물 {r.VIOLT_N}동]" if r.VIOLT_N else "")
+        ws.append([r.SID, r.KIND, r.PNU, addr, r.JIMOK, r.AREA_M2, r.LAT, r.LON, ""] + [""] * len(RESULT_FIELDS))
         im = Image.open(sdir / "images" / r.IMG)
         im.thumbnail((310, 160))
         tp = thumbs / r.IMG

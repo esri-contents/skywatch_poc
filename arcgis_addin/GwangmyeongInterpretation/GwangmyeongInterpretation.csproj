@@ -1,11 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- ArcGIS Pro 3.5 이상(3.5·3.6·3.7…) 공용 Add-in. Visual Studio 없이 `dotnet build -c Release`로 .esriAddinX를 만든다.
-       Pro 3.5 SDK 참조 어셈블리(NuGet Esri.ArcGISPro.Extensions30 3.5, .NET 8)로 빌드하고 Config.daml의 desktopVersion을 3.5.0으로 둔다.
+  <!-- ArcGIS Pro 3.6 기준 Add-in(v2.0). Visual Studio 없이 `dotnet build -c Release`로 .esriAddinX를 만든다.
+       Pro 3.6 SDK 참조 어셈블리(NuGet Esri.ArcGISPro.Extensions30 3.6, .NET 8)로 빌드하고 Config.daml의 desktopVersion을 3.6.0으로 둔다.
+       Pro 3.5에서는 로드되지 않는다(v1.3까지는 3.5 기준).
        Esri: Add-in은 3.x 안에서 상위 버전으로 호환(forward compatible)되고, 3.0~3.6용 Add-in은 3.7(.NET 10)에서 다시 빌드 없이 동작한다
        (ProConcepts-Advanced-Topics "Add-in Versioning", ProGuide-NET-10-Upgrade). 3.7 어셈블리로 빌드하면 3.5·3.6에서 로드되지 않는다.
        참조 어셈블리는 NuGet에서 받으므로 빌드 PC의 Pro 버전과 무관하다. .NET 8 참조 팩은 .NET 10 SDK가 자동으로 받는다.
-       .esriAddinX 패키징만 빌드 PC에 설치된 Pro의 Esri.ProApp.SDK.Desktop.targets를 쓴다 - NuGet 3.5 패키지의 패키징 targets는
-       CodeTaskFactory를 써서 `dotnet build`(.NET MSBuild)에서 실패하고 Visual Studio MSBuild에서만 된다(2026-11-06 실측). -->
+       NuGet 3.5 패키지의 패키징 targets는 CodeTaskFactory를 써서 `dotnet build`(.NET MSBuild)에서 실패하므로(2026-11-06 실측)
+       참조 어셈블리만 쓰고, 패키징은 아래 PackageEsriAddin이 한다. -->
   <PropertyGroup>
     <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
@@ -22,8 +23,8 @@
     <Content Include="Config.daml" />
   </ItemGroup>
   <ItemGroup>
-    <!-- 3.5 이상 공용: 이 버전을 올리면 그 버전 미만의 Pro에서 로드되지 않는다 -->
-    <PackageReference Include="Esri.ArcGISPro.Extensions30" Version="3.5.0.57366" ExcludeAssets="build;buildTransitive" />
+    <!-- Pro 3.6 기준: 이 버전을 올리면 그 버전 미만의 Pro에서 로드되지 않는다 -->
+    <PackageReference Include="Esri.ArcGISPro.Extensions30" Version="3.6.0.59527" ExcludeAssets="build;buildTransitive" />
   </ItemGroup>
   <ItemGroup>
     <!-- 이 Add-in을 빌드한 저장소 폴더. 판독 코드 폴더 기본값으로 먼저 쓴다(같은 PC에 저장소 사본이 여럿이어도 빌드한 코드를 실행) -->
@@ -32,12 +33,23 @@
       <_Parameter2>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\..\..'))</_Parameter2>
     </AssemblyAttribute>
   </ItemGroup>
-  <PropertyGroup>
-    <ProInstallDir>$([MSBuild]::GetRegistryValueFromView('HKEY_LOCAL_MACHINE\SOFTWARE\ESRI\ArcGISPro', 'InstallDir', null, RegistryView.Registry64))</ProInstallDir>
-    <ProInstallDir Condition="'$(ProInstallDir)' == ''">C:\Program Files\ArcGIS\Pro\</ProInstallDir>
-  </PropertyGroup>
-  <Import Project="$(ProInstallDir)bin\Esri.ProApp.SDK.Desktop.targets" Condition="Exists('$(ProInstallDir)bin\Esri.ProApp.SDK.Desktop.targets')" />
-  <Target Name="WarnNoProPackaging" AfterTargets="Build" Condition="!Exists('$(ProInstallDir)bin\Esri.ProApp.SDK.Desktop.targets')">
-    <Warning Text="ArcGIS Pro가 설치되어 있지 않아 .esriAddinX를 만들지 않았습니다(DLL만 빌드됨). Pro 3.x가 설치된 PC에서 빌드하세요." />
+  <!-- .esriAddinX 패키징: Config.daml + Install\(dll·pdb·deps.json)을 묶은 zip이다. 빌드 PC에 설치된 Pro(3.7)의
+       Esri.ProApp.SDK.Desktop.targets에 기대지 않고 여기서 직접 만든다 - 빌드 체인 전체가 Pro 3.5 SDK 참조만 쓰고,
+       Pro가 없는 PC에서도 같은 패키지가 나온다. 3.7 targets로 만든 v1.2 패키지와 내용(파일 목록·Config.daml)이 같다. -->
+  <Target Name="PackageEsriAddin" AfterTargets="Build">
+    <!-- OutDir·IntermediateOutputPath는 SDK targets가 프로젝트 본문 뒤에 정하므로 대상 안에서 읽는다
+         (본문 PropertyGroup에 두면 빈 값이 되어 패키지가 프로젝트 폴더에 생기고 bin\Release의 옛 패키지가 남는다) -->
+    <PropertyGroup>
+      <AddinStage>$(ProjectDir)$(IntermediateOutputPath)addin_stage\</AddinStage>
+      <AddinFile>$(ProjectDir)$(OutDir)$(AssemblyName).esriAddinX</AddinFile>
+    </PropertyGroup>
+    <Error Condition="'$(OutDir)' == ''" Text="OutDir가 비어 있어 Add-in을 패키징할 수 없습니다" />
+    <RemoveDir Directories="$(AddinStage)" />
+    <Copy SourceFiles="Config.daml" DestinationFolder="$(AddinStage)" />
+    <Copy SourceFiles="$(OutDir)$(AssemblyName).dll;$(OutDir)$(AssemblyName).pdb;$(OutDir)$(AssemblyName).deps.json"
+          DestinationFolder="$(AddinStage)Install" />
+    <Delete Files="$(AddinFile)" />
+    <ZipDirectory SourceDirectory="$(AddinStage)" DestinationFile="$(AddinFile)" Overwrite="true" />
+    <Message Importance="high" Text="Add-in 패키지: $(AddinFile)" />
   </Target>
 </Project>

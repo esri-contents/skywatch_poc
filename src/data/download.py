@@ -28,6 +28,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
 from pathlib import Path
 from typing import Any
 
@@ -155,6 +156,61 @@ def download_vworld_wfs_layer(
     return out_path
 
 
+# GIS건물통합정보(국토부 AL_D010) - VWorld 국가중점데이터(NED) WFS. 건물 윤곽마다 PNU, 건축물대장 연계 번호
+# (buld_idntfc_no = 대장 관리번호), 위반건축물 여부(violt_bild), 용도·구조·사용승인일이 붙는다.
+# 2026-11-10 확인: EPSG:5186 좌표 bbox에 ",EPSG:5186" 접미사를 붙여야 결과가 나오고(4326은 0건),
+# 요청당 maxFeatures 상한 1000·startIndex 미지원으로 보여 넘치면 bbox를 4분할한다.
+VWORLD_NED_BUILDING_URL = f"{VWORLD_BASE_URL}/ned/wfs/getBldgisSpceWFS"
+VWORLD_NED_BUILDING_TYPENAME = "dt_d010"
+
+
+def download_vworld_gis_buildings(bbox_5186: tuple[float, float, float, float], out_path: str | Path,
+                                  page_size: int = 1000, min_size_m: float = 50.0) -> Path:
+    """GIS건물통합정보를 EPSG:5186 bbox 범위로 전량 받아 GeoJSON으로 저장한다(gis_idntfc_no로 중복 제거)."""
+    key = _require_key(VWORLD_API_KEY, "VWORLD_API_KEY")
+
+    def _get(b):
+        params = {"typename": VWORLD_NED_BUILDING_TYPENAME, "bbox": ",".join(f"{v:.2f}" for v in b) + ",EPSG:5186",
+                  "srsName": "EPSG:5186", "maxFeatures": page_size, "resultType": "results",
+                  "output": "application/json", "key": key, "domain": "localhost"}
+        for attempt in range(6):
+            try:
+                r = requests.get(VWORLD_NED_BUILDING_URL, params=params, timeout=60)
+                r.raise_for_status()
+                return r.json()
+            except Exception:
+                if attempt == 5:
+                    raise
+                time.sleep(2 * (attempt + 1))
+
+    def _fetch(b) -> list[dict[str, Any]]:
+        page = _get(b)
+        feats = page.get("features", [])
+        total = page.get("totalFeatures") or page.get("numberMatched") or len(feats)
+        if total > len(feats) and (b[2] - b[0]) > min_size_m:
+            minx, miny, maxx, maxy = b
+            mx, my = (minx + maxx) / 2, (miny + maxy) / 2
+            out: list[dict[str, Any]] = []
+            for q in ((minx, miny, mx, my), (mx, miny, maxx, my), (minx, my, mx, maxy), (mx, my, maxx, maxy)):
+                out.extend(_fetch(q))
+            return out
+        if total > len(feats):
+            logger.warning("[DATA] 건물통합정보 bbox=%s %d건 중 %d건만 받음(더 나눌 수 없음)", b, total, len(feats))
+        return feats
+
+    seen: dict[str, dict[str, Any]] = {}
+    for f in _fetch(bbox_5186):
+        k = str((f.get("properties") or {}).get("gis_idntfc_no") or f.get("id"))
+        seen.setdefault(k, f)
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fc = {"type": "FeatureCollection", "features": list(seen.values()),
+          "crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:EPSG::5186"}}}
+    out_path.write_text(json.dumps(fc, ensure_ascii=False), encoding="utf-8")
+    logger.info("[DATA] 건물통합정보 저장: %s (%d동)", out_path, len(seen))
+    return out_path
+
+
 BLD_RGST_HUB_BASE_URL = "https://apis.data.go.kr/1613000/BldRgstHubService"
 # raw HTML에서 확인된 정확한 엔드포인트. 활용신청 승인 전까지는
 # SERVICE_KEY_IS_NOT_REGISTERED_ERROR(reasonCode 30)가 반환된다.
@@ -193,7 +249,20 @@ def fetch_building_title_info(
     bjdong_cd: str,
     page_size: int = 500,
 ) -> list[dict[str, Any]]:
-    """getBrTitleInfo(표제부 - 연면적/사용승인일/주용도 등)를 법정동 전체 페이징 조회.
+    """getBrTitleInfo(표제부 - 연면적/사용승인일/주용도 등)를 법정동 전체 페이징 조회."""
+    return fetch_building_register(sigungu_cd, bjdong_cd, "getBrTitleInfo", page_size)
+
+
+def fetch_building_register(
+    sigungu_cd: str,
+    bjdong_cd: str,
+    operation: str = "getBrTitleInfo",
+    page_size: int = 500,
+) -> list[dict[str, Any]]:
+    """건축HUB 건축물대장 정보 서비스(operation)를 법정동 전체 페이징 조회.
+
+    operation 예: getBrTitleInfo(표제부), getBrBasisOulnInfo(기본개요 - 모든 대장 종류),
+    getBrAtchJibunInfo(부속지번 - 대장의 대표지번 밖에 걸친 필지).
 
     각 결과 item에 sigunguCd+bjdongCd+platGbCd+bun+ji로 PNU(19자리)를
     재구성해 붙여, VWorld 건물 layer의 'pnu' 컬럼과 바로 join할 수 있게 한다.
@@ -207,7 +276,7 @@ def fetch_building_title_info(
         item(dict) 리스트. 각 item에 "pnu" 키가 추가되어 있다.
     """
     key = _require_key(DATA_GO_KR_API_KEY, "DATA_GO_KR_API_KEY")
-    url = f"{BLD_RGST_HUB_BASE_URL}/getBrTitleInfo"
+    url = f"{BLD_RGST_HUB_BASE_URL}/{operation}"
     all_items: list[dict[str, Any]] = []
     page_no = 1
     while True:
@@ -216,9 +285,17 @@ def fetch_building_title_info(
             "numOfRows": page_size, "pageNo": page_no,
             "ServiceKey": key, "_type": "json",
         }
-        resp = requests.get(url, params=params, timeout=30)
-        resp.raise_for_status()
-        body = resp.json()["response"]["body"]
+        # 건축HUB는 503·빈 응답을 가끔 돌려준다 - 법정동을 처음부터 다시 받지 않도록 페이지 단위로 재시도
+        for attempt in range(6):
+            try:
+                resp = requests.get(url, params=params, timeout=45)
+                resp.raise_for_status()
+                body = resp.json()["response"]["body"]
+                break
+            except Exception:
+                if attempt == 5:
+                    raise
+                time.sleep(2 * (attempt + 1))
         total = int(body.get("totalCount", 0))
         items = body.get("items") or {}
         page_items = items.get("item", []) if isinstance(items, dict) else []
@@ -236,8 +313,8 @@ def fetch_building_title_info(
         all_items.extend(page_items)
 
         logger.info(
-            "[DATA] 건축물대장 표제부: bjdong=%s page=%d 누적=%d/%d",
-            bjdong_cd, page_no, len(all_items), total,
+            "[DATA] 건축물대장 %s: bjdong=%s page=%d 누적=%d/%d",
+            operation, bjdong_cd, page_no, len(all_items), total,
         )
         if len(all_items) >= total or not page_items:
             break

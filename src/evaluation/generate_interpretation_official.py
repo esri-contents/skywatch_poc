@@ -261,7 +261,7 @@ def _html(cfg: dict, config_path: str | None = None) -> str:
 <li>{d1[:4]}→{d2} <b>신규 의심 {len(new_a)}건, 소멸 의심 {len(gone_ab)}건</b>은 {f"표본 정밀도가 각각 {_fr(a3)}, {_fr(g3)}로 낮아 " if a3 is not None or g3 is not None else ""}전수 영상 확인 후 활용함</li></ul></li>
 <li>유의사항
 <ul class="o"><li><b>모델 판독 결과는 확정이 아닌 '후보'임.</b> 변화 후보 무작위 표본 검수에서 실제 건물·구조 변화는 약 50~55%였고, 그림자 위치 변화·경사지붕 밝기 차이·나지→포장·차량·적치물·비닐하우스·컨테이너 색 변화 등 실제 변화와 영상 특성이 비슷한 오탐은 임계값 조정만으로 구분되지 않음.
-현장조사 전에 후보 {n_cand:,}건(붙임 1·2)을 전후 영상으로 전수 육안 판독(필지당 수 초, 1인 반나절 내외)하고 확인된 대상만 현장조사로 전달함{f" - 현재 {scr['done']:,}건 판독, 현장조사 대상 {scr['structure']:,}·판단 보류 {scr['uncertain']:,}·오탐 제외 {scr['not_structure']:,}건" if scr else ""}</li>
+현장조사 전에 후보 {n_cand:,}건(붙임 1·1-2·2)을 전후 영상으로 전수 육안 판독(건당 수 초, 1인 {"반나절" if n_cand <= 700 else "하루"} 내외)하고 확인된 대상만 현장조사로 전달함{f" - 현재 {scr['done']:,}건 판독, 현장조사 대상 {scr['structure']:,}·판단 보류 {scr['uncertain']:,}·오탐 제외 {scr['not_structure']:,}건" if scr else ""}</li>
 <li>{f"표본 검수는 {reviewer}한 판독이며, 담당 부서의 재판독 전까지 정확도 수치는 잠정값임" if reviewed
        else f"표본 검수 전이므로 정확도 수치가 없음. 검수표({cur_csv})를 채운 뒤 보고서를 다시 만들면 반영됨"}</li>
 {f'<li>잠정 기준일({base["baseline_date"]}, 주민공람일)보다 영상이 {gap}개월 늦어 <b>기준일 당시 현황을 나타내지 않음</b></li>' if late else ""}
@@ -590,11 +590,13 @@ Add-in의 <b>보고서 다시 만들기</b>를 실행하면 이 장과 요약의
 {_tbl("<표 12> 결과별 활용 방안", ["순위", "대상", "규모", "활용 방법", "신뢰 수준"], [
         ["0", "후보 전수 육안 판독", f"{n_cand:,}건", "Add-in [후보 판독]으로 전후 영상 확인 - 오탐은 현장조사에서 제외, 확인된 대상과 판단 보류만 현장조사표로 전달",
          f'<span class="pill p-ok">판독 {scr["done"]:,}/{scr["total"]:,}</span>' if scr else '<span class="pill p-mid">현장조사 전 필수</span>'],
-        ["1", "독립 미등재 구조물", f"{len(u_ind):,}필지", "물건조서 등재 여부 대조, 미등재 시 현장조사 대상 지정",
+        ["1", "독립 미등재 구조물(붙임 1)", f"{len(u_ind):,}필지", "물건조서 등재 여부 대조, 미등재 시 현장조사 대상 지정",
          '<span class="pill p-ok">우선 활용</span>' if p_ind else '<span class="pill p-mid">검수 후 활용</span>'],
-        ["2", "신규·소멸 의심", f"{len(new_a)}·{len(gone_ab)}건", "근거 영상 전수 확인 후 인허가·가설건축물 신고 대조", '<span class="pill p-mid">확인 후 활용</span>'],
-        ["3", "부속 의심", f"{len(u_att):,}필지", "등재 건물 증축·부속 건물 여부만 선별 확인", '<span class="pill p-mid">선별 활용</span>'],
-        ["4", "도로·하천류 저신뢰", f"{len(u_low)}필지", "타 목록 확인 후 잔여 검토", '<span class="pill p-low">참고</span>']],
+        ["2", "도면 있음·대장 없음(붙임 1-2)", f"{len(u_nreg):,}필지", "영상에 건물이 실제로 있는지 확인 후 물건조서·건축물대장 대조(위반건축물 필지 우선)",
+         '<span class="pill p-ok">우선 활용</span>' if p_noreg else '<span class="pill p-mid">검수 후 활용</span>'],
+        ["3", "신규·소멸 의심", f"{len(new_a)}·{len(gone_ab)}건", "근거 영상 전수 확인 후 인허가·가설건축물 신고 대조", '<span class="pill p-mid">확인 후 활용</span>'],
+        ["4", "부속 의심", f"{len(u_att):,}필지", "등재 건물 증축·부속 건물 여부만 선별 확인", '<span class="pill p-mid">선별 활용</span>'],
+        ["5", "도로·하천류 저신뢰", f"{len(u_low)}필지", "타 목록 확인 후 잔여 검토", '<span class="pill p-low">참고</span>']],
         ["c", "", "n", "", "c"])}
 <h3>2. 한계</h3><ul class="b">
 {"" if not (late or not d2_full) else "<li>영상 시점: " + "이며, ".join(filter(None, ["두 영상 모두 잠정 기준일 이후 촬영분" + ("임" if d2_full else "") if late else "", "" if d2_full else f"{d2} 영상은 촬영 월일이 확인되지 않음"])) + "</li>"}

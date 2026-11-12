@@ -59,6 +59,8 @@ function build(c) {
   for (const [kind, a, b, d] of c.blocks) {
     if (kind === "h1") children.push(new Paragraph({ heading: HeadingLevel.HEADING_1, pageBreakBefore: a !== c.blocks[0][1], children: anchored(a) }));
     else if (kind === "h2") children.push(new Paragraph({ heading: HeadingLevel.HEADING_2, children: anchored(a) }));
+    // h3: 목차에 넣지 않는 소제목(굵게, 다음 블록과 붙여 둔다)
+    else if (kind === "h3") children.push(new Paragraph({ keepNext: true, spacing: { before: 160, after: 60 }, children: runs(a, { bold: true, size: 21, color: NAVY }) }));
     else if (kind === "p") children.push(new Paragraph({ spacing: { after: 120 }, children: runs(a) }));
     else if (kind === "ul") a.forEach((t) => children.push(new Paragraph({ numbering: { reference: "bul", level: 0 }, spacing: { after: 60 }, children: runs(t) })));
     else if (kind === "ol") {

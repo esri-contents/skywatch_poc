@@ -1,6 +1,6 @@
 """사용설명서 그림 준비: 결과 그림 축소 JPG, 표본·조사 예시, 리본 모의도(Pro 내장 아이콘). 크기는 dims.json.
 
-  python prep_images.py <Add-in 실행 폴더(현장조사 내보내기를 한 것)>
+  python prep_images.py <Add-in 실행 폴더(후보 판독·현장조사 내보내기를 한 것)> [대장 없음 예시 번호, 기본 R001]
   python prep_images.py            (리본 모의도만 다시 그림)
 img/·dims.json은 저장소에 들어 있으므로 그림을 바꿀 때만 다시 돌린다. 아이콘(icons/*.png)은
 ArcGIS.Desktop.Resources.dll에서 꺼낸 Pro 내장 이미지다(Imagery32, HtmlFile16 등).
@@ -29,11 +29,16 @@ def save(src: Path, name: str, width: int = 1600):
 
 
 if S is not None:
-    save(R / "reports" / "figures" / "method_panels.png", "method")
-    save(R / "reports" / "figures" / "overview_official.png", "overview", 1300)
-    save(R / "reports" / "figures" / "distribution.png", "distribution", 1600)
-    qa4 = sorted((R / "qa" / "round4").glob("unreg_*_000.jpg"))
-    save(qa4[0], "qa_sample", 900)
+    # v2.0: 그림은 모두 지정한 Add-in 실행 폴더(보고서 다시 만들기·후보 판독·현장조사 내보내기를 한 것)에서 가져온다
+    fig = S / "reports" / "figures"
+    save(fig / "method_panels.png", "method")
+    save(fig / "overview_official.png", "overview", 1300)
+    save(fig / "distribution.png", "distribution", 1600)
+    qa = sorted((S / "qa" / "review1").glob("unreg_noreg_*.jpg")) or sorted((S / "qa" / "review1").glob("unreg_*.jpg"))
+    save(qa[0], "qa_sample", 900)
+    save(S / "screen" / "A01.jpg", "screen_new", 1200)
+    noreg = sys.argv[2] if len(sys.argv) > 2 else "R001"
+    save(S / "screen" / f"{noreg}.jpg", "screen_noreg", 1200)
     save(S / "survey" / "images" / "A01.jpg", "survey_new", 1200)
     save(S / "survey" / "images" / "U001.jpg", "survey_unreg", 900)
 

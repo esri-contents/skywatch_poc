@@ -157,11 +157,24 @@ def method_panels(cfg, parcels, objs, buildings, t1: str, out: Path, half_m: flo
     ic = cfg["interpretation"]
     o = Path(ic["out_dir"])
     path = {e["id"]: e["path"] for e in cfg["imagery"]["epochs"]}[t1]
+    from scipy.spatial import cKDTree
     u = objs[(objs["kind"] == "unregistered") & (objs["tier"] == "U")]
     c = u.geometry.centroid
     xy = np.c_[c.x, c.y]
-    dens = ((xy[:, None, :] - xy[None, :, :]) ** 2).sum(-1) ** .5
-    k = int(np.argmax((dens < half_m).sum(1) + (u["area_m2"].to_numpy() > 60) * .5))
+    r = .7 * half_m
+    score = np.array([len(v) for v in cKDTree(xy).query_ball_point(xy, r)], float) + (u["area_m2"].to_numpy() > 60) * .5
+    # v2.0: 독립(U)만 모인 곳(비닐하우스 단지 등)보다 대장 없음(R)·대장 연계 건물이 함께 보이는 곳을 고른다
+    rr = objs[(objs["kind"] == "unregistered") & (objs["tier"] == "R")]
+    if len(rr):
+        cr = rr.geometry.centroid
+        n_r = np.array([len(v) for v in cKDTree(np.c_[cr.x, cr.y]).query_ball_point(xy, r)])
+        score = np.minimum(score, 6) + np.minimum(n_r, 4) * 1.5
+        if "reg" in buildings:
+            cb = buildings[buildings["reg"] == "연계"].geometry.centroid
+            if len(cb):
+                n_b = np.array([len(v) for v in cKDTree(np.c_[cb.x, cb.y]).query_ball_point(xy, r)])
+                score += np.minimum(n_b, 4) * 1.0
+    k = int(np.argmax(score))
     cx, cy = xy[k]
     b = (cx - half_m, cy - half_m, cx + half_m, cy + half_m)
     img = _read_rgb(path, b, 0.25)
